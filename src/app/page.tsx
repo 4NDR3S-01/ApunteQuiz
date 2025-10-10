@@ -238,7 +238,7 @@ export default function Home() {
               ¿Necesitas algo más? Escríbenos y con gusto te ayudamos.
             </p>
             <Link
-              href="mailto:contacto@apuntequiz.com"
+              href="mailto:ac20102003@gmail.com"
               className="inline-flex w-max items-center justify-center rounded-lg border border-[color:var(--border-default)] px-5 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:brightness-105"
             >
               Enviar un correo
@@ -262,7 +262,7 @@ export default function Home() {
 
       <footer className="border-t border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/80 transition-colors">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-[color:var(--text-muted)] transition-colors sm:flex-row">
-          <p>© {new Date().getFullYear()} ApunteQuiz. Construido con cariño para impulsar el aprendizaje activo.</p>
+          <p>© {new Date().getFullYear()} ApunteQuiz. Construido con cariño ❤️ por <a href="https://www.instagram.com/andres.cabrera20" className="text-blue-600 hover:underline">William Cabrera</a> para impulsar el aprendizaje activo.</p>
           <div className="flex items-center gap-4">
             <Link
               href="#features"
@@ -277,7 +277,7 @@ export default function Home() {
               Generador
             </Link>
             <Link
-              href="mailto:contacto@apuntequiz.com"
+              href="mailto:ac20102003@gmail.com"
               className="transition hover:text-[color:var(--foreground)]"
             >
               Soporte
