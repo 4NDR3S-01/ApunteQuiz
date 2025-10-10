@@ -6,14 +6,16 @@ import { formatFileSize } from '@/utils';
 
 interface DocumentUploadProps {
   onDocumentProcessed: (document: DocumentInput) => void;
+  onDocumentRemoved: (documentId: string) => void;
   onError: (error: string) => void;
   className?: string;
 }
 
-export default function DocumentUpload({ onDocumentProcessed, onError, className = '' }: Readonly<DocumentUploadProps>) {
+export default function DocumentUpload({ onDocumentProcessed, onDocumentRemoved, onError, className = '' }: Readonly<DocumentUploadProps>) {
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
+  const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const instructionsId = useId();
   const statusMessageId = useId();
@@ -88,6 +90,7 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
       };
 
       setUploadedFiles(prev => [...prev, fileUpload]);
+      setProcessedDocuments(prev => [...prev, result.data.document]);
       setStatus({ status: 'success', message: 'Archivo procesado exitosamente' });
       
       // Notificar al componente padre
@@ -104,7 +107,17 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
   };
 
   const removeFile = (index: number) => {
+    const documentToRemove = processedDocuments[index];
+    
+    // Notificar al componente padre sobre la eliminación
+    if (documentToRemove) {
+      onDocumentRemoved(documentToRemove.doc_id);
+    }
+    
+    // Actualizar estados locales
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setProcessedDocuments(prev => prev.filter((_, i) => i !== index));
+    
     if (uploadedFiles.length === 1) {
       setStatus({ status: 'idle' });
     }

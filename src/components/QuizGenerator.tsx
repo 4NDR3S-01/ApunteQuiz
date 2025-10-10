@@ -67,6 +67,11 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
     setError('');
   };
 
+  const handleDocumentRemoved = (documentId: string) => {
+    setDocuments(prev => prev.filter(doc => doc.doc_id !== documentId));
+    setError('');
+  };
+
   const handleError = (errorMessage: string) => {
     setError(errorMessage);
   };
@@ -220,6 +225,7 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
             </h2>
             <DocumentUpload
               onDocumentProcessed={handleDocumentUploaded}
+              onDocumentRemoved={handleDocumentRemoved}
               onError={handleError}
             />
             
