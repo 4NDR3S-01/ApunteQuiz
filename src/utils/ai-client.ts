@@ -357,7 +357,7 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
               preguntas: autoQuestions
             },
             notes: {
-              ...response.result.notes,
+              ...(response.result.notes || {}),
               insuficiente_evidencia: true,
               detalle: 'Preguntas generadas automáticamente debido a array vacío de preguntas'
             }
@@ -506,6 +506,6 @@ export function calculateQuizQuality(response: GenerateQuizResponse) {
     distribucionTipos: tipos,
     promedioCitasPorPregunta: promedioCitas,
     promedioLongitudEnunciado: Math.round(promedioLongitud),
-    tieneEvidenciaInsuficiente: response.result.notes.insuficiente_evidencia
+    tieneEvidenciaInsuficiente: response.result.notes?.insuficiente_evidencia || false
   };
 }
