@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 
 interface APIKeyConfig {
   provider: 'openai' | 'anthropic';
@@ -29,6 +29,16 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const connectionStatusMessage = (() => {
+    if (testingConnection) return 'Probando conexión...';
+    if (connectionStatus === 'success') return 'Conexión verificada correctamente.';
+    if (connectionStatus === 'error') return `Error al verificar la conexión${errorMessage ? `: ${errorMessage}` : ''}`;
+    return 'Conexión sin probar.';
+  })();
+  const headingId = useId();
+  const statusMessageId = useId();
+  const helperTextId = useId();
+  const validityMessageId = useId();
 
   // Cargar configuración desde localStorage
   useEffect(() => {
@@ -160,7 +170,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
       case 'error':
         return 'text-red-600 dark:text-red-400';
       default:
-        return 'text-slate-600 dark:text-slate-300';
+        return 'text-[color:var(--text-muted)]';
     }
   };
 
@@ -180,7 +190,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
         );
       default: 
         return (
-          <svg className="h-4 w-4 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
           </svg>
         );
@@ -188,36 +198,49 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
   };
 
   return (
-    <div className={`space-y-6 rounded-lg border border-slate-200 bg-white p-6 transition-colors dark:border-slate-700 dark:bg-slate-900 ${className}`}>
+    <section
+      aria-labelledby={headingId}
+      className={`a11y-card space-y-6 rounded-lg p-6 transition-colors ${className}`}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h3 id={headingId} className="text-lg font-semibold text-[color:var(--foreground)]">
           Configuración de API
         </h3>
         <div className="flex items-center space-x-2">
-          <span className={`text-sm ${getConnectionStatusColor()}`}>
+          <span
+            className={`text-sm ${getConnectionStatusColor()}`}
+            id={statusMessageId}
+            role="status"
+            aria-live="polite"
+          >
             <span className="flex items-center space-x-1">
               {getConnectionStatusIcon()}
               <span>
-                {connectionStatus === 'idle' && 'No probado'}
-                {connectionStatus === 'success' && 'Conectado'}
-                {connectionStatus === 'error' && 'Error'}
+                {connectionStatus === 'idle' && !testingConnection && 'No probado'}
+                {testingConnection && 'Probando...'}
+                {connectionStatus === 'success' && !testingConnection && 'Conectado'}
+                {connectionStatus === 'error' && !testingConnection && 'Error'}
               </span>
             </span>
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <p className="text-sm text-[color:var(--text-muted)]" aria-hidden>
+        {connectionStatusMessage}
+      </p>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Proveedor */}
         <div>
-          <label htmlFor="provider" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
+          <label htmlFor="provider" className="mb-2 block text-sm font-medium text-[color:var(--foreground)]">
             Proveedor de IA
           </label>
           <select
             id="provider"
             value={config.provider}
             onChange={(e) => updateConfig({ provider: e.target.value as 'openai' | 'anthropic' })}
-            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="a11y-input w-full rounded-lg p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic (Claude)</option>
@@ -226,14 +249,14 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
         {/* Modelo */}
         <div>
-          <label htmlFor="model" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
+          <label htmlFor="model" className="mb-2 block text-sm font-medium text-[color:var(--foreground)]">
             Modelo
           </label>
           <select
             id="model"
             value={config.model}
             onChange={(e) => updateConfig({ model: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="a11y-input w-full rounded-lg p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             {DEFAULT_MODELS[config.provider].map((model) => (
               <option key={model} value={model}>
@@ -246,7 +269,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
       {/* API Key */}
       <div>
-        <label htmlFor="apiKey" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
+        <label htmlFor="apiKey" className="mb-2 block text-sm font-medium text-[color:var(--foreground)]">
           API Key
         </label>
         <div className="relative">
@@ -256,12 +279,15 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
             value={config.apiKey}
             onChange={(e) => updateConfig({ apiKey: e.target.value })}
             placeholder={`Ingresa tu ${config.provider === 'openai' ? 'OpenAI' : 'Anthropic'} API Key`}
-            className="w-full rounded-lg border border-slate-300 bg-white p-3 pr-20 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="a11y-input w-full rounded-lg p-3 pr-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-describedby={helperTextId}
           />
           <button
             type="button"
             onClick={() => setShowKey(!showKey)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 transform text-slate-500 transition hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-200"
+            className="absolute right-3 top-1/2 -translate-y-1/2 transform rounded-full p-1 text-[color:var(--text-muted)] transition hover:text-[color:var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
+            aria-pressed={showKey}
+            aria-label={showKey ? 'Ocultar API key' : 'Mostrar API key'}
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {showKey ? (
@@ -272,7 +298,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
             </svg>
           </button>
         </div>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <p id={helperTextId} className="mt-1 text-xs text-[color:var(--text-muted)]">
           {config.provider === 'openai' 
             ? 'Obtén tu API key en https://platform.openai.com/api-keys'
             : 'Obtén tu API key en https://console.anthropic.com/'
@@ -282,7 +308,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
       {/* Estado de conexión */}
       {errorMessage && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-400/40 dark:bg-red-500/10">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-400/40 dark:bg-red-500/10" role="alert" aria-live="assertive">
           <div className="text-sm text-red-700 dark:text-red-200">
             <strong>Error de conexión:</strong> {errorMessage}
           </div>
@@ -290,10 +316,10 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
       )}
 
       {/* Acciones */}
-      <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-[color:var(--border-default)] pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={clearConfig}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="a11y-control rounded-lg px-4 py-2 text-[color:var(--text-muted)] transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
         >
           Limpiar
         </button>
@@ -302,11 +328,12 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
           <button
             onClick={testConnection}
             disabled={!isValid || testingConnection}
-            className={`px-4 py-2 rounded-lg font-medium ${
+            className={`px-4 py-2 rounded-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
               isValid && !testingConnection
                 ? 'bg-blue-600 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
-                : 'cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                : 'cursor-not-allowed bg-[color:var(--surface-muted)] text-[color:var(--text-muted)] opacity-70'
             }`}
+            aria-describedby={statusMessageId}
           >
             {testingConnection ? 'Probando...' : 'Probar Conexión'}
           </button>
@@ -314,7 +341,12 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
       </div>
 
       {/* Indicador de estado */}
-      <div className={`flex items-center space-x-2 text-sm ${isValid ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-300'}`}>
+      <div
+        className={`flex items-center space-x-2 text-sm ${isValid ? 'text-green-600 dark:text-green-400' : 'text-[color:var(--text-muted)]'}`}
+        id={validityMessageId}
+        role="status"
+        aria-live="polite"
+      >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {isValid ? (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -326,6 +358,6 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
           {isValid ? 'Configuración válida' : 'Configuración incompleta'}
         </span>
       </div>
-    </div>
+    </section>
   );
 }

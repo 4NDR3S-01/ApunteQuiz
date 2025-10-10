@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useId } from 'react';
 import { DocumentInput, FileUpload, ProcessingStatus } from '@/types';
 import { formatFileSize } from '@/utils';
 
@@ -15,6 +15,8 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const instructionsId = useId();
+  const statusMessageId = useId();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -127,12 +129,11 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
       <button
         type="button"
         className={`
-          w-full cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition sm:p-8
-          text-slate-800 dark:text-slate-100
+          a11y-surface w-full cursor-pointer border-2 border-dashed border-[color:var(--border-default)] p-6 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] sm:p-8
           ${
             isDragging
               ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-500/10'
-              : 'border-slate-300 bg-white hover:border-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-slate-500'
+              : 'hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500'
           }
           ${status.status === 'processing' ? 'pointer-events-none opacity-50' : ''}
         `}
@@ -147,6 +148,8 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
         }}
         onClick={() => fileInputRef.current?.click()}
         disabled={status.status === 'processing'}
+        aria-describedby={instructionsId}
+        aria-busy={status.status === 'processing'}
       >
         <input
           ref={fileInputRef}
@@ -157,17 +160,17 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
           onChange={handleFileSelect}
           disabled={status.status === 'processing'}
         />
-        
+
         <div className="space-y-2">
-          <div className="text-4xl text-slate-400 dark:text-slate-500">
+          <div className="text-4xl text-[color:var(--text-muted)]">
             <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           </div>
-          <div className="text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
+          <div className="text-base font-medium text-[color:var(--foreground)] sm:text-lg">
             {isDragging ? 'Suelta el archivo aquí' : 'Arrastra archivos aquí'}
           </div>
-          <div className="text-sm text-slate-600 dark:text-slate-300">
+          <div id={instructionsId} className="text-sm text-[color:var(--text-muted)]">
             o{' '}
             <label
               htmlFor="file-upload"
@@ -176,7 +179,7 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
               selecciona archivos
             </label>
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="text-xs text-[color:var(--text-muted)]">
             Formatos soportados: PDF, TXT (máx. 50MB)
           </div>
         </div>
@@ -184,7 +187,12 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
 
       {/* Estado de procesamiento */}
       {status.status !== 'idle' && (
-        <div className={`text-sm ${getStatusColor()}`}>
+        <div
+          id={statusMessageId}
+          className={`text-sm ${getStatusColor()}`}
+          role="status"
+          aria-live="polite"
+        >
           {status.status === 'processing' && (
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
@@ -213,13 +221,13 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
       {/* Lista de archivos cargados */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-slate-800 dark:text-slate-100">Archivos cargados:</h3>
+          <h3 className="font-medium text-[color:var(--foreground)]">Archivos cargados:</h3>
           <div className="space-y-2">
             {uploadedFiles.map((fileUpload, index) => (
-              <div key={fileUpload.name} className="flex flex-col gap-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
+              <div key={fileUpload.name} className="a11y-card-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="rounded bg-slate-200 p-2 dark:bg-slate-700">
-                    <svg className="h-6 w-6 text-slate-600 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="rounded bg-[color:var(--surface-highlight)] p-2">
+                    <svg className="h-6 w-6 text-[color:var(--foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       {fileUpload.type === 'application/pdf' ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       ) : (
@@ -228,8 +236,8 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
                     </svg>
                   </div>
                   <div>
-                    <div className="font-medium text-slate-800 dark:text-slate-100">{fileUpload.name}</div>
-                    <div className="text-sm text-slate-600 dark:text-slate-300">
+                    <div className="font-medium text-[color:var(--foreground)]">{fileUpload.name}</div>
+                    <div className="text-sm text-[color:var(--text-muted)]">
                       {formatFileSize(fileUpload.size)} • {fileUpload.type}
                     </div>
                   </div>
@@ -237,7 +245,7 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
                 <div className="flex justify-end">
                   <button
                     onClick={() => removeFile(index)}
-                    className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    className="text-sm font-medium text-red-600 transition hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
                   >
                     Eliminar
                   </button>

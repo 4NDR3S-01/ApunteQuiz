@@ -1,7 +1,26 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useAccessibility } from './AccessibilityProvider';
+import type { ThemePreference, FontScale, LineSpacing } from './AccessibilityProvider';
+
+const THEME_OPTIONS: ReadonlyArray<{
+  readonly value: ThemePreference;
+  readonly label: string;
+  readonly icon: string;
+}> = [
+  { value: 'light', label: 'Claro', icon: '☀️' },
+  { value: 'system', label: 'Sistema', icon: '💻' },
+  { value: 'dark', label: 'Oscuro', icon: '🌙' },
+];
+
+const FONT_SCALE_OPTIONS: ReadonlyArray<{
+  readonly value: FontScale;
+  readonly label: string;
+}> = [
+  { value: 'base', label: 'Normal' },
+  { value: 'large', label: 'Grande' },
+];
 
 export default function AccessibilitySettings() {
   const {
@@ -12,9 +31,27 @@ export default function AccessibilitySettings() {
     setFontScale,
     highContrast,
     toggleHighContrast,
+    resetHighContrastPreference,
+    usesSystemContrast,
+    lineSpacing,
+    setLineSpacing,
+    dyslexicFont,
+    setDyslexicFont,
+    isReading,
+    startReading,
+    stopReading,
+    readingSupported,
+    readingMessage,
+    clearReadingMessage,
   } = useAccessibility();
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const floatingButtonId = useId();
+  const dialogTitleId = useId();
+  const dialogDescriptionId = useId();
+  const contrastDescriptionId = useId();
+  const narratorDescriptionId = useId();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -43,28 +80,61 @@ export default function AccessibilitySettings() {
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      closeButtonRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  const handleThemeSelection = (value: ThemePreference) => {
+    if (themePreference !== value) {
+      setThemePreference(value);
+    }
+  };
+
+  const handleLineSpacing = (value: LineSpacing) => {
+    if (lineSpacing !== value) {
+      setLineSpacing(value);
+    }
+  };
+
+  const toggleReading = () => {
+    if (isReading) {
+      stopReading();
+    } else {
+      startReading();
+    }
+  };
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
       {isOpen && (
         <div
           ref={panelRef}
+          id={`panel-${floatingButtonId}`}
           role="dialog"
-          aria-modal="false"
-          className="mb-4 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-xl shadow-slate-400/30 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:shadow-blue-900/30"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          aria-describedby={dialogDescriptionId}
+          className="a11y-card mb-4 w-[min(100vw-2rem,20rem)] max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl p-5 shadow-xl shadow-slate-400/30 backdrop-blur scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:shadow-blue-900/10 dark:scrollbar-thumb-slate-600 dark:hover:scrollbar-thumb-slate-500 sm:w-[22rem] sm:max-h-[80vh]"
         >
           <header className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <p id={dialogTitleId} className="text-sm font-semibold text-[color:var(--foreground)]">
                 Ajustes de accesibilidad
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p
+                id={dialogDescriptionId}
+                className="text-xs text-[color:var(--text-muted)]"
+              >
                 Personaliza la experiencia visual para estudiar con comodidad.
               </p>
             </div>
             <button
               type="button"
+              ref={closeButtonRef}
               onClick={() => setIsOpen(false)}
-              className="rounded-full border border-transparent p-1 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:text-slate-400 dark:hover:border-white/20 dark:hover:text-slate-200"
+              className="rounded-full border border-transparent p-1 text-[color:var(--text-muted)] transition hover:border-slate-300 hover:text-[color:var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
               aria-label="Cerrar panel de accesibilidad"
             >
               <svg
@@ -84,34 +154,28 @@ export default function AccessibilitySettings() {
           </header>
 
           <div className="space-y-5 text-sm">
-            <section className="space-y-3 rounded-xl border border-slate-200/70 bg-slate-100/60 p-3 dark:border-white/10 dark:bg-white/5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-medium text-slate-800 dark:text-slate-100">
-                    Tema
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Elige manualmente o sincroniza con tu dispositivo.
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'light', label: 'Claro', icon: '☀️' },
-                  { value: 'system', label: 'Sistema', icon: '💻' },
-                  { value: 'dark', label: 'Oscuro', icon: '🌙' },
-                ] as const).map((option) => {
+            <section className="a11y-card-muted space-y-3 rounded-xl p-3">
+              <header className="space-y-1">
+                <h3 className="font-medium text-[color:var(--foreground)]">
+                  Tema
+                </h3>
+                <p className="text-xs text-[color:var(--text-muted)]">
+                  Elige manualmente o sincroniza con tu dispositivo.
+                </p>
+              </header>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {THEME_OPTIONS.map((option) => {
                   const isActive = themePreference === option.value;
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setThemePreference(option.value)}
+                      onClick={() => handleThemeSelection(option.value)}
                       aria-pressed={isActive}
-                      className={`flex flex-col items-center justify-center rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out ${
+                      className={`flex flex-col items-center justify-center rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
                         isActive
-                          ? 'bg-blue-600 text-white shadow-md dark:bg-blue-500'
-                          : 'bg-white text-slate-700 shadow-sm hover:shadow-md dark:bg-slate-800 dark:text-slate-200'
+                          ? 'a11y-critical shadow-md'
+                          : 'a11y-control shadow-sm hover:shadow-md'
                       }`}
                     >
                       <span className="text-lg">{option.icon}</span>
@@ -127,72 +191,211 @@ export default function AccessibilitySettings() {
               </div>
             </section>
 
-            <section className="space-y-2 rounded-xl border border-slate-200/70 bg-slate-100/60 p-3 dark:border-white/10 dark:bg-white/5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-medium text-slate-800 dark:text-slate-100">
-                    Tamaño del texto
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Ajusta la escala tipográfica general.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFontScale('base')}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out ${
-                    fontScale === 'base'
-                      ? 'bg-blue-600 text-white shadow-md dark:bg-blue-500 dark:text-white'
-                      : 'bg-white text-slate-700 shadow-sm hover:shadow-md dark:bg-slate-800 dark:text-slate-200'
-                  }`}
-                  aria-pressed={fontScale === 'base'}
-                >
-                  Normal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFontScale('large')}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out ${
-                    fontScale === 'large'
-                      ? 'bg-blue-600 text-white shadow-md dark:bg-blue-500 dark:text-white'
-                      : 'bg-white text-slate-700 shadow-sm hover:shadow-md dark:bg-slate-800 dark:text-slate-200'
-                  }`}
-                  aria-pressed={fontScale === 'large'}
-                >
-                  Grande
-                </button>
+            <section className="a11y-card-muted space-y-2 rounded-xl p-3">
+              <header className="space-y-1">
+                <h3 className="font-medium text-[color:var(--foreground)]">
+                  Tamaño del texto
+                </h3>
+                <p className="text-xs text-[color:var(--text-muted)]">
+                  Ajusta la escala tipográfica general.
+                </p>
+              </header>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                {FONT_SCALE_OPTIONS.map((option) => {
+                  const isActive = fontScale === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFontScale(option.value)}
+                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
+                        isActive
+                          ? 'a11y-critical shadow-md'
+                          : 'a11y-control shadow-sm hover:shadow-md'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
             </section>
 
-            <section className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-slate-100/60 p-3 dark:border-white/10 dark:bg-white/5">
-              <div>
-                <h3 className="font-medium text-slate-800 dark:text-slate-100">
+            <section className="a11y-card-muted space-y-3 rounded-xl p-3">
+              <header className="space-y-1">
+                <h3 className="font-medium text-[color:var(--foreground)]">
+                  Comodidad de lectura
+                </h3>
+                <p className="text-xs text-[color:var(--text-muted)]">
+                  Ajusta el espaciado y activa una tipografía amigable.
+                </p>
+              </header>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                {([
+                  { value: 'normal', label: 'Estándar' },
+                  { value: 'relaxed', label: 'Amplio' },
+                ] as const).map((option) => {
+                  const isActive = lineSpacing === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleLineSpacing(option.value)}
+                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
+                        isActive
+                          ? 'a11y-critical shadow-md'
+                          : 'a11y-control shadow-sm hover:shadow-md'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="a11y-surface flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-[color:var(--foreground)]">
+                    Fuente amigable
+                  </p>
+                  <p className="text-[11px] text-[color:var(--text-muted)]">
+                    Mejora la legibilidad para dislexia y fatiga visual.
+                  </p>
+                </div>
+                <div className="flex justify-start sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDyslexicFont(!dyslexicFont)}
+                    aria-pressed={dyslexicFont}
+                    className={`relative inline-flex h-9 w-24 items-center rounded-full border border-transparent px-1 transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
+                      dyslexicFont
+                        ? 'bg-purple-600 text-white shadow-inner shadow-purple-400/40'
+                        : 'a11y-control shadow-inner shadow-slate-400/40 dark:shadow-slate-900/40'
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-7 w-7 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow transition-all duration-200 ease-out ${
+                        dyslexicFont ? 'translate-x-14' : 'translate-x-0'
+                      }`}
+                    >
+                      {dyslexicFont ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section
+              className="a11y-card-muted flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
+              aria-describedby={contrastDescriptionId}
+            >
+              <header className="space-y-1 sm:w-2/3">
+                <h3 className="font-medium text-[color:var(--foreground)]">
                   Alto contraste
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p id={contrastDescriptionId} className="text-xs text-[color:var(--text-muted)]">
                   Mejora la separación entre texto y fondo.
                 </p>
-              </div>
-              <button
-                type="button"
-                onClick={toggleHighContrast}
-                aria-pressed={highContrast}
-                className={`relative inline-flex h-10 w-20 items-center rounded-full border border-transparent px-1 transition-all duration-200 ease-out ${
-                  highContrast
-                    ? 'bg-emerald-500 text-white shadow-inner shadow-emerald-300/40'
-                    : 'bg-slate-200 text-slate-800 shadow-inner shadow-slate-400/40 dark:bg-slate-600/60 dark:text-slate-100'
-                }`}
-              >
-                <span
-                  className={`inline-flex h-8 w-8 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow transition-all duration-200 ease-out ${
-                    highContrast ? 'translate-x-9' : 'translate-x-0'
+                <p className="text-[11px] text-[color:var(--text-muted)]">
+                  {usesSystemContrast
+                    ? 'Siguiendo la preferencia de contraste del sistema.'
+                    : 'Preferencia personalizada aplicada.'}
+                </p>
+              </header>
+              <div className="flex justify-start sm:w-1/3 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={toggleHighContrast}
+                  aria-pressed={highContrast}
+                  className={`relative inline-flex h-10 w-28 items-center rounded-full border border-transparent px-1 transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
+                    highContrast
+                      ? 'bg-emerald-500 text-white shadow-inner shadow-emerald-300/40'
+                      : 'a11y-control shadow-inner shadow-slate-400/40 dark:shadow-slate-900/40'
                   }`}
                 >
-                  {highContrast ? '✔️' : '○'}
-                </span>
-              </button>
+                  <span
+                    className={`inline-flex h-8 w-8 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow transition-all duration-200 ease-out ${
+                      highContrast ? 'translate-x-14' : 'translate-x-0'
+                    }`}
+                  >
+                    {highContrast ? '✔️' : '○'}
+                  </span>
+                </button>
+              </div>
+              {!usesSystemContrast && (
+                <div className="sm:w-full">
+                  <button
+                    type="button"
+                    className="mt-1 text-xs font-semibold text-[color:var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
+                    onClick={resetHighContrastPreference}
+                  >
+                    Volver a usar el contraste del sistema
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section
+              className="a11y-card-muted space-y-3 rounded-xl p-3"
+              aria-describedby={narratorDescriptionId}
+            >
+              <header className="space-y-1">
+                <h3 className="font-medium text-[color:var(--foreground)]">
+                  Narrador de lectura
+                </h3>
+                <p id={narratorDescriptionId} className="text-xs text-[color:var(--text-muted)]">
+                  Escucha el contenido usando la voz del navegador.
+                </p>
+              </header>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={toggleReading}
+                  aria-pressed={isReading}
+                  disabled={!readingSupported}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
+                    !readingSupported
+                      ? 'cursor-not-allowed bg-[color:var(--surface-muted)] text-[color:var(--text-muted)] opacity-70'
+                      : isReading
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                        : 'bg-blue-600 text-white hover:bg-blue-500'
+                  }`}
+                >
+                  {isReading ? 'Detener narrador' : 'Iniciar narrador'}
+                </button>
+                <button
+                  type="button"
+                  onClick={stopReading}
+                  disabled={!isReading}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    isReading
+                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                    : 'cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
+                  }`}
+                >
+                  Cancelar
+                </button>
+              </div>
+              <p className="text-[11px] text-[color:var(--text-muted)]">
+                Consejo: ajusta la voz y velocidad desde las preferencias de tu dispositivo o navegador.
+              </p>
+              <div className="space-y-1 text-[11px] text-[color:var(--text-muted)]" aria-live="polite">
+                {readingMessage ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{readingMessage}</span>
+                    <button
+                      type="button"
+                      className="text-[10px] font-semibold text-[color:var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
+                      onClick={clearReadingMessage}
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                ) : (
+                  <span>{isReading ? 'Narrador en reproducción.' : readingSupported ? 'Narrador listo.' : 'Narrador no disponible.'}</span>
+                )}
+              </div>
             </section>
           </div>
         </div>
@@ -200,43 +403,17 @@ export default function AccessibilitySettings() {
 
       <button
         type="button"
-        aria-label="Abrir ajustes de accesibilidad"
+        aria-label={isOpen ? 'Cerrar ajustes de accesibilidad' : 'Abrir ajustes de accesibilidad'}
         aria-expanded={isOpen}
+        aria-controls={isOpen ? `panel-${floatingButtonId}` : undefined}
         onClick={() => setIsOpen((value) => !value)}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 dark:bg-blue-500 dark:hover:bg-blue-400"
+        id={floatingButtonId}
+        className="grid h-14 w-14 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 dark:bg-blue-500 dark:hover:bg-blue-400"
       >
         {isOpen ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <span aria-hidden className="text-xl">✖️</span>
         ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 6V18M6 12H18"
-            />
-          </svg>
+          <span aria-hidden className="text-2xl">⚙️</span>
         )}
       </button>
     </div>

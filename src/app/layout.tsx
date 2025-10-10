@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "ApunteQuiz",
   description:
     "Convierte tus apuntes en quizzes inteligentes alimentados con IA y listos para practicar.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -31,6 +36,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AccessibilityProvider>
+          <a href="#contenido-principal" className="skip-to-content">
+            Saltar al contenido principal
+          </a>
           {children}
           <AccessibilitySettings />
         </AccessibilityProvider>
