@@ -54,11 +54,11 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
     const currentIndex = steps.indexOf(currentStep);
     
     if (currentStep === targetStep) {
-      return 'a11y-critical text-[color:var(--accent-contrast)]';
+      return 'bg-blue-600 text-white shadow-lg dark:bg-blue-500';
     } else if (stepIndex < currentIndex) {
-      return 'bg-emerald-500 text-white dark:bg-emerald-400';
+      return 'bg-emerald-500 text-white shadow-md dark:bg-emerald-400';
     } else {
-      return 'a11y-control text-[color:var(--text-muted)]';
+      return 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
     }
   };
 
@@ -138,42 +138,55 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
         
         {/* Indicador de pasos */}
         <nav aria-label="Progreso del generador" className="mb-6">
-          <ol className="flex flex-col gap-3 md:flex-row md:items-center md:gap-0 md:space-x-4">
+          <ol className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-center md:space-y-0 md:space-x-8">
             {stepsForNav.map((s, index, arr) => {
               const canonicalStep =
-                step === 'generating' ? 'api-config' : step;
+                step === 'generating' ? 'configure' : step;
               const currentIndex = stepsForNav.indexOf(canonicalStep as Step);
               const isCurrent = step === s;
               const isCompleted = index < currentIndex;
               return (
                 <Fragment key={s}>
-                  <li className="flex items-center md:flex-1">
-                    <div
-                      className={`
-                        flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition
-                        ${getStepButtonClass(step, index, s)}
-                      `}
-                      aria-current={isCurrent ? 'step' : undefined}
-                    >
-                      {isCompleted ? '✔' : index + 1}
+                  <li className="flex items-center">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`
+                          flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200
+                          ${getStepButtonClass(step, index, s)}
+                        `}
+                        aria-current={isCurrent ? 'step' : undefined}
+                      >
+                        {isCompleted ? '✓' : index + 1}
+                      </div>
+                      <div className="flex flex-col">
+                        <span
+                          className={`text-sm font-medium transition-colors ${
+                            isCurrent
+                              ? 'text-blue-600 dark:text-blue-300'
+                              : isCompleted 
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-[color:var(--text-muted)]'
+                          }`}
+                        >
+                          {s === 'upload' && 'Cargar Documentos'}
+                          {s === 'configure' && 'Configurar Quiz'}
+                          {s === 'quiz' && 'Realizar Quiz'}
+                        </span>
+                      </div>
                     </div>
-                    <span
-                      className={`ml-3 text-sm ${
-                        isCurrent
-                          ? 'font-medium text-blue-600 dark:text-blue-300'
-                          : 'text-[color:var(--text-muted)]'
-                      }`}
-                    >
-                      {s === 'upload' && 'Cargar Documentos'}
-                      {s === 'configure' && 'Configurar Quiz'}
-                      {s === 'quiz' && 'Realizar Quiz'}
-                    </span>
                   </li>
                   {index < arr.length - 1 && (
-                    <>
-                      <div className="h-px w-full bg-slate-200 dark:bg-slate-700 md:hidden" aria-hidden />
-                      <div className="hidden h-px w-10 flex-none bg-slate-200 dark:bg-slate-700 md:block" aria-hidden />
-                    </>
+                    <div className="flex items-center">
+                      {/* Línea vertical en móviles, horizontal en desktop */}
+                      <div 
+                        className={`transition-colors md:h-px md:w-16 h-8 w-px ml-5 md:ml-0 ${
+                          index < currentIndex 
+                            ? 'bg-emerald-400' 
+                            : 'bg-slate-200 dark:bg-slate-700'
+                        }`} 
+                        aria-hidden 
+                      />
+                    </div>
                   )}
                 </Fragment>
               );
