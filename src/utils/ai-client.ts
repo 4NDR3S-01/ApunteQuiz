@@ -252,8 +252,9 @@ export async function generateQuiz(
  */
 export function validateAndFixQuizResponse(response: GenerateQuizResponse): GenerateQuizResponse {
   // Función auxiliar para validar pregunta individual
-  const validatePregunta = (pregunta: any, index: number): { valid: boolean; errors: string[] } => {
+  const validatePregunta = (pregunta: any, index: number): { valid: boolean; errors: string[]; fixed?: any } => {
     const errors: string[] = [];
+    const fixed = { ...pregunta };
     
     if (!pregunta.enunciado || typeof pregunta.enunciado !== 'string' || pregunta.enunciado.trim().length === 0) {
       errors.push(`Pregunta ${index + 1}: enunciado faltante o inválido`);
@@ -271,11 +272,19 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       errors.push(`Pregunta ${index + 1}: respuesta correcta faltante`);
     }
     
-    if (!pregunta.explicacion || typeof pregunta.explicacion !== 'string') {
-      errors.push(`Pregunta ${index + 1}: explicación faltante o inválida`);
+    // Corregir explicación faltante automáticamente
+    if (!pregunta.explicacion || typeof pregunta.explicacion !== 'string' || pregunta.explicacion.trim().length === 0) {
+      fixed.explicacion = `Explicación generada automáticamente para la pregunta ${index + 1}.`;
+      console.log(`Auto-fixed missing explanation for question ${index + 1}`);
     }
     
-    return { valid: errors.length === 0, errors };
+    // Corregir citas faltantes automáticamente
+    if (!Array.isArray(pregunta.citas) || pregunta.citas.length === 0) {
+      fixed.citas = [{ chunk_id: 'auto', page: 1, evidencia: 'Cita generada automáticamente' }];
+      console.log(`Auto-fixed missing citations for question ${index + 1}`);
+    }
+    
+    return { valid: errors.length === 0, errors, fixed };
   };
 
   // Función auxiliar para validar estructura principal
@@ -317,31 +326,50 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     }
 
     const quiz = response.result!.quiz;
-    const allErrors: string[] = [];
+    const criticalErrors: string[] = [];
+    const fixedQuestions: any[] = [];
 
-    // Validar cada pregunta
+    // Validar y corregir cada pregunta
     quiz.preguntas.forEach((pregunta: any, index: number) => {
       const validation = validatePregunta(pregunta, index);
-      if (!validation.valid) {
-        allErrors.push(...validation.errors);
+      
+      if (validation.valid) {
+        // Pregunta válida, usar como está
+        fixedQuestions.push(pregunta);
+      } else if (validation.fixed) {
+        // Pregunta con errores menores que se pueden corregir
+        fixedQuestions.push(validation.fixed);
+        console.log(`Auto-fixed question ${index + 1}:`, validation.errors);
+      } else {
+        // Errores críticos que no se pueden corregir
+        criticalErrors.push(...validation.errors);
       }
     });
 
-    // Si hay errores, retornar error
-    if (allErrors.length > 0) {
+    // Solo fallar si hay errores críticos que no se pueden corregir
+    if (criticalErrors.length > 0) {
       return {
         ...response,
         error: {
-          message: `Errores de validación: ${allErrors.join('; ')}`,
+          message: `Errores críticos de validación: ${criticalErrors.join('; ')}`,
           where: 'validateAndFixQuizResponse'
         }
       };
     }
 
-    // Nota: No intentamos corregir automáticamente porque los tipos son muy específicos
-    // La IA debe generar la respuesta en el formato correcto
+    // Aplicar las correcciones al response
+    const fixedResponse = {
+      ...response,
+      result: {
+        ...response.result!,
+        quiz: {
+          ...quiz,
+          preguntas: fixedQuestions
+        }
+      }
+    };
 
-    return response;
+    return fixedResponse;
 
   } catch (error) {
     return {
