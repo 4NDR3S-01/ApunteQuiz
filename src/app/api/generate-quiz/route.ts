@@ -52,6 +52,44 @@ export async function POST(request: NextRequest) {
       documentsCount: requestData.documents.length
     }, 'GENERATE_QUIZ_API');
 
+    // Validar contenido del documento
+    const totalTextLength = requestData.documents.reduce((total, doc) => {
+      if (doc.text) {
+        return total + doc.text.length;
+      }
+      if (doc.pages) {
+        return total + doc.pages.reduce((pageTotal, page) => pageTotal + page.text.length, 0);
+      }
+      return total;
+    }, 0);
+
+    // Validaciones de contenido
+    if (totalTextLength < 500) {
+      logger.warn('Document content is very short', {
+        requestId,
+        textLength: totalTextLength,
+        nPreguntas: requestData.n_preguntas
+      }, 'GENERATE_QUIZ_API');
+      
+      throw new ValidationError('El documento contiene muy poco texto para generar un quiz. Asegúrate de que el PDF tenga contenido textual suficiente.');
+    }
+
+    // Validar proporción de preguntas vs contenido
+    const wordsCount = totalTextLength / 5; // Aproximadamente 5 caracteres por palabra
+    const maxQuestionsForContent = Math.floor(wordsCount / 50); // 1 pregunta por cada ~50 palabras
+    
+    if (requestData.n_preguntas > maxQuestionsForContent) {
+      logger.warn('Too many questions requested for content length', {
+        requestId,
+        textLength: totalTextLength,
+        wordsCount,
+        nPreguntas: requestData.n_preguntas,
+        maxRecommended: maxQuestionsForContent
+      }, 'GENERATE_QUIZ_API');
+      
+      throw new ValidationError(`El documento es demasiado corto para generar ${requestData.n_preguntas} preguntas. Se recomienda máximo ${maxQuestionsForContent} preguntas para este contenido.`);
+    }
+
     // Preparar parámetros para el prompt
     const promptParams: UserPromptParams = {
       idioma: requestData.idioma,
@@ -77,10 +115,40 @@ export async function POST(request: NextRequest) {
       'Quiz generation timed out'
     );
     
+    // Log de la respuesta cruda de la IA para debugging
+    logger.info('Raw AI response structure', {
+      requestId,
+      hasResult: !!aiResponse.result,
+      hasError: !!aiResponse.error,
+      resultKeys: aiResponse.result ? Object.keys(aiResponse.result) : [],
+      errorMessage: aiResponse.error?.message
+    }, 'GENERATE_QUIZ_API');
+    
     // Validar y corregir la respuesta (no es async)
     const validatedResponse = validateAndFixQuizResponse(aiResponse);
     
     if (validatedResponse.error) {
+      // Log detallado del error de validación
+      logger.error('Quiz response validation failed', {
+        requestId,
+        provider: aiProvider.name,
+        model: aiProvider.model,
+        validationError: validatedResponse.error,
+        originalResponse: {
+          hasResult: !!aiResponse.result,
+          resultStructure: aiResponse.result ? {
+            hasMetadata: !!aiResponse.result.metadata,
+            hasSummary: !!aiResponse.result.summary,
+            hasQuiz: !!aiResponse.result.quiz,
+            quizStructure: aiResponse.result.quiz ? {
+              hasPreguntas: !!aiResponse.result.quiz.preguntas,
+              preguntasLength: aiResponse.result.quiz.preguntas?.length,
+              firstPregunta: aiResponse.result.quiz.preguntas?.[0]
+            } : null
+          } : null
+        }
+      }, 'GENERATE_QUIZ_API');
+      
       throw new AIProviderError('Error validando respuesta del AI', aiProvider.name, {
         error: validatedResponse.error,
         requestId

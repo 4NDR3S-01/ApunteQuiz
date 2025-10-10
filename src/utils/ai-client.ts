@@ -20,6 +20,14 @@ export async function generateQuizWithOpenAI(
   try {
     const userPrompt = createUserPrompt(params);
     
+    // Log de la configuración de la API (sin exponer la key completa)
+    console.log('OpenAI API configuration:', {
+      model,
+      apiKeyLength: apiKey.length,
+      apiKeyPrefix: apiKey.substring(0, 10) + '...',
+      endpoint: 'https://api.openai.com/v1/chat/completions'
+    });
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -33,14 +41,32 @@ export async function generateQuizWithOpenAI(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3, // Baja temperatura para consistencia
-        max_tokens: 4000,
+        max_tokens: 8000, // Aumentado aún más para respuestas complejas
         response_format: { type: 'json_object' } // Forzar respuesta JSON
       }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Error de OpenAI: ${error.error?.message || response.statusText}`);
+      let errorMessage = response.statusText;
+      try {
+        const errorData = await response.text(); // Usar text() en lugar de json()
+        // Verificar si es HTML (página de error)
+        if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+          errorMessage = `API Error (${response.status}): La API de OpenAI devolvió una página HTML en lugar de JSON. Posibles causas: API key inválida, endpoint incorrecto, o límites de rate.`;
+        } else {
+          // Intentar parsear como JSON si no es HTML
+          try {
+            const errorJson = JSON.parse(errorData);
+            errorMessage = errorJson.error?.message || errorData;
+          } catch {
+            errorMessage = errorData;
+          }
+        }
+      } catch {
+        // Si no podemos leer la respuesta, usar el status
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(`Error de OpenAI: ${errorMessage}`);
     }
 
     const data = await response.json();
@@ -50,8 +76,35 @@ export async function generateQuizWithOpenAI(
       throw new Error('Respuesta vacía de OpenAI');
     }
 
+    // Log condicional para debugging (solo si está activado)
+    if (process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('OpenAI response metadata:', {
+        length: content.length,
+        hasContent: !!content,
+        preview: content.substring(0, 100) + '...',
+        endsWithBrace: content.trim().endsWith('}'),
+        lastChars: content.slice(-50)
+      });
+    }
+
+    // Verificar si la respuesta parece truncada
+    if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
+      throw new Error('La respuesta de OpenAI parece estar truncada (no termina con } o }])');
+    }
+
     try {
-      return JSON.parse(content) as GenerateQuizResponse;
+      const parsed = JSON.parse(content);
+      
+      // Log de la estructura parseada
+      console.log('Parsed result keys:', Object.keys(parsed));
+      if (parsed.quiz) {
+        console.log('Quiz structure:', {
+          hasPreguntas: !!parsed.quiz.preguntas,
+          preguntasCount: parsed.quiz.preguntas?.length
+        });
+      }
+      
+      return parsed as GenerateQuizResponse;
     } catch (parseError) {
       throw new Error(`Error parseando JSON de OpenAI: ${parseError}`);
     }
@@ -87,7 +140,7 @@ export async function generateQuizWithClaude(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4000,
+        max_tokens: 8000, // Aumentado aún más para respuestas complejas
         system: SYSTEM_PROMPT,
         messages: [
           { role: 'user', content: userPrompt }
@@ -97,8 +150,23 @@ export async function generateQuizWithClaude(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Error de Claude: ${error.error?.message || response.statusText}`);
+      let errorMessage = response.statusText;
+      try {
+        const errorData = await response.text();
+        if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+          errorMessage = `API Error (${response.status}): La API de Claude devolvió una página HTML. Posibles causas: API key inválida o endpoint incorrecto.`;
+        } else {
+          try {
+            const errorJson = JSON.parse(errorData);
+            errorMessage = errorJson.error?.message || errorData;
+          } catch {
+            errorMessage = errorData;
+          }
+        }
+      } catch {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(`Error de Claude: ${errorMessage}`);
     }
 
     const data = await response.json();
@@ -108,8 +176,35 @@ export async function generateQuizWithClaude(
       throw new Error('Respuesta vacía de Claude');
     }
 
+    // Log condicional para debugging (solo si está activado)
+    if (process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('Claude response metadata:', {
+        length: content.length,
+        hasContent: !!content,
+        preview: content.substring(0, 100) + '...',
+        endsWithBrace: content.trim().endsWith('}'),
+        lastChars: content.slice(-50)
+      });
+    }
+
+    // Verificar si la respuesta parece truncada
+    if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
+      throw new Error('La respuesta de Claude parece estar truncada (no termina con } o }])');
+    }
+
     try {
-      return JSON.parse(content) as GenerateQuizResponse;
+      const parsed = JSON.parse(content);
+      
+      // Log de la estructura parseada
+      console.log('Parsed result keys:', Object.keys(parsed));
+      if (parsed.quiz) {
+        console.log('Quiz structure:', {
+          hasPreguntas: !!parsed.quiz.preguntas,
+          preguntasCount: parsed.quiz.preguntas?.length
+        });
+      }
+      
+      return parsed as GenerateQuizResponse;
     } catch (parseError) {
       throw new Error(`Error parseando JSON de Claude: ${parseError}`);
     }
@@ -156,77 +251,107 @@ export async function generateQuiz(
  * Valida la respuesta del AI y la reformatea si es necesario
  */
 export function validateAndFixQuizResponse(response: GenerateQuizResponse): GenerateQuizResponse {
-  if (response.error) {
+  // Función auxiliar para validar pregunta individual
+  const validatePregunta = (pregunta: any, index: number): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (!pregunta.enunciado || typeof pregunta.enunciado !== 'string' || pregunta.enunciado.trim().length === 0) {
+      errors.push(`Pregunta ${index + 1}: enunciado faltante o inválido`);
+    }
+    
+    if (!pregunta.tipo || !['opcion_multiple', 'verdadero_falso', 'respuesta_corta'].includes(pregunta.tipo)) {
+      errors.push(`Pregunta ${index + 1}: tipo inválido (${pregunta.tipo})`);
+    }
+    
+    if (pregunta.tipo === 'opcion_multiple' && (!Array.isArray(pregunta.opciones) || pregunta.opciones.length === 0)) {
+      errors.push(`Pregunta ${index + 1}: opciones faltantes para pregunta de opción múltiple`);
+    }
+    
+    if (pregunta.respuesta_correcta === undefined || pregunta.respuesta_correcta === null) {
+      errors.push(`Pregunta ${index + 1}: respuesta correcta faltante`);
+    }
+    
+    if (!pregunta.explicacion || typeof pregunta.explicacion !== 'string') {
+      errors.push(`Pregunta ${index + 1}: explicación faltante o inválida`);
+    }
+    
+    return { valid: errors.length === 0, errors };
+  };
+
+  // Función auxiliar para validar estructura principal
+  const validateMainStructure = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (!response.result) {
+      errors.push('Respuesta sin result');
+      return { valid: false, errors };
+    }
+    
+    if (!response.result.metadata) {
+      errors.push('Metadata faltante');
+    }
+    
+    if (!response.result.summary) {
+      errors.push('Summary faltante');
+    }
+    
+    if (!response.result.quiz || !response.result.quiz.preguntas) {
+      errors.push('Quiz o preguntas faltantes');
+      return { valid: false, errors };
+    }
+    
+    return { valid: errors.length === 0, errors };
+  };
+
+  try {
+    // Validar estructura principal
+    const structureValidation = validateMainStructure();
+    if (!structureValidation.valid) {
+      return {
+        ...response,
+        error: {
+          message: `Estructura inválida: ${structureValidation.errors.join(', ')}`,
+          where: 'validateAndFixQuizResponse'
+        }
+      };
+    }
+
+    const quiz = response.result!.quiz;
+    const allErrors: string[] = [];
+
+    // Validar cada pregunta
+    quiz.preguntas.forEach((pregunta: any, index: number) => {
+      const validation = validatePregunta(pregunta, index);
+      if (!validation.valid) {
+        allErrors.push(...validation.errors);
+      }
+    });
+
+    // Si hay errores, retornar error
+    if (allErrors.length > 0) {
+      return {
+        ...response,
+        error: {
+          message: `Errores de validación: ${allErrors.join('; ')}`,
+          where: 'validateAndFixQuizResponse'
+        }
+      };
+    }
+
+    // Nota: No intentamos corregir automáticamente porque los tipos son muy específicos
+    // La IA debe generar la respuesta en el formato correcto
+
     return response;
-  }
 
-  if (!response.result) {
+  } catch (error) {
     return {
+      ...response,
       error: {
-        message: 'Respuesta no contiene resultado',
+        message: `Error durante validación: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         where: 'validateAndFixQuizResponse'
       }
     };
   }
-
-  const result = response.result;
-
-  // Validar estructura básica
-  if (!result.metadata || !result.summary || !result.quiz) {
-    return {
-      error: {
-        message: 'Estructura de respuesta incompleta',
-        where: 'validateAndFixQuizResponse'
-      }
-    };
-  }
-
-  // Corregir n_generadas si está mal
-  if (result.quiz.n_generadas !== result.quiz.preguntas.length) {
-    result.quiz.n_generadas = result.quiz.preguntas.length;
-  }
-
-  // Validar y corregir preguntas
-  for (const pregunta of result.quiz.preguntas) {
-    // Asegurar que preguntas de opción múltiple tengan opciones
-    if (pregunta.tipo === 'opcion_multiple' && !pregunta.opciones) {
-      return {
-        error: {
-          message: `Pregunta ${pregunta.id} de opción múltiple sin opciones`,
-          where: 'validateAndFixQuizResponse'
-        }
-      };
-    }
-
-    // Corregir preguntas de verdadero/falso con respuesta string
-    if (pregunta.tipo === 'verdadero_falso' && typeof pregunta.respuesta_correcta !== 'boolean') {
-      const respuestaStr = String(pregunta.respuesta_correcta).toLowerCase();
-      if (respuestaStr === 'verdadero' || respuestaStr === 'true' || respuestaStr === 'sí' || respuestaStr === 'si') {
-        pregunta.respuesta_correcta = true;
-      } else if (respuestaStr === 'falso' || respuestaStr === 'false' || respuestaStr === 'no') {
-        pregunta.respuesta_correcta = false;
-      } else {
-        return {
-          error: {
-            message: `Pregunta ${pregunta.id} de verdadero/falso con respuesta inválida: ${pregunta.respuesta_correcta}`,
-            where: 'validateAndFixQuizResponse'
-          }
-        };
-      }
-    }
-
-    // Asegurar que todas las preguntas tengan al menos una cita
-    if (!pregunta.citas || pregunta.citas.length === 0) {
-      return {
-        error: {
-          message: `Pregunta ${pregunta.id} sin citas`,
-          where: 'validateAndFixQuizResponse'
-        }
-      };
-    }
-  }
-
-  return { result };
 }
 
 /**
