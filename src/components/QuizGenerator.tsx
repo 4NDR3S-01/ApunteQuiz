@@ -224,6 +224,7 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
               Paso 1: Cargar Documentos
             </h2>
             <DocumentUpload
+              existingDocuments={documents}
               onDocumentProcessed={handleDocumentUploaded}
               onDocumentRemoved={handleDocumentRemoved}
               onError={handleError}

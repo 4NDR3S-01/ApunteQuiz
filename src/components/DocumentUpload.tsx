@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useId } from 'react';
+import { useState, useId, useCallback, useRef, useEffect } from 'react';
 import { DocumentInput, FileUpload, ProcessingStatus } from '@/types';
 import { formatFileSize } from '@/utils';
 
@@ -8,14 +8,26 @@ interface DocumentUploadProps {
   onDocumentProcessed: (document: DocumentInput) => void;
   onDocumentRemoved: (documentId: string) => void;
   onError: (error: string) => void;
+  existingDocuments?: DocumentInput[]; // Documentos ya cargados
   className?: string;
 }
 
-export default function DocumentUpload({ onDocumentProcessed, onDocumentRemoved, onError, className = '' }: Readonly<DocumentUploadProps>) {
+export default function DocumentUpload({ 
+  onDocumentProcessed, 
+  onDocumentRemoved, 
+  onError, 
+  existingDocuments = [], 
+  className = '' 
+}: Readonly<DocumentUploadProps>) {
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
-  const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>([]);
+  const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>(existingDocuments);
+
+  // Sincronizar documentos existentes cuando cambian
+  useEffect(() => {
+    setProcessedDocuments(existingDocuments);
+  }, [existingDocuments]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const instructionsId = useId();
   const statusMessageId = useId();
@@ -238,7 +250,7 @@ export default function DocumentUpload({ onDocumentProcessed, onDocumentRemoved,
           <div className="space-y-2">
             {uploadedFiles.map((fileUpload, index) => (
               <div key={fileUpload.name} className="a11y-card-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
                   <div className="rounded bg-[color:var(--surface-highlight)] p-2">
                     <svg className="h-6 w-6 text-[color:var(--foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       {fileUpload.type === 'application/pdf' ? (
@@ -248,8 +260,10 @@ export default function DocumentUpload({ onDocumentProcessed, onDocumentRemoved,
                       )}
                     </svg>
                   </div>
-                  <div>
-                    <div className="font-medium text-[color:var(--foreground)]">{fileUpload.name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[color:var(--foreground)] truncate" title={fileUpload.name}>
+                      {fileUpload.name}
+                    </div>
                     <div className="text-sm text-[color:var(--text-muted)]">
                       {formatFileSize(fileUpload.size)} • {fileUpload.type}
                     </div>

@@ -24,6 +24,39 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   const [showResults, setShowResults] = useState(false);
   const [stats, setStats] = useState<QuizStats | null>(null);
 
+  // Debug logging en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('QuizDisplay - quizResult:', quizResult);
+    console.log('QuizDisplay - quiz structure:', {
+      hasQuiz: !!quizResult?.quiz,
+      hasPreguntas: !!quizResult?.quiz?.preguntas,
+      preguntasLength: quizResult?.quiz?.preguntas?.length || 0,
+      preguntasType: Array.isArray(quizResult?.quiz?.preguntas) ? 'array' : typeof quizResult?.quiz?.preguntas
+    });
+  }
+
+  // Protección defensiva: verificar que el quiz tenga la estructura esperada
+  if (!quizResult?.quiz?.preguntas || !Array.isArray(quizResult.quiz.preguntas) || quizResult.quiz.preguntas.length === 0) {
+    return (
+      <div className="a11y-card rounded-lg p-6 text-center">
+        <div className="mb-4">
+          <svg className="mx-auto h-12 w-12 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-2">
+          No se pudieron generar preguntas
+        </h3>
+        <p className="text-[color:var(--text-muted)] mb-4">
+          El documento no contenía suficiente información para generar un quiz válido.
+        </p>
+        <p className="text-sm text-[color:var(--text-muted)]">
+          Intenta subir un documento con más contenido educativo o prueba con otro archivo.
+        </p>
+      </div>
+    );
+  }
+
   const handleAnswer = (preguntaId: string, answer: string | boolean) => {
     setAnswers(prev => ({
       ...prev,
@@ -33,9 +66,18 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
 
   const calculateResults = (): QuizStats => {
     let correctas = 0;
-    const total = quizResult.quiz.preguntas.length;
+    const preguntas = quizResult?.quiz?.preguntas || [];
+    const total = preguntas.length;
 
-    quizResult.quiz.preguntas.forEach(pregunta => {
+    if (total === 0) {
+      return {
+        totalPreguntas: 0,
+        respuestasCorrectas: 0,
+        porcentajeAcierto: 0
+      };
+    }
+
+    preguntas.forEach(pregunta => {
       const userAnswer = answers[pregunta.id];
       if (userAnswer === pregunta.respuesta_correcta) {
         correctas++;
@@ -68,7 +110,8 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
     return 'text-red-600 dark:text-red-400';
   };
 
-  const allQuestionsAnswered = quizResult.quiz.preguntas.every(
+  const preguntas = quizResult?.quiz?.preguntas || [];
+  const allQuestionsAnswered = preguntas.every(
     pregunta => pregunta.id in answers
   );
 
@@ -111,7 +154,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
 
       {/* Preguntas */}
       <div className="space-y-6">
-        {quizResult.quiz.preguntas.map((pregunta, index) => (
+        {preguntas.map((pregunta, index) => (
           <QuestionCard
             key={pregunta.id}
             pregunta={pregunta}
@@ -128,7 +171,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
         {!showResults ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <span className="text-sm text-[color:var(--text-muted)]">
-              {Object.keys(answers).length} de {quizResult.quiz.preguntas.length} respondidas
+              {Object.keys(answers).length} de {preguntas.length} respondidas
             </span>
             <button
               onClick={handleSubmit}
