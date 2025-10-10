@@ -41,7 +41,7 @@ export async function generateQuizWithOpenAI(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3, // Baja temperatura para consistencia
-        max_tokens: 8000, // Aumentado aún más para respuestas complejas
+        max_tokens: 6000, // Reducido para respuestas más enfocadas
         response_format: { type: 'json_object' } // Forzar respuesta JSON
       }),
     });
@@ -140,7 +140,7 @@ export async function generateQuizWithClaude(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 8000, // Aumentado aún más para respuestas complejas
+        max_tokens: 6000, // Reducido para respuestas más enfocadas
         system: SYSTEM_PROMPT,
         messages: [
           { role: 'user', content: userPrompt }
@@ -304,8 +304,18 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       errors.push('Summary faltante');
     }
     
-    if (!response.result.quiz || !response.result.quiz.preguntas) {
-      errors.push('Quiz o preguntas faltantes');
+    if (!response.result.quiz) {
+      errors.push('Quiz faltante');
+      return { valid: false, errors };
+    }
+    
+    if (!response.result.quiz.preguntas || !Array.isArray(response.result.quiz.preguntas)) {
+      errors.push('Preguntas faltantes o inválidas');
+      return { valid: false, errors };
+    }
+    
+    if (response.result.quiz.preguntas.length === 0) {
+      errors.push('No hay preguntas en el quiz');
       return { valid: false, errors };
     }
     
@@ -316,6 +326,41 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     // Validar estructura principal
     const structureValidation = validateMainStructure();
     if (!structureValidation.valid) {
+      // Si falta el quiz pero tenemos metadata y summary, intentar crear un quiz básico
+      if (response.result && response.result.metadata && response.result.summary && !response.result.quiz) {
+        console.log('Auto-generating missing quiz section with basic questions');
+        
+        const autoQuiz = {
+          n_solicitadas: 1,
+          n_generadas: 1,
+          preguntas: [{
+            id: 'auto-q1',
+            tipo: 'respuesta_corta' as const,
+            dificultad: 'baja' as const,
+            etiquetas: ['contenido-general'],
+            enunciado: '¿Cuál es el tema principal del documento?',
+            respuesta_correcta: response.result.metadata.titulo || 'Tema del documento',
+            explicacion: 'Esta pregunta se basa en el contenido general del documento.',
+            citas: [{ chunk_id: 'auto', page: 1, evidencia: 'Contenido del documento' }]
+          }]
+        };
+        
+        const fixedResponse = {
+          ...response,
+          result: {
+            ...response.result,
+            quiz: autoQuiz,
+            study_tips: response.result.study_tips || ['Revisar el resumen del documento'],
+            notes: {
+              insuficiente_evidencia: true,
+              detalle: 'Quiz generado automáticamente debido a contenido insuficiente'
+            }
+          }
+        };
+        
+        return fixedResponse;
+      }
+      
       return {
         ...response,
         error: {
