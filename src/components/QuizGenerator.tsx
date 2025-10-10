@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { DocumentInput, GenerateQuizRequest, QuizResult, NivelEstudio, TipoPregunta } from '@/types';
 import DocumentUpload from './DocumentUpload';
 import QuizDisplay from './QuizDisplay';
@@ -53,17 +53,19 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
   const [apiConfig, setApiConfig] = useState<APIKeyConfig | null>(null);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [error, setError] = useState<string>('');
+  const cardBaseClasses =
+    'rounded-lg border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900';
 
   const getStepButtonClass = (currentStep: Step, stepIndex: number, targetStep: Step) => {
     const steps: Step[] = ['upload', 'configure', 'api-config', 'generating', 'quiz'];
     const currentIndex = steps.indexOf(currentStep);
     
     if (currentStep === targetStep) {
-      return 'bg-blue-600 text-white';
+      return 'bg-blue-600 text-white dark:bg-blue-500';
     } else if (stepIndex < currentIndex) {
-      return 'bg-green-500 text-white';
+      return 'bg-emerald-500 text-white dark:bg-emerald-400';
     } else {
-      return 'bg-gray-300 text-gray-600';
+      return 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200';
     }
   };
 
@@ -149,52 +151,65 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
   return (
     <div className={`max-w-4xl mx-auto space-y-6 ${className}`}>
       {/* Header con progreso */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">
+      <div className={`${cardBaseClasses} p-6`}>
+        <h1 className="mb-4 text-3xl font-bold text-slate-900 dark:text-slate-100">
           Generador de Quiz de Estudio
         </h1>
         
         {/* Indicador de pasos */}
-        <div className="flex items-center space-x-4 mb-4">
-          {(['upload', 'configure', 'api-config', 'quiz'] as const).map((s, index) => (
-            <div key={s} className="flex items-center">
-              <div className={`
-                w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:gap-0 md:space-x-4">
+          {(['upload', 'configure', 'api-config', 'quiz'] as const).map((s, index, arr) => (
+            <Fragment key={s}>
+              <div className="flex items-center md:flex-1">
+                <div
+                  className={`
+                flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium
                 ${getStepButtonClass(step, index, s)}
-              `}>
-                {index + 1}
+              `}
+                >
+                  {index + 1}
+                </div>
+                <span
+                  className={`ml-3 text-sm ${
+                    step === s
+                      ? 'font-medium text-blue-600 dark:text-blue-300'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {s === 'upload' && 'Cargar Documentos'}
+                  {s === 'configure' && 'Configurar Quiz'}
+                  {s === 'api-config' && 'Configurar API'}
+                  {s === 'quiz' && 'Realizar Quiz'}
+                </span>
               </div>
-              <span className={`ml-2 text-sm ${
-                step === s ? 'text-blue-600 font-medium' : 'text-gray-600'
-              }`}>
-                {s === 'upload' && 'Cargar Documentos'}
-                {s === 'configure' && 'Configurar Quiz'}
-                {s === 'api-config' && 'Configurar API'}
-                {s === 'quiz' && 'Realizar Quiz'}
-              </span>
-              {index < 3 && <div className="w-8 h-px bg-gray-300 mx-4" />}
-            </div>
+              {index < arr.length - 1 && (
+                <>
+                  <div className="h-px w-full bg-slate-200 dark:bg-slate-700 md:hidden" />
+                  <div className="hidden md:block h-px w-10 flex-none bg-slate-200 dark:bg-slate-700" />
+                </>
+              )}
+            </Fragment>
           ))}
         </div>
 
         {/* Error global */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-400/40 dark:bg-red-500/10">
             <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 text-red-500 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              <span className="text-red-700 text-sm">{error}</span>
+              <span className="text-sm text-red-700 dark:text-red-200">{error}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Contenido según el paso */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      <div className={cardBaseClasses}>
         {step === 'upload' && (
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
               Paso 1: Cargar Documentos
             </h2>
             <DocumentUpload
@@ -203,14 +218,14 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
             />
             
             {documents.length > 0 && (
-              <div className="mt-6 pt-6 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
+              <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
                     {documents.length} documento(s) cargado(s)
                   </span>
                   <button
                     onClick={handleNextStep}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="rounded-lg bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
                   >
                     Continuar
                   </button>
@@ -222,7 +237,7 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
 
         {step === 'configure' && (
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
               Paso 2: Configurar Quiz
             </h2>
             <QuizConfigForm
@@ -231,16 +246,16 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
               documents={documents}
             />
             
-            <div className="mt-6 pt-6 border-t flex justify-between">
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 dark:border-slate-700 sm:flex-row sm:justify-between">
               <button
                 onClick={handlePrevStep}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                className="rounded-lg bg-slate-600 px-6 py-2 text-white transition hover:bg-slate-700 dark:bg-slate-500 dark:hover:bg-slate-400"
               >
                 Volver
               </button>
               <button
                 onClick={handleNextStep}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="rounded-lg bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
               >
                 Continuar
               </button>
@@ -250,17 +265,17 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
 
         {step === 'api-config' && (
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
               Paso 3: Configurar API de IA
             </h2>
             <APIKeyManager
               onConfigChange={setApiConfig}
             />
             
-            <div className="mt-6 pt-6 border-t flex justify-between">
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 dark:border-slate-700 sm:flex-row sm:justify-between">
               <button
                 onClick={handlePrevStep}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                className="rounded-lg bg-slate-600 px-6 py-2 text-white transition hover:bg-slate-700 dark:bg-slate-500 dark:hover:bg-slate-400"
               >
                 Volver
               </button>
@@ -269,8 +284,8 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
                 disabled={!apiConfig}
                 className={`px-6 py-2 rounded-lg ${
                   apiConfig
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-600 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
+                    : 'cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
                 }`}
               >
                 Generar Quiz
@@ -283,10 +298,10 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
           <div className="p-6 text-center">
             <div className="space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <h2 className="text-xl font-semibold text-gray-800">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 Generando Quiz...
               </h2>
-              <p className="text-gray-600">
+              <p className="text-slate-600 dark:text-slate-300">
                 Esto puede tomar unos momentos. Estamos procesando tus documentos y creando preguntas personalizadas.
               </p>
             </div>
@@ -295,20 +310,20 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
 
         {step === 'quiz' && quizResult && (
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 Tu Quiz Personalizado
               </h2>
-              <div className="space-x-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                 <button
                   onClick={handlePrevStep}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                  className="rounded-lg bg-slate-600 px-4 py-2 text-sm text-white transition hover:bg-slate-700 dark:bg-slate-500 dark:hover:bg-slate-400"
                 >
                   Configurar Nuevo
                 </button>
                 <button
                   onClick={resetGenerator}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
                 >
                   Empezar de Nuevo
                 </button>
@@ -345,16 +360,16 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
   return (
     <div className="space-y-6">
       {/* Información de documentos */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="font-medium text-gray-700 mb-2">Documentos cargados:</h3>
-        <ul className="text-sm text-gray-600 space-y-1">
-          {documents.map((doc, index) => (
+      <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-800/60">
+        <h3 className="mb-2 font-medium text-slate-800 dark:text-slate-100">Documentos cargados:</h3>
+        <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+          {documents.map((doc) => (
             <li key={doc.doc_id} className="flex items-center space-x-2">
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 text-slate-500 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span>{doc.source_name}</span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 ({doc.type === 'pdf' ? `${doc.pages?.length} páginas` : 'texto'})
               </span>
             </li>
@@ -366,7 +381,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
         {/* Configuración básica */}
         <div className="space-y-4">
           <div>
-            <label htmlFor="titulo-quiz" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="titulo-quiz" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
               Título del Quiz
             </label>
             <input
@@ -374,20 +389,20 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
               type="text"
               value={config.titulo_quiz_o_tema}
               onChange={(e) => updateConfig({ titulo_quiz_o_tema: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
               placeholder="Ej: Quiz de Cálculo I"
             />
           </div>
 
           <div>
-            <label htmlFor="nivel-estudio" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="nivel-estudio" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
               Nivel de Estudio
             </label>
             <select
               id="nivel-estudio"
               value={config.nivel}
               onChange={(e) => updateConfig({ nivel: e.target.value as NivelEstudio })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="secundaria">Secundaria</option>
               <option value="universidad">Universidad</option>
@@ -396,7 +411,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
           </div>
 
           <div>
-            <label htmlFor="numero-preguntas" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="numero-preguntas" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
               Número de Preguntas
             </label>
             <input
@@ -406,7 +421,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
               max="50"
               value={config.n_preguntas}
               onChange={(e) => updateConfig({ n_preguntas: parseInt(e.target.value) || 10 })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -414,14 +429,14 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
         {/* Configuración de tipos de pregunta */}
         <div className="space-y-4">
           <div>
-            <label htmlFor="distribucion-tipos" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="distribucion-tipos" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
               Distribución de Tipos de Pregunta
             </label>
             <div id="distribucion-tipos" className="space-y-3">
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-gray-600">Opción Múltiple</span>
-                  <span className="text-sm font-medium">{Math.round(config.proporcion_tipos.opcion_multiple * 100)}%</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Opción Múltiple</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{Math.round(config.proporcion_tipos.opcion_multiple * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -430,14 +445,14 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.opcion_multiple}
                   onChange={(e) => updateProporcion('opcion_multiple', parseFloat(e.target.value))}
-                  className="w-full"
+                  className="w-full accent-blue-600 dark:accent-blue-400"
                 />
               </div>
               
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-gray-600">Respuesta Corta</span>
-                  <span className="text-sm font-medium">{Math.round(config.proporcion_tipos.respuesta_corta * 100)}%</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Respuesta Corta</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{Math.round(config.proporcion_tipos.respuesta_corta * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -446,14 +461,14 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.respuesta_corta}
                   onChange={(e) => updateProporcion('respuesta_corta', parseFloat(e.target.value))}
-                  className="w-full"
+                  className="w-full accent-purple-600 dark:accent-purple-400"
                 />
               </div>
               
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-gray-600">Verdadero/Falso</span>
-                  <span className="text-sm font-medium">{Math.round(config.proporcion_tipos.verdadero_falso * 100)}%</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Verdadero/Falso</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{Math.round(config.proporcion_tipos.verdadero_falso * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -462,14 +477,14 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.verdadero_falso}
                   onChange={(e) => updateProporcion('verdadero_falso', parseFloat(e.target.value))}
-                  className="w-full"
+                  className="w-full accent-teal-600 dark:accent-teal-400"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label htmlFor="temas-prioritarios" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="temas-prioritarios" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
               Temas Prioritarios (opcional)
             </label>
             <input
@@ -479,10 +494,10 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
               onChange={(e) => updateConfig({ 
                 temas_prioritarios: e.target.value.split(',').map(t => t.trim()).filter(t => t) 
               })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               placeholder="Ej: derivadas, integrales, límites"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Separa los temas con comas
             </p>
           </div>

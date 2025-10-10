@@ -155,9 +155,12 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
   const getConnectionStatusColor = () => {
     switch (connectionStatus) {
-      case 'success': return 'text-green-600';
-      case 'error': return 'text-red-600';
-      default: return 'text-gray-600';
+      case 'success':
+        return 'text-green-600 dark:text-green-400';
+      case 'error':
+        return 'text-red-600 dark:text-red-400';
+      default:
+        return 'text-slate-600 dark:text-slate-300';
     }
   };
 
@@ -165,19 +168,19 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
     switch (connectionStatus) {
       case 'success': 
         return (
-          <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         );
       case 'error': 
         return (
-          <svg className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         );
       default: 
         return (
-          <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
           </svg>
         );
@@ -185,9 +188,9 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
   };
 
   return (
-    <div className={`bg-white rounded-lg border p-6 space-y-6 ${className}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">
+    <div className={`space-y-6 rounded-lg border border-slate-200 bg-white p-6 transition-colors dark:border-slate-700 dark:bg-slate-900 ${className}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           Configuración de API
         </h3>
         <div className="flex items-center space-x-2">
@@ -207,14 +210,14 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Proveedor */}
         <div>
-          <label htmlFor="provider" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="provider" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
             Proveedor de IA
           </label>
           <select
             id="provider"
             value={config.provider}
             onChange={(e) => updateConfig({ provider: e.target.value as 'openai' | 'anthropic' })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic (Claude)</option>
@@ -223,14 +226,14 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
         {/* Modelo */}
         <div>
-          <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="model" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
             Modelo
           </label>
           <select
             id="model"
             value={config.model}
             onChange={(e) => updateConfig({ model: e.target.value })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             {DEFAULT_MODELS[config.provider].map((model) => (
               <option key={model} value={model}>
@@ -243,7 +246,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
       {/* API Key */}
       <div>
-        <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="apiKey" className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
           API Key
         </label>
         <div className="relative">
@@ -253,12 +256,12 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
             value={config.apiKey}
             onChange={(e) => updateConfig({ apiKey: e.target.value })}
             placeholder={`Ingresa tu ${config.provider === 'openai' ? 'OpenAI' : 'Anthropic'} API Key`}
-            className="w-full p-3 pr-20 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-300 bg-white p-3 pr-20 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           />
           <button
             type="button"
             onClick={() => setShowKey(!showKey)}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            className="absolute right-3 top-1/2 -translate-y-1/2 transform text-slate-500 transition hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-200"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {showKey ? (
@@ -269,7 +272,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
             </svg>
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {config.provider === 'openai' 
             ? 'Obtén tu API key en https://platform.openai.com/api-keys'
             : 'Obtén tu API key en https://console.anthropic.com/'
@@ -279,30 +282,30 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
 
       {/* Estado de conexión */}
       {errorMessage && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <div className="text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-400/40 dark:bg-red-500/10">
+          <div className="text-sm text-red-700 dark:text-red-200">
             <strong>Error de conexión:</strong> {errorMessage}
           </div>
         </div>
       )}
 
       {/* Acciones */}
-      <div className="flex items-center justify-between pt-4 border-t">
+      <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={clearConfig}
-          className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           Limpiar
         </button>
         
-        <div className="space-x-2">
+        <div className="flex gap-2 sm:justify-end">
           <button
             onClick={testConnection}
             disabled={!isValid || testingConnection}
             className={`px-4 py-2 rounded-lg font-medium ${
               isValid && !testingConnection
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-blue-600 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
+                : 'cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
             }`}
           >
             {testingConnection ? 'Probando...' : 'Probar Conexión'}
@@ -311,7 +314,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
       </div>
 
       {/* Indicador de estado */}
-      <div className={`text-sm flex items-center space-x-2 ${isValid ? 'text-green-600' : 'text-gray-500'}`}>
+      <div className={`flex items-center space-x-2 text-sm ${isValid ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-300'}`}>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {isValid ? (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

@@ -63,9 +63,9 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   };
 
   const getScoreColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (percentage >= 80) return 'text-green-600 dark:text-green-400';
+    if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
   };
 
   const allQuestionsAnswered = quizResult.quiz.preguntas.every(
@@ -75,11 +75,11 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Metadata del quiz */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-800/60">
+        <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
           {quizResult.metadata.titulo}
         </h2>
-        <div className="text-sm text-gray-600 space-y-1">
+        <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <p><strong>Nivel:</strong> {quizResult.metadata.nivel}</p>
           <p><strong>Preguntas:</strong> {quizResult.quiz.n_generadas}</p>
           <p><strong>Fuentes:</strong> {quizResult.metadata.fuentes.map(f => f.source_name).join(', ')}</p>
@@ -88,18 +88,18 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
 
       {/* Resumen */}
       {quizResult.summary && (
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-blue-800 mb-2">Resumen</h3>
-          <p className="text-blue-700 text-sm leading-relaxed">
+        <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-500/10">
+          <h3 className="mb-2 text-lg font-semibold text-blue-800 dark:text-blue-200">Resumen</h3>
+          <p className="text-sm leading-relaxed text-blue-700 dark:text-blue-100">
             {quizResult.summary.overview}
           </p>
           {quizResult.summary.key_points.length > 0 && (
             <div className="mt-3">
-              <h4 className="font-medium text-blue-800 mb-1">Puntos clave:</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <h4 className="mb-1 font-medium text-blue-800 dark:text-blue-200">Puntos clave:</h4>
+              <ul className="space-y-1 text-sm text-blue-700 dark:text-blue-100">
                 {quizResult.summary.key_points.map((point) => (
                   <li key={point.substring(0, 50)} className="flex items-start space-x-2">
-                    <span className="text-blue-500 mt-1">•</span>
+                    <span className="mt-1 text-blue-500 dark:text-blue-300">•</span>
                     <span>{point}</span>
                   </li>
                 ))}
@@ -124,10 +124,10 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
       </div>
 
       {/* Controles */}
-      <div className="flex justify-between items-center pt-6 border-t">
+      <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         {!showResults ? (
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <span className="text-sm text-slate-600 dark:text-slate-300">
               {Object.keys(answers).length} de {quizResult.quiz.preguntas.length} respondidas
             </span>
             <button
@@ -135,26 +135,26 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
               disabled={!allQuestionsAnswered}
               className={`px-6 py-2 rounded-lg font-medium ${
                 allQuestionsAnswered
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  ? 'bg-blue-600 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
+                  : 'cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
               }`}
             >
               Terminar Quiz
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between w-full">
+          <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
               <div className={`text-2xl font-bold ${getScoreColor(stats?.porcentajeAcierto || 0)}`}>
                 {stats?.porcentajeAcierto.toFixed(1)}%
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-slate-600 dark:text-slate-300">
                 {stats?.respuestasCorrectas} de {stats?.totalPreguntas} correctas
               </div>
             </div>
             <button
               onClick={resetQuiz}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              className="rounded-lg bg-slate-600 px-6 py-2 text-white transition hover:bg-slate-700 dark:bg-slate-500 dark:hover:bg-slate-400"
             >
               Reintentar
             </button>
@@ -164,17 +164,17 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
 
       {/* Consejos de estudio */}
       {quizResult.study_tips.length > 0 && (
-        <div className="bg-yellow-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center space-x-2">
-            <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="rounded-lg bg-yellow-50 p-4 dark:bg-yellow-500/10">
+          <h3 className="mb-2 flex items-center space-x-2 text-lg font-semibold text-yellow-800 dark:text-yellow-200">
+            <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
             <span>Consejos de estudio</span>
           </h3>
-          <ul className="text-sm text-yellow-700 space-y-1">
+          <ul className="space-y-1 text-sm text-yellow-700 dark:text-yellow-100">
             {quizResult.study_tips.map((tip) => (
               <li key={tip.substring(0, 50)} className="flex items-start space-x-2">
-                <span className="text-yellow-500 mt-1">•</span>
+                <span className="mt-1 text-yellow-500 dark:text-yellow-300">•</span>
                 <span>{tip}</span>
               </li>
             ))}
@@ -207,10 +207,10 @@ function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: R
         const isWrongUserOption = showResult && isUserOption && !isCorrectOption;
         
         const getTextClass = () => {
-          if (!showResult) return 'text-gray-700';
-          if (isCorrectOption) return 'text-green-700 font-medium';
-          if (isWrongUserOption) return 'text-red-700';
-          return 'text-gray-700';
+          if (!showResult) return 'text-slate-700 dark:text-slate-300';
+          if (isCorrectOption) return 'font-medium text-green-700 dark:text-green-300';
+          if (isWrongUserOption) return 'text-red-700 dark:text-red-400';
+          return 'text-slate-700 dark:text-slate-300';
         };
         
         const textClass = getTextClass();
@@ -224,7 +224,7 @@ function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: R
               checked={userAnswer === opcion.id}
               onChange={() => onAnswer(opcion.id)}
               disabled={showResult}
-              className="w-4 h-4 text-blue-600"
+              className="h-4 w-4 text-blue-600 dark:text-blue-400"
             />
             <span className={textClass}>{opcion.texto}</span>
           </label>
@@ -241,10 +241,10 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
   showResult: boolean;
 }>) {
   const getTrueFalseClass = (value: boolean) => {
-    if (!showResult) return 'text-gray-700';
-    if (pregunta.respuesta_correcta === value) return 'text-green-700 font-medium';
-    if (userAnswer === value && pregunta.respuesta_correcta !== value) return 'text-red-700';
-    return 'text-gray-700';
+    if (!showResult) return 'text-slate-700 dark:text-slate-300';
+    if (pregunta.respuesta_correcta === value) return 'font-medium text-green-700 dark:text-green-300';
+    if (userAnswer === value && pregunta.respuesta_correcta !== value) return 'text-red-700 dark:text-red-400';
+    return 'text-slate-700 dark:text-slate-300';
   };
 
   return (
@@ -257,7 +257,7 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
           checked={userAnswer === true}
           onChange={() => onAnswer(true)}
           disabled={showResult}
-          className="w-4 h-4 text-blue-600"
+          className="h-4 w-4 text-blue-600 dark:text-blue-400"
         />
         <span className={getTrueFalseClass(true)}>Verdadero</span>
       </label>
@@ -269,7 +269,7 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
           checked={userAnswer === false}
           onChange={() => onAnswer(false)}
           disabled={showResult}
-          className="w-4 h-4 text-blue-600"
+          className="h-4 w-4 text-blue-600 dark:text-blue-400"
         />
         <span className={getTrueFalseClass(false)}>Falso</span>
       </label>
@@ -282,16 +282,16 @@ function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: Qu
   const isWrong = showResult && userAnswer !== pregunta.respuesta_correcta;
 
   const getCardBorderClass = () => {
-    if (!showResult) return 'border-gray-300 bg-white';
-    if (isCorrect) return 'border-green-500 bg-green-50';
-    if (isWrong) return 'border-red-500 bg-red-50';
-    return 'border-gray-300 bg-gray-50';
+    if (!showResult) return 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900';
+    if (isCorrect) return 'border-emerald-500 bg-emerald-50 dark:border-emerald-400 dark:bg-emerald-500/10';
+    if (isWrong) return 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-500/10';
+    return 'border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800';
   };
 
   const getDifficultyClass = () => {
-    if (pregunta.dificultad === 'baja') return 'bg-green-100 text-green-800';
-    if (pregunta.dificultad === 'media') return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (pregunta.dificultad === 'baja') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200';
+    if (pregunta.dificultad === 'media') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200';
+    return 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200';
   };
 
   const getRespuestaCorrecta = () => {
@@ -302,17 +302,17 @@ function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: Qu
   };
 
   return (
-    <div className={`p-6 rounded-lg border-2 ${getCardBorderClass()}`}>
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">
+    <div className={`rounded-lg border-2 p-5 transition-colors sm:p-6 ${getCardBorderClass()}`}>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">
           Pregunta {numero}
         </h3>
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyClass()}`}>
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getDifficultyClass()}`}>
           {pregunta.dificultad}
         </span>
       </div>
       
-      <p className="text-gray-700 mb-6">{pregunta.enunciado}</p>
+      <p className="mb-5 text-sm text-slate-700 dark:text-slate-300 sm:text-base">{pregunta.enunciado}</p>
       
       {isPreguntaOpcionMultiple(pregunta) && (
         <MultipleChoiceOptions 
@@ -339,30 +339,30 @@ function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: Qu
           onChange={(e) => onAnswer(e.target.value)}
           disabled={showResult}
           placeholder="Escribe tu respuesta..."
-          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
       )}
       
       {showResult && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-6 rounded-lg bg-slate-100 p-4 dark:bg-slate-800">
           <div className="mb-3">
-            <span className="font-medium text-gray-700">Respuesta correcta: </span>
-            <span className="font-semibold text-green-600">
+            <span className="font-medium text-slate-700 dark:text-slate-200">Respuesta correcta: </span>
+            <span className="font-semibold text-green-600 dark:text-green-300">
               {getRespuestaCorrecta()}
             </span>
           </div>
           
           {pregunta.explicacion && (
             <div className="mb-3">
-              <span className="font-medium text-gray-700">Explicación: </span>
-              <span className="text-gray-600">{pregunta.explicacion}</span>
+              <span className="font-medium text-slate-700 dark:text-slate-200">Explicación: </span>
+              <span className="text-slate-600 dark:text-slate-300">{pregunta.explicacion}</span>
             </div>
           )}
           
           {pregunta.citas && pregunta.citas.length > 0 && (
             <div>
-              <span className="font-medium text-gray-700">Referencias: </span>
-              <span className="text-sm text-gray-500">
+              <span className="font-medium text-slate-700 dark:text-slate-200">Referencias: </span>
+              <span className="text-sm text-slate-500 dark:text-slate-300">
                 {pregunta.citas.map(cita => {
                   const pageInfo = cita.page ? ` (p.${cita.page})` : '';
                   return cita.chunk_id + pageInfo;

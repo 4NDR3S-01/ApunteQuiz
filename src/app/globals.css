@@ -1,8 +1,20 @@
+@config "../../tailwind.config.js";
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card-background: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(15, 23, 42, 0.08);
+}
+
+html.dark {
+  color-scheme: dark;
+  --background: #020617;
+  --foreground: #e2e8f0;
+  --card-background: rgba(15, 23, 42, 0.65);
+  --card-border: rgba(148, 163, 184, 0.18);
 }
 
 @theme inline {
@@ -12,15 +24,38 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 16px;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html[data-font-scale='large'] {
+  font-size: 18px;
+}
+
+html[data-font-scale='base'] {
+  font-size: 16px;
+}
+
+html.high-contrast body {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+html.high-contrast * {
+  color-scheme: light !important;
+}
+
+html.high-contrast a {
+  text-decoration: underline;
+}
+
+html.high-contrast body {
+  filter: contrast(1.25) saturate(1.15);
 }

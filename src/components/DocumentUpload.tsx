@@ -110,10 +110,14 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
 
   const getStatusColor = () => {
     switch (status.status) {
-      case 'processing': return 'text-blue-600';
-      case 'success': return 'text-green-600';
-      case 'error': return 'text-red-600';
-      default: return 'text-gray-600';
+      case 'processing':
+        return 'text-blue-600 dark:text-blue-400';
+      case 'success':
+        return 'text-green-600 dark:text-green-400';
+      case 'error':
+        return 'text-red-600 dark:text-red-400';
+      default:
+        return 'text-slate-600 dark:text-slate-300';
     }
   };
 
@@ -123,12 +127,14 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
       <button
         type="button"
         className={`
-          w-full border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-          ${isDragging 
-            ? 'border-blue-500 bg-blue-50' 
-            : 'border-gray-300 hover:border-gray-400'
+          w-full cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition sm:p-8
+          text-slate-800 dark:text-slate-100
+          ${
+            isDragging
+              ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-500/10'
+              : 'border-slate-300 bg-white hover:border-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-slate-500'
           }
-          ${status.status === 'processing' ? 'opacity-50 pointer-events-none' : ''}
+          ${status.status === 'processing' ? 'pointer-events-none opacity-50' : ''}
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -153,24 +159,24 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
         />
         
         <div className="space-y-2">
-          <div className="text-4xl text-gray-400">
-            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="text-4xl text-slate-400 dark:text-slate-500">
+            <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           </div>
-          <div className="text-lg font-medium text-gray-700">
+          <div className="text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
             {isDragging ? 'Suelta el archivo aquí' : 'Arrastra archivos aquí'}
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-slate-600 dark:text-slate-300">
             o{' '}
             <label
               htmlFor="file-upload"
-              className="text-blue-600 hover:text-blue-700 cursor-pointer font-medium"
+              className="cursor-pointer font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               selecciona archivos
             </label>
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Formatos soportados: PDF, TXT (máx. 50MB)
           </div>
         </div>
@@ -187,7 +193,7 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
           )}
           {status.status === 'success' && (
             <div className="flex items-center space-x-2">
-              <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <span>{status.message}</span>
@@ -195,7 +201,7 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
           )}
           {status.status === 'error' && (
             <div className="flex items-center space-x-2">
-              <svg className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
               <span>{status.message}</span>
@@ -207,13 +213,13 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
       {/* Lista de archivos cargados */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-gray-700">Archivos cargados:</h3>
+          <h3 className="font-medium text-slate-800 dark:text-slate-100">Archivos cargados:</h3>
           <div className="space-y-2">
             {uploadedFiles.map((fileUpload, index) => (
-              <div key={fileUpload.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={fileUpload.name} className="flex flex-col gap-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-gray-200 rounded">
-                    <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="rounded bg-slate-200 p-2 dark:bg-slate-700">
+                    <svg className="h-6 w-6 text-slate-600 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       {fileUpload.type === 'application/pdf' ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       ) : (
@@ -222,18 +228,20 @@ export default function DocumentUpload({ onDocumentProcessed, onError, className
                     </svg>
                   </div>
                   <div>
-                    <div className="font-medium text-gray-700">{fileUpload.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-slate-800 dark:text-slate-100">{fileUpload.name}</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-300">
                       {formatFileSize(fileUpload.size)} • {fileUpload.type}
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => removeFile(index)}
-                  className="text-red-600 hover:text-red-700 font-medium text-sm"
-                >
-                  Eliminar
-                </button>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
