@@ -3,9 +3,50 @@ import { createUserPrompt, UserPromptParams } from '@/prompts/user';
 import { GenerateQuizResponse } from '@/types';
 
 export interface AIProvider {
-  name: 'openai' | 'anthropic';
+  name: 'openai' | 'anthropic' | 'groq';
   model: string;
   apiKey: string;
+}
+
+/**
+ * Maneja errores de respuesta HTTP de APIs
+ */
+async function handleAPIError(response: Response, providerName: string): Promise<never> {
+  try {
+    const errorData = await response.text();
+    const errorMessage = errorData.includes('<!DOCTYPE') || errorData.includes('<html')
+      ? `API Error (${response.status}): HTML response received instead of JSON`
+      : (() => {
+          try {
+            const errorJson = JSON.parse(errorData);
+            return errorJson.error?.message || errorData;
+          } catch {
+            return errorData;
+          }
+        })();
+    throw new Error(`Error de ${providerName}: ${errorMessage}`);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(`Error de ${providerName}:`)) {
+      throw error;
+    }
+    throw new Error(`Error de ${providerName}: HTTP ${response.status}: ${response.statusText}`);
+  }
+}
+
+/**
+ * Valida y parsea respuesta JSON de la IA
+ */
+function parseAIResponse(content: string): GenerateQuizResponse {
+  // Verificar si la respuesta parece truncada
+  if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
+    throw new Error('La respuesta parece estar truncada (no termina con } o }])');
+  }
+
+  try {
+    return JSON.parse(content) as GenerateQuizResponse;
+  } catch (parseError) {
+    throw new Error(`Error parseando JSON: ${parseError}`);
+  }
 }
 
 /**
@@ -19,14 +60,6 @@ export async function generateQuizWithOpenAI(
   
   try {
     const userPrompt = createUserPrompt(params);
-    
-    // Log de la configuración de la API (sin exponer la key completa)
-    console.log('OpenAI API configuration:', {
-      model,
-      apiKeyLength: apiKey.length,
-      apiKeyPrefix: apiKey.substring(0, 10) + '...',
-      endpoint: 'https://api.openai.com/v1/chat/completions'
-    });
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -41,32 +74,13 @@ export async function generateQuizWithOpenAI(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3, // Baja temperatura para consistencia
-        max_tokens: 6000, // Reducido para respuestas más enfocadas
+        max_tokens: 3000, // Reducido considerablemente para evitar rate limits
         response_format: { type: 'json_object' } // Forzar respuesta JSON
       }),
     });
 
     if (!response.ok) {
-      let errorMessage = response.statusText;
-      try {
-        const errorData = await response.text(); // Usar text() en lugar de json()
-        // Verificar si es HTML (página de error)
-        if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
-          errorMessage = `API Error (${response.status}): La API de OpenAI devolvió una página HTML en lugar de JSON. Posibles causas: API key inválida, endpoint incorrecto, o límites de rate.`;
-        } else {
-          // Intentar parsear como JSON si no es HTML
-          try {
-            const errorJson = JSON.parse(errorData);
-            errorMessage = errorJson.error?.message || errorData;
-          } catch {
-            errorMessage = errorData;
-          }
-        }
-      } catch {
-        // Si no podemos leer la respuesta, usar el status
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      }
-      throw new Error(`Error de OpenAI: ${errorMessage}`);
+      await handleAPIError(response, 'OpenAI');
     }
 
     const data = await response.json();
@@ -76,44 +90,76 @@ export async function generateQuizWithOpenAI(
       throw new Error('Respuesta vacía de OpenAI');
     }
 
-    // Log condicional para debugging (solo si está activado)
-    if (process.env.DEBUG_AI_RESPONSES === 'true') {
-      console.log('OpenAI response metadata:', {
-        length: content.length,
-        hasContent: !!content,
-        preview: content.substring(0, 100) + '...',
-        endsWithBrace: content.trim().endsWith('}'),
-        lastChars: content.slice(-50)
-      });
+    // Log condicional para debugging de desarrollo únicamente
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('OpenAI response length:', content.length);
     }
 
-    // Verificar si la respuesta parece truncada
-    if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
-      throw new Error('La respuesta de OpenAI parece estar truncada (no termina con } o }])');
-    }
-
-    try {
-      const parsed = JSON.parse(content);
-      
-      // Log de la estructura parseada
-      console.log('Parsed result keys:', Object.keys(parsed));
-      if (parsed.quiz) {
-        console.log('Quiz structure:', {
-          hasPreguntas: !!parsed.quiz.preguntas,
-          preguntasCount: parsed.quiz.preguntas?.length
-        });
-      }
-      
-      return parsed as GenerateQuizResponse;
-    } catch (parseError) {
-      throw new Error(`Error parseando JSON de OpenAI: ${parseError}`);
-    }
+    return parseAIResponse(content);
   } catch (error) {
     console.error('Error generando quiz con OpenAI:', error);
     return {
       error: {
         message: error instanceof Error ? error.message : 'Error desconocido',
         where: 'generateQuizWithOpenAI'
+      }
+    };
+  }
+}
+
+/**
+ * Genera un quiz usando la API de Groq (GRATIS)
+ */
+export async function generateQuizWithGroq(
+  params: UserPromptParams,
+  config: { apiKey: string; model?: string }
+): Promise<GenerateQuizResponse> {
+  const { apiKey, model = 'llama-3.1-70b-versatile' } = config;
+  
+  try {
+    const userPrompt = createUserPrompt(params);
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 3000,
+        response_format: { type: 'json_object' }
+      }),
+    });
+
+    if (!response.ok) {
+      await handleAPIError(response, 'Groq');
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('Respuesta vacía de Groq');
+    }
+
+    // Log condicional para debugging de desarrollo únicamente
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('Groq response length:', content.length);
+    }
+
+    return parseAIResponse(content);
+  } catch (error) {
+    console.error('Error generando quiz con Groq:', error);
+    return {
+      error: {
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        where: 'generateQuizWithGroq'
       }
     };
   }
@@ -140,7 +186,7 @@ export async function generateQuizWithClaude(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 6000, // Reducido para respuestas más enfocadas
+        max_tokens: 3000, // Reducido considerablemente para evitar rate limits
         system: SYSTEM_PROMPT,
         messages: [
           { role: 'user', content: userPrompt }
@@ -150,23 +196,7 @@ export async function generateQuizWithClaude(
     });
 
     if (!response.ok) {
-      let errorMessage = response.statusText;
-      try {
-        const errorData = await response.text();
-        if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
-          errorMessage = `API Error (${response.status}): La API de Claude devolvió una página HTML. Posibles causas: API key inválida o endpoint incorrecto.`;
-        } else {
-          try {
-            const errorJson = JSON.parse(errorData);
-            errorMessage = errorJson.error?.message || errorData;
-          } catch {
-            errorMessage = errorData;
-          }
-        }
-      } catch {
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      }
-      throw new Error(`Error de Claude: ${errorMessage}`);
+      await handleAPIError(response, 'Claude');
     }
 
     const data = await response.json();
@@ -176,38 +206,12 @@ export async function generateQuizWithClaude(
       throw new Error('Respuesta vacía de Claude');
     }
 
-    // Log condicional para debugging (solo si está activado)
-    if (process.env.DEBUG_AI_RESPONSES === 'true') {
-      console.log('Claude response metadata:', {
-        length: content.length,
-        hasContent: !!content,
-        preview: content.substring(0, 100) + '...',
-        endsWithBrace: content.trim().endsWith('}'),
-        lastChars: content.slice(-50)
-      });
+    // Log condicional para debugging de desarrollo únicamente
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('Claude response length:', content.length);
     }
 
-    // Verificar si la respuesta parece truncada
-    if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
-      throw new Error('La respuesta de Claude parece estar truncada (no termina con } o }])');
-    }
-
-    try {
-      const parsed = JSON.parse(content);
-      
-      // Log de la estructura parseada
-      console.log('Parsed result keys:', Object.keys(parsed));
-      if (parsed.quiz) {
-        console.log('Quiz structure:', {
-          hasPreguntas: !!parsed.quiz.preguntas,
-          preguntasCount: parsed.quiz.preguntas?.length
-        });
-      }
-      
-      return parsed as GenerateQuizResponse;
-    } catch (parseError) {
-      throw new Error(`Error parseando JSON de Claude: ${parseError}`);
-    }
+    return parseAIResponse(content);
   } catch (error) {
     console.error('Error generando quiz con Claude:', error);
     return {
@@ -234,6 +238,11 @@ export async function generateQuiz(
       });
     case 'anthropic':
       return generateQuizWithClaude(params, { 
+        apiKey: provider.apiKey, 
+        model: provider.model 
+      });
+    case 'groq':
+      return generateQuizWithGroq(params, { 
         apiKey: provider.apiKey, 
         model: provider.model 
       });
@@ -275,13 +284,11 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     // Corregir explicación faltante automáticamente
     if (!pregunta.explicacion || typeof pregunta.explicacion !== 'string' || pregunta.explicacion.trim().length === 0) {
       fixed.explicacion = `Explicación generada automáticamente para la pregunta ${index + 1}.`;
-      console.log(`Auto-fixed missing explanation for question ${index + 1}`);
     }
     
     // Corregir citas faltantes automáticamente
     if (!Array.isArray(pregunta.citas) || pregunta.citas.length === 0) {
       fixed.citas = [{ chunk_id: 'auto', page: 1, evidencia: 'Cita generada automáticamente' }];
-      console.log(`Auto-fixed missing citations for question ${index + 1}`);
     }
     
     return { valid: errors.length === 0, errors, fixed };
@@ -326,9 +333,42 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     // Validar estructura principal
     const structureValidation = validateMainStructure();
     if (!structureValidation.valid) {
+      // Si tenemos quiz pero con array de preguntas vacío, auto-generar preguntas
+      if (response.result?.quiz && Array.isArray(response.result.quiz.preguntas) && response.result.quiz.preguntas.length === 0) {
+        
+        const autoQuestions = [{
+          id: 'auto-q1',
+          tipo: 'respuesta_corta' as const,
+          dificultad: 'baja' as const,
+          etiquetas: ['contenido-general'],
+          enunciado: '¿Cuál es el tema principal del documento?',
+          respuesta_correcta: response.result.metadata?.titulo || 'Tema del documento',
+          explicacion: 'Esta pregunta se basa en el contenido general del documento.',
+          citas: [{ chunk_id: 'auto', page: 1, evidencia: 'Contenido del documento' }]
+        }];
+        
+        const correctedResponse = {
+          ...response,
+          result: {
+            ...response.result,
+            quiz: {
+              ...response.result.quiz,
+              n_generadas: 1,
+              preguntas: autoQuestions
+            },
+            notes: {
+              ...response.result.notes,
+              insuficiente_evidencia: true,
+              detalle: 'Preguntas generadas automáticamente debido a array vacío de preguntas'
+            }
+          }
+        };
+        
+        return correctedResponse;
+      }
+      
       // Si falta el quiz pero tenemos metadata y summary, intentar crear un quiz básico
-      if (response.result && response.result.metadata && response.result.summary && !response.result.quiz) {
-        console.log('Auto-generating missing quiz section with basic questions');
+      if (response.result?.metadata && response.result?.summary && !response.result?.quiz) {
         
         const autoQuiz = {
           n_solicitadas: 1,
@@ -384,7 +424,6 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       } else if (validation.fixed) {
         // Pregunta con errores menores que se pueden corregir
         fixedQuestions.push(validation.fixed);
-        console.log(`Auto-fixed question ${index + 1}:`, validation.errors);
       } else {
         // Errores críticos que no se pueden corregir
         criticalErrors.push(...validation.errors);

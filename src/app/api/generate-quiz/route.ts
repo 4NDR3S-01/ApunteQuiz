@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
       titulo_quiz_o_tema: requestData.titulo_quiz_o_tema
     };
 
-    // Generar el quiz con retry y timeout
-    const aiResponse = await withTimeout(
+    // Generar el quiz con retry, timeout y fallback automático
+    let aiResponse = await withTimeout(
       retryWithBackoff(
         () => generateQuiz(promptParams, aiProvider),
         3,
@@ -114,6 +114,108 @@ export async function POST(request: NextRequest) {
       60000, // 60 segundos timeout
       'Quiz generation timed out'
     );
+
+    // Si OpenAI falla por rate limit, intentar con Groq (gratis) y luego Claude
+    if (aiResponse.error && aiProvider.name === 'openai') {
+      const errorMessage = aiResponse.error.message.toLowerCase();
+      if (errorMessage.includes('rate limit') || errorMessage.includes('quota') || errorMessage.includes('usage')) {
+        logger.info('OpenAI rate limit reached, trying Groq as fallback', { 
+          requestId, 
+          originalError: aiResponse.error.message 
+        }, 'GENERATE_QUIZ_API');
+
+        // Intentar primero con Groq (gratis)
+        const groqApiKey = process.env.GROQ_API_KEY;
+        if (groqApiKey) {
+          const groqProvider: AIProvider = {
+            name: 'groq',
+            apiKey: groqApiKey,
+            model: 'llama-3.1-70b-versatile'
+          };
+
+          try {
+            aiResponse = await withTimeout(
+              retryWithBackoff(
+                () => generateQuiz(promptParams, groqProvider),
+                2,
+                1000,
+                { operation: 'generate_quiz_groq_fallback' }
+              ),
+              45000,
+              'Groq fallback generation timed out'
+            );
+
+            logger.info('Groq fallback successful', { requestId }, 'GENERATE_QUIZ_API');
+          } catch (groqError) {
+            logger.warn('Groq fallback failed, trying Claude', { 
+              requestId, 
+              groqError: groqError instanceof Error ? groqError.message : 'Unknown error'
+            }, 'GENERATE_QUIZ_API');
+
+            // Si Groq falla, intentar con Claude
+            const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+            if (claudeApiKey) {
+              const claudeProvider: AIProvider = {
+                name: 'anthropic',
+                apiKey: claudeApiKey,
+                model: 'claude-3-5-sonnet-20241022'
+              };
+
+              try {
+                aiResponse = await withTimeout(
+                  retryWithBackoff(
+                    () => generateQuiz(promptParams, claudeProvider),
+                    2,
+                    1000,
+                    { operation: 'generate_quiz_claude_fallback' }
+                  ),
+                  45000,
+                  'Claude fallback generation timed out'
+                );
+
+                logger.info('Claude fallback successful', { requestId }, 'GENERATE_QUIZ_API');
+              } catch (claudeError) {
+                logger.error('All fallbacks failed', { 
+                  requestId, 
+                  claudeError: claudeError instanceof Error ? claudeError.message : 'Unknown error'
+                }, 'GENERATE_QUIZ_API');
+              }
+            }
+          }
+        } else {
+          logger.warn('No Groq API key available, trying Claude directly', { requestId }, 'GENERATE_QUIZ_API');
+          
+          const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+          if (claudeApiKey) {
+            const claudeProvider: AIProvider = {
+              name: 'anthropic',
+              apiKey: claudeApiKey,
+              model: 'claude-3-5-sonnet-20241022'
+            };
+
+            try {
+              aiResponse = await withTimeout(
+                retryWithBackoff(
+                  () => generateQuiz(promptParams, claudeProvider),
+                  2,
+                  1000,
+                  { operation: 'generate_quiz_claude_fallback' }
+                ),
+                45000,
+                'Claude fallback generation timed out'
+              );
+
+              logger.info('Claude fallback successful', { requestId }, 'GENERATE_QUIZ_API');
+            } catch (claudeError) {
+              logger.error('Claude fallback also failed', { 
+                requestId, 
+                claudeError: claudeError instanceof Error ? claudeError.message : 'Unknown error'
+              }, 'GENERATE_QUIZ_API');
+            }
+          }
+        }
+      }
+    }
     
     // Log de la respuesta cruda de la IA para debugging
     logger.info('Raw AI response structure', {
@@ -200,15 +302,34 @@ export async function POST(request: NextRequest) {
 
 function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
   // Usar configuración fija del servidor
-  const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | undefined;
-  const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+  const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | 'groq' | undefined;
+  const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
   const envModel = process.env.AI_MODEL;
 
   if (envProvider && envApiKey) {
+    const getDefaultModel = (provider: string) => {
+      switch (provider) {
+        case 'openai': return 'gpt-4o-mini';
+        case 'anthropic': return 'claude-3-5-sonnet-20241022';
+        case 'groq': return 'llama-3.1-70b-versatile';
+        default: return 'gpt-4o-mini';
+      }
+    };
+
     return {
       name: envProvider,
       apiKey: envApiKey,
-      model: envModel || (envProvider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022')
+      model: envModel || getDefaultModel(envProvider)
+    };
+  }
+
+  // Fallback a configuración por defecto - intentar Groq primero (es gratis)
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (groqApiKey) {
+    return {
+      name: 'groq',
+      apiKey: groqApiKey,
+      model: 'llama-3.1-70b-versatile'
     };
   }
 
