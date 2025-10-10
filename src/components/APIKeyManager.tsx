@@ -14,7 +14,7 @@ interface APIKeyManagerProps {
 }
 
 const DEFAULT_MODELS = {
-  openai: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+  openai: ['gpt-5-nano'],
   anthropic: ['claude-3-sonnet-20240229', 'claude-3-opus-20240229', 'claude-3-haiku-20240307']
 };
 
@@ -22,7 +22,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
   const [config, setConfig] = useState<APIKeyConfig>({
     provider: 'openai',
     apiKey: '',
-    model: 'gpt-4'
+    model: 'gpt-5-nano'
   });
   const [isValid, setIsValid] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -153,7 +153,7 @@ export default function APIKeyManager({ onConfigChange, className = '' }: APIKey
     const clearedConfig = {
       provider: 'openai' as const,
       apiKey: '',
-      model: 'gpt-4'
+      model: 'gpt-5-nano'
     };
     setConfig(clearedConfig);
     setIsValid(false);
