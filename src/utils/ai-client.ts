@@ -186,7 +186,7 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     result.quiz.n_generadas = result.quiz.preguntas.length;
   }
 
-  // Validar preguntas
+  // Validar y corregir preguntas
   for (const pregunta of result.quiz.preguntas) {
     // Asegurar que preguntas de opción múltiple tengan opciones
     if (pregunta.tipo === 'opcion_multiple' && !pregunta.opciones) {
@@ -198,14 +198,21 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       };
     }
 
-    // Asegurar que preguntas de verdadero/falso tengan respuesta booleana
+    // Corregir preguntas de verdadero/falso con respuesta string
     if (pregunta.tipo === 'verdadero_falso' && typeof pregunta.respuesta_correcta !== 'boolean') {
-      return {
-        error: {
-          message: `Pregunta ${pregunta.id} de verdadero/falso sin respuesta booleana`,
-          where: 'validateAndFixQuizResponse'
-        }
-      };
+      const respuestaStr = String(pregunta.respuesta_correcta).toLowerCase();
+      if (respuestaStr === 'verdadero' || respuestaStr === 'true' || respuestaStr === 'sí' || respuestaStr === 'si') {
+        pregunta.respuesta_correcta = true;
+      } else if (respuestaStr === 'falso' || respuestaStr === 'false' || respuestaStr === 'no') {
+        pregunta.respuesta_correcta = false;
+      } else {
+        return {
+          error: {
+            message: `Pregunta ${pregunta.id} de verdadero/falso con respuesta inválida: ${pregunta.respuesta_correcta}`,
+            where: 'validateAndFixQuizResponse'
+          }
+        };
+      }
     }
 
     // Asegurar que todas las preguntas tengan al menos una cita
