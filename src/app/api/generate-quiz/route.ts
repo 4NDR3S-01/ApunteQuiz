@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
           const groqProvider: AIProvider = {
             name: 'groq',
             apiKey: groqApiKey,
-            model: 'llama-3.1-70b-versatile'
+            model: 'llama-3.1-8b-instant'
           };
 
           try {
@@ -311,7 +311,7 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
       switch (provider) {
         case 'openai': return 'gpt-4o-mini';
         case 'anthropic': return 'claude-3-5-sonnet-20241022';
-        case 'groq': return 'llama-3.1-70b-versatile';
+        case 'groq': return 'llama-3.1-8b-instant';
         default: return 'gpt-4o-mini';
       }
     };
@@ -329,7 +329,7 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
     return {
       name: 'groq',
       apiKey: groqApiKey,
-      model: 'llama-3.1-70b-versatile'
+      model: 'llama-3.1-8b-instant'
     };
   }
 

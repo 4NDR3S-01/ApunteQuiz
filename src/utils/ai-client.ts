@@ -114,7 +114,7 @@ export async function generateQuizWithGroq(
   params: UserPromptParams,
   config: { apiKey: string; model?: string }
 ): Promise<GenerateQuizResponse> {
-  const { apiKey, model = 'llama-3.1-70b-versatile' } = config;
+  const { apiKey, model = 'llama-3.1-8b-instant' } = config;
   
   try {
     const userPrompt = createUserPrompt(params);
