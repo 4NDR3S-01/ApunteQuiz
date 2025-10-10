@@ -12,12 +12,12 @@ const features = [
     ]
   },
   {
-    title: 'Flujo guiado y seguro',
-    description: 'Controla cada paso del proceso con indicaciones claras y sin exponer tus claves de forma insegura.',
+    title: 'Flujo simplificado y rápido',
+    description: 'Controla cada paso del proceso con indicaciones claras y sin complicaciones de configuración.',
     bullets: [
       'Previsualiza los documentos que vas cargando',
       'Define la proporción de tipos de pregunta que prefieras',
-      'Gestiona tus API keys de OpenAI o Anthropic sin complicaciones'
+      'Sistema pre-configurado listo para usar sin configuraciones adicionales'
     ]
   },
   {
@@ -43,8 +43,8 @@ const steps = [
     badge: 'Paso 2'
   },
   {
-    title: 'Conecta tu proveedor de IA',
-    description: 'Introduce tu API key favorita y genera el cuestionario listo para resolver o compartir.',
+    title: 'Genera y practica el quiz',
+    description: 'Obtén tu cuestionario personalizado listo para resolver o compartir de inmediato.',
     badge: 'Paso 3'
   }
 ] as const;
@@ -52,11 +52,11 @@ const steps = [
 const faqs = [
   {
     question: '¿Necesito una cuenta o suscripción?',
-    answer: 'No. Solo necesitarás una API key válida del proveedor de IA que quieras usar para generar tus quizzes.'
+    answer: 'No. El sistema está pre-configurado y listo para usar. Solo necesitas subir tus documentos y empezar a generar quizzes.'
   },
   {
     question: '¿Se almacenan mis documentos?',
-    answer: 'Los documentos se procesan de forma local dentro de tu sesión. No se envían a servidores externos distintos a tu proveedor de IA.'
+    answer: 'Los documentos se procesan de forma segura durante tu sesión. No se almacenan de manera permanente en nuestros servidores.'
   },
   {
     question: '¿Puedo generar preguntas en otros idiomas?',
@@ -135,9 +135,9 @@ export default function Home() {
                     </p>
                   </li>
                   <li className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm">
-                    <p className="font-semibold text-[color:var(--foreground)]">3. Genera y comparte</p>
+                    <p className="font-semibold text-[color:var(--foreground)]">3. Genera y practica</p>
                     <p className="text-[color:var(--text-muted)]">
-                      Obtén un quiz listo para practicar o replicar con tu grupo.
+                      Obtén un quiz listo para practicar o compartir al instante.
                     </p>
                   </li>
                 </ul>

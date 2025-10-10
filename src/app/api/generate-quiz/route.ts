@@ -131,20 +131,7 @@ export async function POST(request: NextRequest) {
 }
 
 function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
-  // Intentar obtener desde headers primero
-  const providerName = request.headers.get('x-ai-provider') as 'openai' | 'anthropic' | null;
-  const apiKey = request.headers.get('x-api-key');
-  const model = request.headers.get('x-ai-model');
-
-  if (providerName && apiKey) {
-    return {
-      name: providerName,
-      apiKey,
-      model: model || (providerName === 'openai' ? 'gpt-4' : 'claude-3-sonnet-20240229')
-    };
-  }
-
-  // Fallback a variables de entorno
+  // Usar configuración fija del servidor
   const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | undefined;
   const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
   const envModel = process.env.AI_MODEL;
@@ -153,7 +140,17 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
     return {
       name: envProvider,
       apiKey: envApiKey,
-      model: envModel || (envProvider === 'openai' ? 'gpt-4' : 'claude-3-sonnet-20240229')
+      model: envModel || (envProvider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022')
+    };
+  }
+
+  // Fallback a configuración por defecto de OpenAI
+  const defaultApiKey = process.env.OPENAI_API_KEY;
+  if (defaultApiKey) {
+    return {
+      name: 'openai',
+      apiKey: defaultApiKey,
+      model: 'gpt-4o-mini'
     };
   }
 

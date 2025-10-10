@@ -4,19 +4,12 @@ import { Fragment, useState } from 'react';
 import { DocumentInput, GenerateQuizRequest, QuizResult, NivelEstudio, TipoPregunta } from '@/types';
 import DocumentUpload from './DocumentUpload';
 import QuizDisplay from './QuizDisplay';
-import APIKeyManager from './APIKeyManager';
-
-interface APIKeyConfig {
-  provider: 'openai' | 'anthropic';
-  apiKey: string;
-  model: string;
-}
 
 interface QuizGeneratorProps {
   readonly className?: string;
 }
 
-type Step = 'upload' | 'configure' | 'api-config' | 'generating' | 'quiz';
+type Step = 'upload' | 'configure' | 'generating' | 'quiz';
 
 interface QuizConfig {
   idioma: string;
@@ -50,15 +43,14 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
   const [step, setStep] = useState<Step>('upload');
   const [documents, setDocuments] = useState<DocumentInput[]>([]);
   const [config, setConfig] = useState<QuizConfig>(defaultConfig);
-  const [apiConfig, setApiConfig] = useState<APIKeyConfig | null>(null);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [error, setError] = useState<string>('');
   const cardBaseClasses =
     'a11y-card rounded-lg shadow-sm transition-colors';
-  const stepsForNav: Step[] = ['upload', 'configure', 'api-config', 'quiz'];
+  const stepsForNav: Step[] = ['upload', 'configure', 'quiz'];
 
   const getStepButtonClass = (currentStep: Step, stepIndex: number, targetStep: Step) => {
-    const steps: Step[] = ['upload', 'configure', 'api-config', 'generating', 'quiz'];
+    const steps: Step[] = ['upload', 'configure', 'generating', 'quiz'];
     const currentIndex = steps.indexOf(currentStep);
     
     if (currentStep === targetStep) {
@@ -83,8 +75,6 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
     if (step === 'upload' && documents.length > 0) {
       setStep('configure');
     } else if (step === 'configure') {
-      setStep('api-config');
-    } else if (step === 'api-config' && apiConfig) {
       generateQuiz();
     }
   };
@@ -92,19 +82,12 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
   const handlePrevStep = () => {
     if (step === 'configure') {
       setStep('upload');
-    } else if (step === 'api-config') {
-      setStep('configure');
     } else if (step === 'quiz') {
-      setStep('api-config');
+      setStep('configure');
     }
   };
 
     const generateQuiz = async () => {
-    if (!apiConfig) {
-      setError('Por favor configura tu API key primero');
-      return;
-    }
-
     setStep('generating');
     setError('');
 
@@ -117,10 +100,7 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
       const response = await fetch('/api/generate-quiz', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-ai-provider': apiConfig.provider,
-          'x-api-key': apiConfig.apiKey,
-          'x-ai-model': apiConfig.model
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(request)
       });
@@ -136,7 +116,7 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
     } catch (error) {
       console.error('Error generando quiz:', error);
       setError(error instanceof Error ? error.message : 'Error desconocido');
-      setStep('api-config');
+      setStep('configure');
     }
   };
 
@@ -146,7 +126,6 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
     setQuizResult(null);
     setError('');
     setConfig(defaultConfig);
-    setApiConfig(null);
   };
 
   return (
@@ -187,7 +166,6 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
                     >
                       {s === 'upload' && 'Cargar Documentos'}
                       {s === 'configure' && 'Configurar Quiz'}
-                      {s === 'api-config' && 'Configurar API'}
                       {s === 'quiz' && 'Realizar Quiz'}
                     </span>
                   </li>
@@ -271,37 +249,6 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
               <button
                 onClick={handleNextStep}
                 className="rounded-lg bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] dark:bg-blue-500 dark:hover:bg-blue-400"
-              >
-                Continuar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'api-config' && (
-          <div className="p-6">
-            <h2 className="mb-4 text-xl font-semibold text-[color:var(--foreground)]">
-              Paso 3: Configurar API de IA
-            </h2>
-            <APIKeyManager
-              onConfigChange={setApiConfig}
-            />
-            
-            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 dark:border-slate-700 sm:flex-row sm:justify-between">
-              <button
-                onClick={handlePrevStep}
-                className="rounded-lg bg-slate-600 px-6 py-2 text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] dark:bg-slate-500 dark:hover:bg-slate-400"
-              >
-                Volver
-              </button>
-              <button
-                onClick={handleNextStep}
-                disabled={!apiConfig}
-                className={`px-6 py-2 rounded-lg ${
-                  apiConfig
-                    ? 'bg-blue-600 text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] dark:bg-blue-500 dark:hover:bg-blue-400'
-                    : 'cursor-not-allowed bg-[color:var(--surface-muted)] text-[color:var(--text-muted)] opacity-70'
-                }`}
               >
                 Generar Quiz
               </button>

@@ -15,7 +15,7 @@ export async function generateQuizWithOpenAI(
   params: UserPromptParams,
   config: { apiKey: string; model?: string }
 ): Promise<GenerateQuizResponse> {
-  const { apiKey, model = 'gpt-4' } = config;
+  const { apiKey, model = 'gpt-4o-mini' } = config;
   
   try {
     const userPrompt = createUserPrompt(params);
@@ -73,7 +73,7 @@ export async function generateQuizWithClaude(
   params: UserPromptParams,
   config: { apiKey: string; model?: string }
 ): Promise<GenerateQuizResponse> {
-  const { apiKey, model = 'claude-3-sonnet-20240229' } = config;
+  const { apiKey, model = 'claude-3-5-sonnet-20241022' } = config;
   
   try {
     const userPrompt = createUserPrompt(params);
