@@ -471,7 +471,6 @@ useEffect(() => {
       stopReading,
       readingSupported,
       readingMessage,
-      usesSystemContrast: !hasContrastOverride,
       clearReadingMessage,
     }),
     [
