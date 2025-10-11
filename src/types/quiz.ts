@@ -46,7 +46,7 @@ export interface Metadata {
   idioma: string;
   nivel: string;
   generado_en: string;
-  fuentes: Fuente[];
+  fuentes?: Fuente[]; // Opcional para evitar errores
 }
 
 export interface SeccionResumen {
@@ -74,7 +74,7 @@ export interface EjemploClave {
 
 export interface Summary {
   overview: string;
-  key_points: string[];
+  key_points?: string[]; // Opcional para evitar errores
   sections: SeccionResumen[];
   glosario: TerminoGlosario[];
   formulas_o_tablas: FormulaOTabla[];
@@ -113,7 +113,7 @@ export interface QuizResult {
   metadata: Metadata;
   summary: Summary;
   quiz: Quiz;
-  study_tips: string[];
+  study_tips?: string[]; // Opcional en caso de que la API no lo incluya
   notes: Notes;
 }
 

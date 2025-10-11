@@ -91,6 +91,65 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
     };
   };
 
+  const calculateTypeDistribution = () => {
+    const preguntas = quizResult?.quiz?.preguntas || [];
+    const total = preguntas.length;
+    
+    if (total === 0) return null;
+
+    const counts = {
+      opcion_multiple: 0,
+      respuesta_corta: 0,
+      verdadero_falso: 0
+    };
+
+    preguntas.forEach(pregunta => {
+      counts[pregunta.tipo]++;
+    });
+
+    return {
+      opcion_multiple: {
+        count: counts.opcion_multiple,
+        percentage: Math.round((counts.opcion_multiple / total) * 100)
+      },
+      respuesta_corta: {
+        count: counts.respuesta_corta,
+        percentage: Math.round((counts.respuesta_corta / total) * 100)
+      },
+      verdadero_falso: {
+        count: counts.verdadero_falso,
+        percentage: Math.round((counts.verdadero_falso / total) * 100)
+      }
+    };
+  };
+
+  const calculateDetailedResults = () => {
+    const preguntas = quizResult?.quiz?.preguntas || [];
+    const results = {
+      opcion_multiple: { total: 0, correctas: 0, porcentaje: 0 },
+      respuesta_corta: { total: 0, correctas: 0, porcentaje: 0 },
+      verdadero_falso: { total: 0, correctas: 0, porcentaje: 0 }
+    };
+
+    preguntas.forEach(pregunta => {
+      const userAnswer = answers[pregunta.id];
+      const isCorrect = userAnswer === pregunta.respuesta_correcta;
+      
+      results[pregunta.tipo].total++;
+      if (isCorrect) {
+        results[pregunta.tipo].correctas++;
+      }
+    });
+
+    // Calcular porcentajes
+    Object.keys(results).forEach(tipo => {
+      const result = results[tipo as keyof typeof results];
+      result.porcentaje = result.total > 0 ? (result.correctas / result.total) * 100 : 0;
+    });
+
+    return results;
+  };
+
   const handleSubmit = () => {
     const results = calculateResults();
     setStats(results);
@@ -110,6 +169,8 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
     return 'text-red-600 dark:text-red-400';
   };
 
+  const typeDistribution = calculateTypeDistribution();
+  const detailedResults = showResults ? calculateDetailedResults() : null;
   const preguntas = quizResult?.quiz?.preguntas || [];
   const allQuestionsAnswered = preguntas.every(
     pregunta => pregunta.id in answers
@@ -125,7 +186,34 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
         <div className="space-y-1 text-sm text-[color:var(--text-muted)]">
           <p><strong>Nivel:</strong> {quizResult.metadata.nivel}</p>
           <p><strong>Preguntas:</strong> {quizResult.quiz.n_generadas}</p>
-          <p><strong>Fuentes:</strong> {quizResult.metadata.fuentes.map(f => f.source_name).join(', ')}</p>
+          <p><strong>Fuentes:</strong> {(quizResult.metadata.fuentes || []).map(f => f.source_name).join(', ')}</p>
+          
+          {/* Distribución de tipos de preguntas */}
+          {typeDistribution && (
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <p className="font-medium text-[color:var(--foreground)] mb-2">Distribución de tipos de preguntas:</p>
+              <div className="grid grid-cols-1 gap-2 text-xs">
+                {typeDistribution.opcion_multiple.count > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span>🔘 Opción múltiple:</span>
+                    <span className="font-medium">{typeDistribution.opcion_multiple.count} ({typeDistribution.opcion_multiple.percentage}%)</span>
+                  </div>
+                )}
+                {typeDistribution.respuesta_corta.count > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span>✏️ Respuesta corta:</span>
+                    <span className="font-medium">{typeDistribution.respuesta_corta.count} ({typeDistribution.respuesta_corta.percentage}%)</span>
+                  </div>
+                )}
+                {typeDistribution.verdadero_falso.count > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span>✅ Verdadero/Falso:</span>
+                    <span className="font-medium">{typeDistribution.verdadero_falso.count} ({typeDistribution.verdadero_falso.percentage}%)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -136,11 +224,11 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
           <p className="text-sm leading-relaxed text-[color:var(--text-muted)]">
             {quizResult.summary.overview}
           </p>
-          {quizResult.summary.key_points.length > 0 && (
+          {quizResult.summary.key_points && quizResult.summary.key_points.length > 0 && (
             <div className="mt-3">
               <h4 className="mb-1 font-medium text-[color:var(--foreground)]">Puntos clave:</h4>
               <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
-                {quizResult.summary.key_points.map((point) => (
+                {(quizResult.summary.key_points || []).map((point) => (
                   <li key={point.substring(0, 50)} className="flex items-start space-x-2">
                     <span className="mt-1 text-blue-500 dark:text-blue-300">•</span>
                     <span>{point}</span>
@@ -194,6 +282,39 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
               <div className="text-sm text-[color:var(--text-muted)]">
                 {stats?.respuestasCorrectas} de {stats?.totalPreguntas} correctas
               </div>
+              
+              {/* Estadísticas detalladas por tipo */}
+              {detailedResults && (
+                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                  <div className="text-xs text-[color:var(--text-muted)] space-y-1">
+                    <div className="font-medium mb-1">Rendimiento por tipo:</div>
+                    {detailedResults.opcion_multiple.total > 0 && (
+                      <div className="flex justify-between">
+                        <span>🔘 Opción múltiple:</span>
+                        <span className={`font-medium ${getScoreColor(detailedResults.opcion_multiple.porcentaje)}`}>
+                          {detailedResults.opcion_multiple.correctas}/{detailedResults.opcion_multiple.total} ({detailedResults.opcion_multiple.porcentaje.toFixed(0)}%)
+                        </span>
+                      </div>
+                    )}
+                    {detailedResults.respuesta_corta.total > 0 && (
+                      <div className="flex justify-between">
+                        <span>✏️ Respuesta corta:</span>
+                        <span className={`font-medium ${getScoreColor(detailedResults.respuesta_corta.porcentaje)}`}>
+                          {detailedResults.respuesta_corta.correctas}/{detailedResults.respuesta_corta.total} ({detailedResults.respuesta_corta.porcentaje.toFixed(0)}%)
+                        </span>
+                      </div>
+                    )}
+                    {detailedResults.verdadero_falso.total > 0 && (
+                      <div className="flex justify-between">
+                        <span>✅ Verdadero/Falso:</span>
+                        <span className={`font-medium ${getScoreColor(detailedResults.verdadero_falso.porcentaje)}`}>
+                          {detailedResults.verdadero_falso.correctas}/{detailedResults.verdadero_falso.total} ({detailedResults.verdadero_falso.porcentaje.toFixed(0)}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <button
               onClick={resetQuiz}
@@ -206,7 +327,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
       </div>
 
       {/* Consejos de estudio */}
-      {quizResult.study_tips.length > 0 && (
+      {quizResult.study_tips && quizResult.study_tips.length > 0 && (
         <div className="a11y-card-muted rounded-lg border-l-4 border-yellow-500 p-4 dark:border-yellow-400">
           <h3 className="mb-2 flex items-center space-x-2 text-lg font-semibold text-[color:var(--foreground)]">
             <svg className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -215,7 +336,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
             <span>Consejos de estudio</span>
           </h3>
           <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
-            {quizResult.study_tips.map((tip) => (
+            {(quizResult.study_tips || []).map((tip) => (
               <li key={tip.substring(0, 50)} className="flex items-start space-x-2">
                 <span className="mt-1 text-yellow-500">•</span>
                 <span>{tip}</span>

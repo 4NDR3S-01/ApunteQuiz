@@ -335,7 +335,41 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
   };
 
   const updateProporcion = (tipo: keyof QuizConfig['proporcion_tipos'], value: number) => {
-    const newProporcion = { ...config.proporcion_tipos, [tipo]: value };
+    const newProporcion = { ...config.proporcion_tipos };
+    
+    // Actualizar el valor seleccionado
+    newProporcion[tipo] = value;
+    
+    // Calcular la suma de los otros dos tipos
+    const otherTypes = (Object.keys(newProporcion) as Array<keyof typeof newProporcion>)
+      .filter(t => t !== tipo);
+    
+    const otherSum = otherTypes.reduce((sum, t) => sum + newProporcion[t], 0);
+    
+    // Si la suma total excede 1, ajustar proporcionalmente los otros tipos
+    if (value + otherSum > 1) {
+      const remaining = Math.max(0, 1 - value);
+      const currentOtherSum = otherSum;
+      
+      if (currentOtherSum > 0) {
+        otherTypes.forEach(t => {
+          newProporcion[t] = (newProporcion[t] / currentOtherSum) * remaining;
+        });
+      } else {
+        // Si los otros están en 0, distribuir equitativamente
+        const equalShare = remaining / otherTypes.length;
+        otherTypes.forEach(t => {
+          newProporcion[t] = equalShare;
+        });
+      }
+    }
+    
+    // Redondear a 1 decimal para evitar errores de punto flotante
+    Object.keys(newProporcion).forEach(key => {
+      newProporcion[key as keyof typeof newProporcion] = 
+        Math.round(newProporcion[key as keyof typeof newProporcion] * 10) / 10;
+    });
+    
     updateConfig({ proporcion_tipos: newProporcion });
   };
 
@@ -414,11 +448,17 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
             <label htmlFor="distribucion-tipos" className="mb-2 block text-sm font-medium text-[color:var(--foreground)]">
               Distribución de Tipos de Pregunta
             </label>
-            <div id="distribucion-tipos" className="space-y-3">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-[color:var(--text-muted)]">Opción Múltiple</span>
-                  <span className="text-sm font-medium text-[color:var(--foreground)]">{Math.round(config.proporcion_tipos.opcion_multiple * 100)}%</span>
+            <p className="mb-3 text-xs text-[color:var(--text-muted)]">
+              Configure la proporción deseada para cada tipo. La API ajustará estos valores según el contenido del documento.
+            </p>
+            <div id="distribucion-tipos" className="space-y-4">
+              <div className="a11y-card-muted rounded-lg p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">🔘</span>
+                    <span className="text-sm font-medium text-[color:var(--foreground)]">Opción Múltiple</span>
+                  </div>
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{Math.round(config.proporcion_tipos.opcion_multiple * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -427,14 +467,20 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.opcion_multiple}
                   onChange={(e) => updateProporcion('opcion_multiple', parseFloat(e.target.value))}
-                  className="w-full accent-blue-600 dark:accent-blue-400"
+                  className="w-full h-2 rounded-lg accent-blue-600 dark:accent-blue-400"
                 />
+                <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                  Preguntas con 4 opciones donde solo una es correcta
+                </p>
               </div>
               
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-[color:var(--text-muted)]">Respuesta Corta</span>
-                  <span className="text-sm font-medium text-[color:var(--foreground)]">{Math.round(config.proporcion_tipos.respuesta_corta * 100)}%</span>
+              <div className="a11y-card-muted rounded-lg p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">✏️</span>
+                    <span className="text-sm font-medium text-[color:var(--foreground)]">Respuesta Corta</span>
+                  </div>
+                  <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{Math.round(config.proporcion_tipos.respuesta_corta * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -443,14 +489,20 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.respuesta_corta}
                   onChange={(e) => updateProporcion('respuesta_corta', parseFloat(e.target.value))}
-                  className="w-full accent-purple-600 dark:accent-purple-400"
+                  className="w-full h-2 rounded-lg accent-purple-600 dark:accent-purple-400"
                 />
+                <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                  Preguntas abiertas que requieren respuestas escritas breves
+                </p>
               </div>
               
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-[color:var(--text-muted)]">Verdadero/Falso</span>
-                  <span className="text-sm font-medium text-[color:var(--foreground)]">{Math.round(config.proporcion_tipos.verdadero_falso * 100)}%</span>
+              <div className="a11y-card-muted rounded-lg p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">✅</span>
+                    <span className="text-sm font-medium text-[color:var(--foreground)]">Verdadero/Falso</span>
+                  </div>
+                  <span className="text-sm font-bold text-teal-600 dark:text-teal-400">{Math.round(config.proporcion_tipos.verdadero_falso * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -459,8 +511,50 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   step="0.1"
                   value={config.proporcion_tipos.verdadero_falso}
                   onChange={(e) => updateProporcion('verdadero_falso', parseFloat(e.target.value))}
-                  className="w-full accent-teal-600 dark:accent-teal-400"
+                  className="w-full h-2 rounded-lg accent-teal-600 dark:accent-teal-400"
                 />
+                <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                  Declaraciones que el estudiante debe evaluar como verdaderas o falsas
+                </p>
+              </div>
+
+              {/* Validación de distribución */}
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <svg className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-xs text-amber-800 dark:text-amber-200">
+                    <p className="font-medium mb-1">Nota importante:</p>
+                    <p>La distribución final puede variar según el contenido del documento. La API priorizará la calidad de las preguntas sobre las proporciones exactas.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Indicador del total */}
+              <div className="mt-3 p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[color:var(--text-muted)]">Total de distribución:</span>
+                  <span className={`font-bold ${
+                    Math.abs((config.proporcion_tipos.opcion_multiple + config.proporcion_tipos.respuesta_corta + config.proporcion_tipos.verdadero_falso) - 1) < 0.1 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {Math.round((config.proporcion_tipos.opcion_multiple + config.proporcion_tipos.respuesta_corta + config.proporcion_tipos.verdadero_falso) * 100)}%
+                  </span>
+                </div>
+                <div className="mt-1 w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1">
+                  <div 
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      Math.abs((config.proporcion_tipos.opcion_multiple + config.proporcion_tipos.respuesta_corta + config.proporcion_tipos.verdadero_falso) - 1) < 0.1 
+                        ? 'bg-green-500' 
+                        : 'bg-red-500'
+                    }`}
+                    style={{ 
+                      width: `${Math.min(100, (config.proporcion_tipos.opcion_multiple + config.proporcion_tipos.respuesta_corta + config.proporcion_tipos.verdadero_falso) * 100)}%` 
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
