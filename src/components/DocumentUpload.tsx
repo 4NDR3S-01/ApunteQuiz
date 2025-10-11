@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useId, useCallback, useRef, useEffect } from 'react';
-import { DocumentInput, FileUpload, ProcessingStatus } from '@/types';
+import { DocumentInput, ProcessingStatus } from '@/types';
 import { formatFileSize } from '@/utils';
 
 interface DocumentUploadProps {
@@ -21,7 +21,6 @@ export default function DocumentUpload({
 }: Readonly<DocumentUploadProps>) {
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
-  const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
   const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>(existingDocuments);
 
   // Sincronizar documentos existentes cuando cambian
@@ -94,14 +93,6 @@ export default function DocumentUpload({
       }
 
       // Actualizar estado
-      const fileUpload: FileUpload = {
-        file,
-        name: file.name,
-        type: file.type,
-        size: file.size
-      };
-
-      setUploadedFiles(prev => [...prev, fileUpload]);
       setProcessedDocuments(prev => [...prev, result.data.document]);
       setStatus({ status: 'success', message: 'Archivo procesado exitosamente' });
       
@@ -118,7 +109,7 @@ export default function DocumentUpload({
     }
   };
 
-  const removeFile = (index: number) => {
+  const removeProcessedDocument = (index: number) => {
     const documentToRemove = processedDocuments[index];
     
     // Notificar al componente padre sobre la eliminación
@@ -126,13 +117,8 @@ export default function DocumentUpload({
       onDocumentRemoved(documentToRemove.doc_id);
     }
     
-    // Actualizar estados locales
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    // Actualizar estado de documentos procesados
     setProcessedDocuments(prev => prev.filter((_, i) => i !== index));
-    
-    if (uploadedFiles.length === 1) {
-      setStatus({ status: 'idle' });
-    }
   };
 
   const getStatusColor = () => {
@@ -243,35 +229,31 @@ export default function DocumentUpload({
         </div>
       )}
 
-      {/* Lista de archivos cargados */}
-      {uploadedFiles.length > 0 && (
+      {/* Lista de documentos procesados (existentes) */}
+      {processedDocuments.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-[color:var(--foreground)]">Archivos cargados:</h3>
+          <h3 className="font-medium text-[color:var(--foreground)]">Documentos procesados:</h3>
           <div className="space-y-2">
-            {uploadedFiles.map((fileUpload, index) => (
-              <div key={fileUpload.name} className="a11y-card-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
+            {processedDocuments.map((document, index) => (
+              <div key={document.doc_id} className="a11y-card-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                   <div className="rounded bg-[color:var(--surface-highlight)] p-2">
                     <svg className="h-6 w-6 text-[color:var(--foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      {fileUpload.type === 'application/pdf' ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      )}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[color:var(--foreground)] truncate" title={fileUpload.name}>
-                      {fileUpload.name}
+                    <div className="font-medium text-[color:var(--foreground)] truncate" title={document.source_name}>
+                      {document.source_name}
                     </div>
                     <div className="text-sm text-[color:var(--text-muted)]">
-                      {formatFileSize(fileUpload.size)} • {fileUpload.type}
+                      Procesado - {document.pages?.length} páginas
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-end">
                   <button
-                    onClick={() => removeFile(index)}
+                    onClick={() => removeProcessedDocument(index)}
                     className="text-sm font-medium text-red-600 transition hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
                   >
                     Eliminar
