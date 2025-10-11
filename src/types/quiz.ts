@@ -47,6 +47,7 @@ export interface Metadata {
   nivel: string;
   generado_en: string;
   fuentes?: Fuente[]; // Opcional para evitar errores
+  notas_deduplicacion?: string; // Notas sobre el proceso de deduplicación
 }
 
 export interface SeccionResumen {

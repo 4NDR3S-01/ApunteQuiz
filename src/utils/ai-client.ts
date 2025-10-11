@@ -441,6 +441,41 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       };
     }
 
+    // Deduplicar preguntas basándose en el enunciado
+    const deduplicatedQuestions: any[] = [];
+    const seenQuestions = new Set<string>();
+    let duplicatesRemoved = 0;
+    
+    fixedQuestions.forEach(pregunta => {
+      // Normalizar el enunciado para comparación
+      const normalizedEnunciado = pregunta.enunciado.toLowerCase().trim().replace(/\s+/g, ' ');
+      
+      if (!seenQuestions.has(normalizedEnunciado)) {
+        seenQuestions.add(normalizedEnunciado);
+        deduplicatedQuestions.push(pregunta);
+      } else {
+        duplicatesRemoved++;
+      }
+    });
+
+    // Preparar notas sobre el proceso de limpieza
+    const existingNotes = response.result!.notes || { insuficiente_evidencia: false, detalle: '' };
+    let cleanupDetails = [];
+    
+    if (duplicatesRemoved > 0) {
+      cleanupDetails.push(`Se eliminaron ${duplicatesRemoved} pregunta(s) duplicada(s)`);
+    }
+    
+    const correctedQuestions = fixedQuestions.length - deduplicatedQuestions.length;
+    if (correctedQuestions > 0) {
+      cleanupDetails.push(`Se corrigieron campos faltantes en ${correctedQuestions} pregunta(s)`);
+    }
+
+    const finalNotes = {
+      ...existingNotes,
+      detalle: [existingNotes.detalle, ...cleanupDetails].filter(Boolean).join('. ')
+    };
+
     // Aplicar las correcciones al response
     const fixedResponse = {
       ...response,
@@ -448,8 +483,10 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
         ...response.result!,
         quiz: {
           ...quiz,
-          preguntas: fixedQuestions
-        }
+          preguntas: deduplicatedQuestions,
+          n_generadas: deduplicatedQuestions.length // Actualizar el conteo real
+        },
+        notes: finalNotes
       }
     };
 

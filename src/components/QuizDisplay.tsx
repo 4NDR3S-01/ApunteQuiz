@@ -185,8 +185,20 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
         </h2>
         <div className="space-y-1 text-sm text-[color:var(--text-muted)]">
           <p><strong>Nivel:</strong> {quizResult.metadata.nivel}</p>
-          <p><strong>Preguntas:</strong> {quizResult.quiz.n_generadas}</p>
+          <p><strong>Preguntas generadas:</strong> {quizResult.quiz.n_generadas}</p>
+          {Boolean(quizResult.quiz.n_solicitadas && quizResult.quiz.n_solicitadas !== quizResult.quiz.n_generadas) && (
+            <p className="text-amber-600 dark:text-amber-400">
+              <strong>Solicitadas:</strong> {quizResult.quiz.n_solicitadas} 
+              <span className="ml-1 text-xs">(se generaron menos debido al contenido disponible)</span>
+            </p>
+          )}
           <p><strong>Fuentes:</strong> {(quizResult.metadata.fuentes || []).map(f => f.source_name).join(', ')}</p>
+          {Boolean(quizResult.metadata.notas_deduplicacion) && (
+            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
+              <p className="font-medium text-blue-700 dark:text-blue-300">Proceso de optimización:</p>
+              <p className="text-blue-600 dark:text-blue-400">{quizResult.metadata.notas_deduplicacion}</p>
+            </div>
+          )}
           
           {/* Distribución de tipos de preguntas */}
           {typeDistribution && (
@@ -328,23 +340,240 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
 
       {/* Consejos de estudio */}
       {quizResult.study_tips && quizResult.study_tips.length > 0 && (
-        <div className="a11y-card-muted rounded-lg border-l-4 border-yellow-500 p-4 dark:border-yellow-400">
-          <h3 className="mb-2 flex items-center space-x-2 text-lg font-semibold text-[color:var(--foreground)]">
-            <svg className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            <span>Consejos de estudio</span>
-          </h3>
-          <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
-            {(quizResult.study_tips || []).map((tip) => (
-              <li key={tip.substring(0, 50)} className="flex items-start space-x-2">
-                <span className="mt-1 text-yellow-500">•</span>
-                <span>{tip}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <StudyTipsSection tips={quizResult.study_tips} />
       )}
+    </div>
+  );
+}
+
+interface StudyTipsSectionProps {
+  readonly tips: string[];
+}
+
+function StudyTipsSection({ tips }: StudyTipsSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copiedTip, setCopiedTip] = useState<number | null>(null);
+  
+  // Categorizar consejos por tipo basándose en palabras clave
+  const categorizeTips = (tips: string[]) => {
+    const categories = {
+      memory: { 
+        name: 'Memorización', 
+        icon: '🧠', 
+        color: 'purple',
+        keywords: ['memorizar', 'recordar', 'memoria', 'repetir', 'repasar', 'mnemo', 'flashcard'] 
+      },
+      practice: { 
+        name: 'Práctica', 
+        icon: '📝', 
+        color: 'blue',
+        keywords: ['practicar', 'ejercicio', 'problema', 'resolver', 'aplicar', 'ejemplos'] 
+      },
+      organization: { 
+        name: 'Organización', 
+        icon: '📊', 
+        color: 'green',
+        keywords: ['organizar', 'esquema', 'mapa', 'estructura', 'outline', 'diagrama'] 
+      },
+      understanding: { 
+        name: 'Comprensión', 
+        icon: '💡', 
+        color: 'amber',
+        keywords: ['entender', 'comprender', 'explicar', 'concepto', 'analizar', 'relacionar'] 
+      },
+      general: { 
+        name: 'General', 
+        icon: '🎯', 
+        color: 'gray',
+        keywords: [] 
+      }
+    };
+
+    const categorized: { [key: string]: string[] } = {
+      memory: [],
+      practice: [],
+      organization: [],
+      understanding: [],
+      general: []
+    };
+
+    tips.forEach(tip => {
+      const tipLower = tip.toLowerCase();
+      let assigned = false;
+      
+      for (const [categoryKey, category] of Object.entries(categories)) {
+        if (categoryKey !== 'general' && category.keywords.some(keyword => tipLower.includes(keyword))) {
+          categorized[categoryKey].push(tip);
+          assigned = true;
+          break;
+        }
+      }
+      
+      if (!assigned) {
+        categorized.general.push(tip);
+      }
+    });
+
+    return { categorized, categories };
+  };
+
+  const { categorized, categories } = categorizeTips(tips);
+  const visibleTips = isExpanded ? tips : tips.slice(0, 3);
+  const hasMoreTips = tips.length > 3;
+
+  const copyTip = async (tip: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(tip);
+      setCopiedTip(index);
+      setTimeout(() => setCopiedTip(null), 2000);
+    } catch (err) {
+      console.error('Error copying tip:', err);
+    }
+  };
+
+  const getCategoryColorClasses = (color: string) => {
+    const colorMap = {
+      purple: 'border-purple-200 bg-purple-50 dark:border-purple-700 dark:bg-purple-900/20',
+      blue: 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20',
+      green: 'border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20',
+      amber: 'border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20',
+      gray: 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/20'
+    };
+    return colorMap[color as keyof typeof colorMap] || colorMap.gray;
+  };
+
+  return (
+    <div className="a11y-card rounded-lg border-l-4 border-yellow-500 p-4 dark:border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/10 dark:to-amber-900/10">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="flex items-center space-x-2 text-lg font-semibold text-[color:var(--foreground)]">
+          <svg className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <span>Consejos de estudio</span>
+          <span className="text-sm font-normal text-[color:var(--text-muted)] bg-yellow-100 dark:bg-yellow-800 px-2 py-1 rounded-full">
+            {tips.length} consejo{tips.length !== 1 ? 's' : ''}
+          </span>
+        </h3>
+        
+        {hasMoreTips && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center space-x-1 text-sm text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 transition-colors"
+          >
+            <span>{isExpanded ? 'Ver menos' : 'Ver todos'}</span>
+            <svg 
+              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Vista categorizada cuando está expandido */}
+      {isExpanded ? (
+        <div className="space-y-4">
+          {Object.entries(categorized).map(([categoryKey, categoryTips]) => {
+            if (categoryTips.length === 0) return null;
+            
+            const category = categories[categoryKey as keyof typeof categories];
+            
+            return (
+              <div key={categoryKey} className={`rounded-lg border p-3 ${getCategoryColorClasses(category.color)}`}>
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-lg">{category.icon}</span>
+                  <h4 className="font-medium text-[color:var(--foreground)] text-sm">{category.name}</h4>
+                  <span className="text-xs text-[color:var(--text-muted)] bg-white dark:bg-gray-800 px-2 py-1 rounded-full">
+                    {categoryTips.length}
+                  </span>
+                </div>
+                <ul className="space-y-2">
+                  {categoryTips.map((tip, index) => {
+                    const globalIndex = tips.indexOf(tip);
+                    return (
+                      <li key={`${categoryKey}-${index}`} className="group">
+                        <div className="flex items-start justify-between space-x-2">
+                          <div className="flex items-start space-x-2 flex-1">
+                            <span className="mt-1 text-yellow-500 text-xs">•</span>
+                            <span className="text-sm text-[color:var(--text-muted)] leading-relaxed">{tip}</span>
+                          </div>
+                          <button
+                            onClick={() => copyTip(tip, globalIndex)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white dark:hover:bg-gray-700 rounded"
+                            title="Copiar consejo"
+                          >
+                            {copiedTip === globalIndex ? (
+                              <svg className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Vista simple cuando está colapsado */
+        <ul className="space-y-3">
+          {visibleTips.map((tip, index) => (
+            <li key={`simple-${tip.substring(0, 30)}`} className="group">
+              <div className="flex items-start justify-between space-x-2">
+                <div className="flex items-start space-x-2 flex-1">
+                  <span className="mt-1 text-yellow-500">•</span>
+                  <span className="text-sm text-[color:var(--text-muted)] leading-relaxed">{tip}</span>
+                </div>
+                <button
+                  onClick={() => copyTip(tip, index)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white dark:hover:bg-yellow-800 rounded"
+                  title="Copiar consejo"
+                >
+                  {copiedTip === index ? (
+                    <svg className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 002 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </li>
+          ))}
+          
+          {hasMoreTips && (
+            <li className="pt-2 border-t border-yellow-200 dark:border-yellow-700">
+              <p className="text-xs text-center text-[color:var(--text-muted)]">
+                + {tips.length - 3} consejos más
+              </p>
+            </li>
+          )}
+        </ul>
+      )}
+
+      {/* Nota informativa */}
+      <div className="mt-4 pt-3 border-t border-yellow-200 dark:border-yellow-700">
+        <div className="flex items-center space-x-2">
+          <svg className="h-4 w-4 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-yellow-700 dark:text-yellow-300">
+            Consejos generados específicamente para este contenido. Haz clic en el ícono de copia para guardar un consejo.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
