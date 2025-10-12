@@ -1,5 +1,18 @@
 # ApunteQuiz - Generador de Materiales de Estudio con IA
 
+<div align="center">
+
+![ApunteQuiz Logo](public/logo.png)
+
+**Convierte tus apuntes en quizzes inteligentes alimentados con IA**
+
+[![GitHub Sponsor](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/4NDR3S-01)
+[![GitHub stars](https://img.shields.io/github/stars/4NDR3S-01/ApunteQuiz?style=for-the-badge&logo=github)](https://github.com/4NDR3S-01/ApunteQuiz/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/4NDR3S-01/ApunteQuiz?style=for-the-badge&logo=github)](https://github.com/4NDR3S-01/ApunteQuiz/network)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+</div>
+
 Una aplicación Next.js que genera automáticamente resúmenes y quizzes personalizados a partir de documentos PDF y de texto utilizando inteligencia artificial. **Configuración simplificada con API centralizada.**
 
 ## 🚀 Características Principales
@@ -27,7 +40,39 @@ Una aplicación Next.js que genera automáticamente resúmenes y quizzes persona
 - npm o yarn
 - **API Key de OpenAI o Anthropic (configuración del servidor)**
 
-## 🛠️ Instalación y Configuración
+## � Apoya el Proyecto
+
+<div align="center">
+
+[![GitHub Sponsor](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/4NDR3S-01)
+
+**¿Te resulta útil ApunteQuiz? ¡Considera apoyar su desarrollo!**
+
+</div>
+
+### ¿Por qué patrocinar?
+
+- 🚀 **Desarrollo continuo**: Nuevas características y mejoras regulares
+- 🐛 **Corrección de errores**: Mantenimiento activo y soporte técnico
+- 📚 **Documentación**: Guías y tutoriales actualizados
+- 🆓 **Siempre gratuito**: Mantenemos el proyecto open source
+- ☕ **Apoyo al desarrollador**: Ayuda a mantener la motivación
+
+### ¿Cómo ayuda tu contribución?
+
+Tu apoyo permite:
+- ⚡ Mejorar la velocidad y precisión de la generación de quizzes
+- 🌍 Agregar soporte para más idiomas
+- 📱 Desarrollar una app móvil
+- 🤖 Integrar más modelos de IA avanzados
+- 🎨 Mejorar la interfaz de usuario
+- 🔧 Mantener la infraestructura
+
+**¡Cada contribución, por pequeña que sea, marca la diferencia!** 🙏
+
+---
+
+## �🛠️ Instalación y Configuración
 
 ### 1. Clonar e Instalar
 ```bash
