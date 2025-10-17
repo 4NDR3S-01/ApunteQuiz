@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { QuizResult, Pregunta, isPreguntaOpcionMultiple, isPreguntaVerdaderoFalso } from '@/types';
+import { CheckCircle, AlertCircle, PlayCircle } from 'lucide-react';
 
 interface QuizDisplayProps {
   readonly quizResult: QuizResult;
@@ -23,6 +24,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   const [answers, setAnswers] = useState<QuizAnswers>({});
   const [showResults, setShowResults] = useState(false);
   const [stats, setStats] = useState<QuizStats | null>(null);
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   // Debug logging en desarrollo
   if (process.env.NODE_ENV === 'development') {
@@ -151,9 +153,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   };
 
   const handleSubmit = () => {
-    const results = calculateResults();
-    setStats(results);
-    setShowResults(true);
+    setQuizCompleted(true);
     onQuizComplete?.(answers);
   };
 
@@ -161,6 +161,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
     setAnswers({});
     setShowResults(false);
     setStats(null);
+    setQuizCompleted(false);
   };
 
   const getScoreColor = (percentage: number) => {
@@ -266,158 +267,472 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
         ))}
       </div>
 
-      {/* Controles */}
-      <div className="flex flex-col gap-4 border-t border-[color:var(--border-default)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-        {!showResults ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <span className="text-sm text-[color:var(--text-muted)]">
-              {Object.keys(answers).length} de {preguntas.length} respondidas
+      {/* Controles - Progreso y botones */}
+      <div className="space-y-4 border-t border-[color:var(--border-default)] pt-6">
+        {/* Indicador de progreso */}
+        <div className="a11y-card-muted rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-[color:var(--foreground)]">
+              Progreso del Quiz
             </span>
-            <button
-              onClick={handleSubmit}
-              disabled={!allQuestionsAnswered}
-              className={`px-6 py-2 rounded-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                allQuestionsAnswered
-                  ? 'bg-blue-600 text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
-                  : 'cursor-not-allowed bg-[color:var(--surface-muted)] text-[color:var(--text-muted)] opacity-70'
-              }`}
-            >
-              Terminar Quiz
-            </button>
+            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+              {Object.keys(answers).length} / {preguntas.length}
+            </span>
           </div>
-        ) : (
-          <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <div className={`text-2xl font-bold ${getScoreColor(stats?.porcentajeAcierto || 0)}`}>
-                {stats?.porcentajeAcierto.toFixed(1)}%
-              </div>
-              <div className="text-sm text-[color:var(--text-muted)]">
-                {stats?.respuestasCorrectas} de {stats?.totalPreguntas} correctas
-              </div>
-              
-              {/* Estadísticas detalladas por tipo */}
-              {detailedResults && (
-                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-[color:var(--text-muted)] space-y-1">
-                    <div className="font-medium mb-1">Rendimiento por tipo:</div>
-                    {detailedResults.opcion_multiple.total > 0 && (
-                      <div className="flex justify-between">
-                        <span>🔘 Opción múltiple:</span>
-                        <span className={`font-medium ${getScoreColor(detailedResults.opcion_multiple.porcentaje)}`}>
-                          {detailedResults.opcion_multiple.correctas}/{detailedResults.opcion_multiple.total} ({detailedResults.opcion_multiple.porcentaje.toFixed(0)}%)
-                        </span>
-                      </div>
-                    )}
-                    {detailedResults.respuesta_corta.total > 0 && (
-                      <div className="flex justify-between">
-                        <span>✏️ Respuesta corta:</span>
-                        <span className={`font-medium ${getScoreColor(detailedResults.respuesta_corta.porcentaje)}`}>
-                          {detailedResults.respuesta_corta.correctas}/{detailedResults.respuesta_corta.total} ({detailedResults.respuesta_corta.porcentaje.toFixed(0)}%)
-                        </span>
-                      </div>
-                    )}
-                    {detailedResults.verdadero_falso.total > 0 && (
-                      <div className="flex justify-between">
-                        <span>✅ Verdadero/Falso:</span>
-                        <span className={`font-medium ${getScoreColor(detailedResults.verdadero_falso.porcentaje)}`}>
-                          {detailedResults.verdadero_falso.correctas}/{detailedResults.verdadero_falso.total} ({detailedResults.verdadero_falso.porcentaje.toFixed(0)}%)
-                        </span>
-                      </div>
-                    )}
+          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${(Object.keys(answers).length / preguntas.length) * 100}%`
+              }}
+            />
+          </div>
+          {Object.keys(answers).length < preguntas.length && !quizCompleted && (
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              Faltan {preguntas.length - Object.keys(answers).length} pregunta(s) por responder
+            </p>
+          )}
+          {quizCompleted && (() => {
+            // Calcular estadísticas
+            const correctCount = preguntas.filter(pregunta => {
+              const userAnswer = answers[pregunta.id];
+              return userAnswer === pregunta.respuesta_correcta;
+            }).length;
+            
+            const incorrectCount = preguntas.length - correctCount;
+            const percentage = Math.round((correctCount / preguntas.length) * 100);
+            
+            return (
+              <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
+                <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                  ✅ ¡Quiz completado!
+                </p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 border border-green-200 dark:border-green-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-700 dark:text-green-300">Correctas</span>
+                      <span className="text-2xl font-bold text-green-600 dark:text-green-400">{correctCount}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 border border-red-200 dark:border-red-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-red-700 dark:text-red-300">Incorrectas</span>
+                      <span className="text-2xl font-bold text-red-600 dark:text-red-400">{incorrectCount}</span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-            <button
-              onClick={resetQuiz}
-              className="rounded-lg bg-slate-600 px-6 py-2 text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] dark:bg-slate-500 dark:hover:bg-slate-400"
-            >
-              Reintentar
-            </button>
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Calificación</span>
+                    <span className={`text-2xl font-bold ${
+                      percentage >= 80 ? 'text-green-600 dark:text-green-400' :
+                      percentage >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-red-600 dark:text-red-400'
+                    }`}>
+                      {percentage}%
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-center text-[color:var(--text-muted)] italic">
+                  Usa el botón "Reiniciar" para practicar de nuevo
+                </p>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Guía de Estudio - Aparece después de completar el quiz */}
+        {quizCompleted && quizResult?.study_tips && (
+          <div className="mt-6">
+            <StudyTipsSection tips={quizResult.study_tips} />
           </div>
         )}
-      </div>
 
-      {/* Consejos de estudio */}
-      {quizResult.study_tips && quizResult.study_tips.length > 0 && (
-        <StudyTipsSection tips={quizResult.study_tips} />
-      )}
+        {/* Botones de acción */}
+        <div className="flex justify-between gap-4">
+          <button
+            onClick={resetQuiz}
+            className="flex items-center space-x-2 rounded-lg border-2 border-slate-300 bg-white px-6 py-3 font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <PlayCircle className="h-5 w-5" />
+            <span>Reiniciar</span>
+          </button>
+
+          {!quizCompleted && allQuestionsAnswered && (
+            <button
+              onClick={handleSubmit}
+              className="flex items-center space-x-2 rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition hover:bg-green-700"
+            >
+              <CheckCircle className="h-5 w-5" />
+              <span>Terminar Quiz</span>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
+import type { StudyTips } from '@/types/quiz';
+
 interface StudyTipsSectionProps {
-  readonly tips: string[];
+  readonly tips: StudyTips | string[];
 }
 
 function StudyTipsSection({ tips }: StudyTipsSectionProps) {
+  const [activeTab, setActiveTab] = useState<'tecnicas' | 'plan' | 'errores' | 'recursos'>('tecnicas');
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  
+  // Debug: Ver qué datos recibe el componente
+  console.log('StudyTipsSection - tips recibidos:', tips);
+  console.log('StudyTipsSection - es array?:', Array.isArray(tips));
+  
+  // Verificar si es el nuevo formato o el legacy
+  const isNewFormat = !Array.isArray(tips);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(text);
+      setTimeout(() => setCopiedText(null), 2000);
+    } catch (err) {
+      console.error('Error copying text:', err);
+    }
+  };
+
+  // Si es formato legacy (array de strings), mostrar componente antiguo
+  if (Array.isArray(tips)) {
+    return <LegacyStudyTipsSection tips={tips} />;
+  }
+
+  // Nuevo formato mejorado
+  const studyTips = tips as StudyTips;
+
+  // Verificar si tiene datos
+  const hasData = studyTips.tecnicas_recomendadas?.length > 0 || 
+                  studyTips.errores_comunes?.length > 0 || 
+                  studyTips.recursos_extra?.length > 0 ||
+                  studyTips.plan_repaso;
+
+  if (!hasData) {
+    return (
+      <div className="a11y-card rounded-lg border-l-4 border-yellow-500 p-6 dark:border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/10 dark:to-amber-900/10">
+        <h3 className="flex items-center space-x-2 text-xl font-bold text-[color:var(--foreground)] mb-4">
+          <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <span>Guía de Estudio Personalizada</span>
+        </h3>
+        <p className="text-sm text-[color:var(--text-muted)] text-center py-4">
+          ℹ️ No se generaron consejos de estudio para este quiz. 
+          <br />
+          Esto puede ocurrir si el contenido era muy breve o específico.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="a11y-card rounded-lg border-l-4 border-yellow-500 p-6 dark:border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/10 dark:to-amber-900/10">
+      <h3 className="flex items-center space-x-2 text-xl font-bold text-[color:var(--foreground)] mb-6">
+        <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span>Guía de Estudio Personalizada</span>
+      </h3>
+
+      {/* Tabs de navegación */}
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-yellow-200 dark:border-yellow-700 pb-4">
+        <button
+          onClick={() => setActiveTab('tecnicas')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === 'tecnicas'
+              ? 'bg-yellow-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+          }`}
+        >
+          🎯 Técnicas ({studyTips.tecnicas_recomendadas?.length || 0})
+        </button>
+        <button
+          onClick={() => setActiveTab('plan')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === 'plan'
+              ? 'bg-yellow-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+          }`}
+        >
+          📅 Plan de Repaso
+        </button>
+        <button
+          onClick={() => setActiveTab('errores')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === 'errores'
+              ? 'bg-yellow-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+          }`}
+        >
+          ⚠️ Errores Comunes ({studyTips.errores_comunes?.length || 0})
+        </button>
+        <button
+          onClick={() => setActiveTab('recursos')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === 'recursos'
+              ? 'bg-yellow-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+          }`}
+        >
+          📚 Recursos ({studyTips.recursos_extra?.length || 0})
+        </button>
+      </div>
+
+      {/* Contenido según el tab activo */}
+      <div className="space-y-4">
+        {activeTab === 'tecnicas' && studyTips.tecnicas_recomendadas && (
+          <>
+            {/* Puntos críticos */}
+            {studyTips.puntos_criticos && studyTips.puntos_criticos.length > 0 && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <h4 className="font-semibold text-red-800 dark:text-red-200 mb-2 flex items-center space-x-2">
+                  <span>🎯</span>
+                  <span>Puntos que Requieren Atención Especial</span>
+                </h4>
+                <ul className="space-y-1">
+                  {studyTips.puntos_criticos.map((punto, i) => (
+                    <li key={`critico-${i.toString()}`} className="text-sm text-red-700 dark:text-red-300 flex items-start space-x-2">
+                      <span className="mt-1">•</span>
+                      <span>{punto}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Técnicas recomendadas */}
+            <div className="space-y-4">
+              {studyTips.tecnicas_recomendadas.map((tecnica, index) => (
+                <div key={`tecnica-${index.toString()}`} className="p-4 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-yellow-200 dark:border-yellow-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-lg font-bold text-blue-600 dark:text-blue-400">{tecnica.tecnica}</h4>
+                    <button
+                      onClick={() => copyToClipboard(`${tecnica.tecnica}: ${tecnica.descripcion}`)}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
+                      title="Copiar técnica"
+                    >
+                      {copiedText === `${tecnica.tecnica}: ${tecnica.descripcion}` ? (
+                        <svg className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-sm text-[color:var(--text-muted)] mb-3">{tecnica.descripcion}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-green-600 dark:text-green-400 font-semibold text-sm">¿Por qué?</span>
+                      <p className="text-sm text-[color:var(--text-muted)]">{tecnica.por_que}</p>
+                    </div>
+                    <div className="flex items-start space-x-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">Ejemplo:</span>
+                      <p className="text-sm text-blue-800 dark:text-blue-200">{tecnica.ejemplo}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Conexiones clave */}
+            {studyTips.conexiones_clave && studyTips.conexiones_clave.length > 0 && (
+              <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                <h4 className="font-semibold text-purple-800 dark:text-purple-200 mb-2 flex items-center space-x-2">
+                  <span>🔗</span>
+                  <span>Conexiones Importantes Entre Conceptos</span>
+                </h4>
+                <ul className="space-y-1">
+                  {studyTips.conexiones_clave.map((conexion, i) => (
+                    <li key={`conexion-${i.toString()}`} className="text-sm text-purple-700 dark:text-purple-300 flex items-start space-x-2">
+                      <span className="mt-1">→</span>
+                      <span>{conexion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'plan' && studyTips.plan_repaso && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500">
+              <h4 className="font-bold text-green-800 dark:text-green-200 mb-2 flex items-center space-x-2">
+                <span>⏰</span>
+                <span>Primera Revisión (24 horas)</span>
+              </h4>
+              <p className="text-sm text-green-700 dark:text-green-300">{studyTips.plan_repaso.primera_revision}</p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+              <h4 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center space-x-2">
+                <span>📆</span>
+                <span>Revisión Semanal</span>
+              </h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300">{studyTips.plan_repaso.revision_semanal}</p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500">
+              <h4 className="font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center space-x-2">
+                <span>🎓</span>
+                <span>Antes del Examen</span>
+              </h4>
+              <p className="text-sm text-amber-700 dark:text-amber-300">{studyTips.plan_repaso.antes_examen}</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'errores' && studyTips.errores_comunes && (
+          <div className="space-y-3">
+            {studyTips.errores_comunes.map((error, index) => (
+              <div key={`error-${index.toString()}`} className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
+                <div className="flex items-start space-x-3 mb-2">
+                  <span className="text-xl">❌</span>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-800 dark:text-red-200 mb-1">Error Común:</h4>
+                    <p className="text-sm text-red-700 dark:text-red-300">{error.error}</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3 pl-8">
+                  <span className="text-xl">✅</span>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-800 dark:text-green-200 mb-1">Corrección:</h4>
+                    <p className="text-sm text-green-700 dark:text-green-300">{error.correccion}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'recursos' && studyTips.recursos_extra && (
+          <div className="space-y-3">
+            {studyTips.recursos_extra.map((recurso, index) => {
+              const iconMap = {
+                ejercicios: '📝',
+                lectura: '📖',
+                video: '🎥',
+                práctica: '🎯'
+              };
+              const colorMap = {
+                ejercicios: 'blue',
+                lectura: 'green',
+                video: 'purple',
+                práctica: 'amber'
+              };
+              const icon = iconMap[recurso.tipo] || '📚';
+              const color = colorMap[recurso.tipo] || 'gray';
+
+              return (
+                <div key={`recurso-${index.toString()}`} className={`p-4 rounded-lg bg-${color}-50 dark:bg-${color}-900/20 border border-${color}-200 dark:border-${color}-700`}>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">{icon}</span>
+                    <div>
+                      <h4 className={`font-semibold text-${color}-800 dark:text-${color}-200 capitalize mb-1`}>
+                        {recurso.tipo}
+                      </h4>
+                      <p className={`text-sm text-${color}-700 dark:text-${color}-300`}>{recurso.sugerencia}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Nota informativa */}
+      <div className="mt-6 pt-4 border-t border-yellow-200 dark:border-yellow-700">
+        <div className="flex items-center space-x-2">
+          <svg className="h-4 w-4 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-yellow-700 dark:text-yellow-300">
+            Esta guía ha sido personalizada específicamente para el contenido de tus documentos. Usa los iconos de copia para guardar secciones importantes.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente legacy para formato antiguo (array de strings)
+interface LegacyStudyTipsSectionProps {
+  readonly tips: string[];
+}
+
+function LegacyStudyTipsSection({ tips }: LegacyStudyTipsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedTip, setCopiedTip] = useState<number | null>(null);
   
-  // Categorizar consejos por tipo basándose en palabras clave
-  const categorizeTips = (tips: string[]) => {
-    const categories = {
-      memory: { 
-        name: 'Memorización', 
-        icon: '🧠', 
-        color: 'purple',
-        keywords: ['memorizar', 'recordar', 'memoria', 'repetir', 'repasar', 'mnemo', 'flashcard'] 
-      },
-      practice: { 
-        name: 'Práctica', 
-        icon: '📝', 
-        color: 'blue',
-        keywords: ['practicar', 'ejercicio', 'problema', 'resolver', 'aplicar', 'ejemplos'] 
-      },
-      organization: { 
-        name: 'Organización', 
-        icon: '📊', 
-        color: 'green',
-        keywords: ['organizar', 'esquema', 'mapa', 'estructura', 'outline', 'diagrama'] 
-      },
-      understanding: { 
-        name: 'Comprensión', 
-        icon: '💡', 
-        color: 'amber',
-        keywords: ['entender', 'comprender', 'explicar', 'concepto', 'analizar', 'relacionar'] 
-      },
-      general: { 
-        name: 'General', 
-        icon: '🎯', 
-        color: 'gray',
-        keywords: [] 
-      }
-    };
-
-    const categorized: { [key: string]: string[] } = {
-      memory: [],
-      practice: [],
-      organization: [],
-      understanding: [],
-      general: []
-    };
-
-    tips.forEach(tip => {
-      const tipLower = tip.toLowerCase();
-      let assigned = false;
-      
-      for (const [categoryKey, category] of Object.entries(categories)) {
-        if (categoryKey !== 'general' && category.keywords.some(keyword => tipLower.includes(keyword))) {
-          categorized[categoryKey].push(tip);
-          assigned = true;
-          break;
-        }
-      }
-      
-      if (!assigned) {
-        categorized.general.push(tip);
-      }
-    });
-
-    return { categorized, categories };
+  const categories = {
+    memory: { 
+      name: 'Memorización', 
+      icon: '🧠', 
+      color: 'purple',
+      keywords: ['memorizar', 'recordar', 'memoria', 'repetir', 'repasar', 'mnemo', 'flashcard'] 
+    },
+    practice: { 
+      name: 'Práctica', 
+      icon: '📝', 
+      color: 'blue',
+      keywords: ['practicar', 'ejercicio', 'problema', 'resolver', 'aplicar', 'ejemplos'] 
+    },
+    organization: { 
+      name: 'Organización', 
+      icon: '📊', 
+      color: 'green',
+      keywords: ['organizar', 'esquema', 'mapa', 'estructura', 'outline', 'diagrama'] 
+    },
+    understanding: { 
+      name: 'Comprensión', 
+      icon: '💡', 
+      color: 'amber',
+      keywords: ['entender', 'comprender', 'explicar', 'concepto', 'analizar', 'relacionar'] 
+    },
+    general: { 
+      name: 'General', 
+      icon: '🎯', 
+      color: 'gray',
+      keywords: [] 
+    }
   };
 
-  const { categorized, categories } = categorizeTips(tips);
+  const categorized: { [key: string]: string[] } = {
+    memory: [],
+    practice: [],
+    organization: [],
+    understanding: [],
+    general: []
+  };
+
+  for (const tip of tips) {
+    const tipLower = tip.toLowerCase();
+    let assigned = false;
+    
+    for (const [categoryKey, category] of Object.entries(categories)) {
+      if (categoryKey !== 'general' && category.keywords.some(keyword => tipLower.includes(keyword))) {
+        categorized[categoryKey].push(tip);
+        assigned = true;
+        break;
+      }
+    }
+    
+    if (!assigned) {
+      categorized.general.push(tip);
+    }
+  }
+
   const visibleTips = isExpanded ? tips : tips.slice(0, 3);
   const hasMoreTips = tips.length > 3;
 
@@ -593,33 +908,50 @@ function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: R
   showResult: boolean;
 }>) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {pregunta.opciones?.map((opcion: any) => {
         const isCorrectOption = opcion.id === pregunta.respuesta_correcta;
-        const isUserOption = userAnswer === opcion.id;
-        const isWrongUserOption = showResult && isUserOption && !isCorrectOption;
+        const isSelected = userAnswer === opcion.id;
+        const userHasAnswered = !!userAnswer;
         
-        const getTextClass = () => {
-          if (!showResult) return 'text-[color:var(--text-muted)]';
-          if (isCorrectOption) return 'font-medium text-green-700 dark:text-green-300';
-          if (isWrongUserOption) return 'text-red-700 dark:text-red-400';
-          return 'text-[color:var(--text-muted)]';
-        };
+        let optionClass = 'flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800 ';
         
-        const textClass = getTextClass();
+        if (userHasAnswered && !showResult) {
+          // Feedback instantáneo
+          if (isSelected) {
+            optionClass += isCorrectOption
+              ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
+              : 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-900/20';
+          } else if (isCorrectOption) {
+            optionClass += 'border-green-300 bg-green-50/50 dark:border-green-600 dark:bg-green-900/10';
+          } else {
+            optionClass += 'border-slate-200 dark:border-slate-700 opacity-50';
+          }
+        } else {
+          optionClass += isSelected
+            ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+            : 'border-slate-200 dark:border-slate-700';
+        }
 
         return (
-          <label key={`${pregunta.id}-opcion-${opcion.id}`} className="flex items-center space-x-3 cursor-pointer">
+          <label key={`${pregunta.id}-opcion-${opcion.id}`} className={optionClass}>
             <input
               type="radio"
               name={`pregunta-${pregunta.id}`}
               value={opcion.id}
-              checked={userAnswer === opcion.id}
+              checked={isSelected}
               onChange={() => onAnswer(opcion.id)}
               disabled={showResult}
-              className="h-4 w-4 text-blue-600 dark:text-blue-400"
+              className="h-4 w-4"
             />
-            <span className={textClass}>{opcion.texto}</span>
+            <span className="flex-1">{opcion.texto}</span>
+            {userHasAnswered && !showResult && isSelected && (
+              isCorrectOption ? (
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              )
+            )}
           </label>
         );
       })}
@@ -633,16 +965,38 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
   onAnswer: (answer: any) => void;
   showResult: boolean;
 }>) {
-  const getTrueFalseClass = (value: boolean) => {
-    if (!showResult) return 'text-[color:var(--text-muted)]';
-    if (pregunta.respuesta_correcta === value) return 'font-medium text-green-700 dark:text-green-300';
-    if (userAnswer === value && pregunta.respuesta_correcta !== value) return 'text-red-700 dark:text-red-400';
-    return 'text-[color:var(--text-muted)]';
+  const userHasAnswered = userAnswer !== undefined;
+  const isCorrect = pregunta.respuesta_correcta;
+
+  const getOptionClass = (value: boolean) => {
+    const isSelected = userAnswer === value;
+    const isCorrectAnswer = pregunta.respuesta_correcta === value;
+    
+    let baseClass = 'flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800 ';
+    
+    if (userHasAnswered && !showResult) {
+      // Feedback instantáneo
+      if (isSelected) {
+        baseClass += isCorrectAnswer
+          ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
+          : 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-900/20';
+      } else if (isCorrectAnswer) {
+        baseClass += 'border-green-300 bg-green-50/50 dark:border-green-600 dark:bg-green-900/10';
+      } else {
+        baseClass += 'border-slate-200 dark:border-slate-700 opacity-50';
+      }
+    } else {
+      baseClass += isSelected
+        ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+        : 'border-slate-200 dark:border-slate-700';
+    }
+    
+    return baseClass;
   };
 
   return (
-    <div className="space-y-3">
-      <label className="flex items-center space-x-3 cursor-pointer">
+    <div className="space-y-2">
+      <label className={getOptionClass(true)}>
         <input
           type="radio"
           name={`pregunta-${pregunta.id}`}
@@ -650,11 +1004,18 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
           checked={userAnswer === true}
           onChange={() => onAnswer(true)}
           disabled={showResult}
-          className="h-4 w-4 text-blue-600 dark:text-blue-400"
+          className="h-4 w-4"
         />
-        <span className={getTrueFalseClass(true)}>Verdadero</span>
+        <span className="flex-1">Verdadero</span>
+        {userHasAnswered && !showResult && userAnswer === true && (
+          pregunta.respuesta_correcta === true ? (
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          )
+        )}
       </label>
-      <label className="flex items-center space-x-3 cursor-pointer">
+      <label className={getOptionClass(false)}>
         <input
           type="radio"
           name={`pregunta-${pregunta.id}`}
@@ -662,9 +1023,16 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
           checked={userAnswer === false}
           onChange={() => onAnswer(false)}
           disabled={showResult}
-          className="h-4 w-4 text-blue-600 dark:text-blue-400"
+          className="h-4 w-4"
         />
-        <span className={getTrueFalseClass(false)}>Falso</span>
+        <span className="flex-1">Falso</span>
+        {userHasAnswered && !showResult && userAnswer === false && (
+          pregunta.respuesta_correcta === false ? (
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          )
+        )}
       </label>
     </div>
   );

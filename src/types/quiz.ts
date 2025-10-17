@@ -110,11 +110,43 @@ export interface Notes {
   detalle: string;
 }
 
+export interface TecnicaEstudio {
+  tecnica: string;
+  descripcion: string;
+  por_que: string;
+  ejemplo: string;
+}
+
+export interface ErrorComun {
+  error: string;
+  correccion: string;
+}
+
+export interface RecursoExtra {
+  tipo: 'ejercicios' | 'lectura' | 'video' | 'práctica';
+  sugerencia: string;
+}
+
+export interface PlanRepaso {
+  primera_revision: string;
+  revision_semanal: string;
+  antes_examen: string;
+}
+
+export interface StudyTips {
+  tecnicas_recomendadas: TecnicaEstudio[];
+  puntos_criticos: string[];
+  conexiones_clave: string[];
+  errores_comunes: ErrorComun[];
+  recursos_extra: RecursoExtra[];
+  plan_repaso: PlanRepaso;
+}
+
 export interface QuizResult {
   metadata: Metadata;
   summary: Summary;
   quiz: Quiz;
-  study_tips?: string[]; // Opcional en caso de que la API no lo incluya
+  study_tips?: StudyTips | string[]; // Soporta ambos formatos (nuevo y legacy)
   notes: Notes;
 }
 

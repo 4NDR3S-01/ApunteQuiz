@@ -7,6 +7,7 @@ import QuizDisplay from './QuizDisplay';
 
 interface QuizGeneratorProps {
   readonly className?: string;
+  readonly onQuizSaved?: () => void;
 }
 
 type Step = 'upload' | 'configure' | 'generating' | 'quiz';
@@ -88,7 +89,7 @@ function validateQuizConfig(config: QuizConfig, documents: DocumentInput[]): str
   return errors;
 }
 
-export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
+export default function QuizGenerator({ className = '', onQuizSaved }: QuizGeneratorProps) {
   const [step, setStep] = useState<Step>('upload');
   const [documents, setDocuments] = useState<DocumentInput[]>([]);
   const [config, setConfig] = useState<QuizConfig>(defaultConfig);
@@ -172,12 +173,39 @@ export default function QuizGenerator({ className = '' }: QuizGeneratorProps) {
         throw new Error(result.error?.message || `Error HTTP ${response.status}: ${result.message || 'Error generando quiz'}`);
       }
 
-      // La API devuelve { success: true, data: { result: QuizResult }, metadata: {...} }
       if (!result.success || !result.data?.result) {
         throw new Error(result.error?.message || 'Respuesta inválida del servidor');
       }
 
-      setQuizResult(result.data.result as QuizResult);
+      const quizResult = result.data.result as QuizResult;
+      setQuizResult(quizResult);
+
+      const saveResponse = await fetch('/api/save-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quizData: quizResult,
+          documentIds: documents.map(doc => doc.doc_id),
+          documents: documents.map(doc => ({
+            source_name: doc.source_name,
+            type: doc.type
+          }))
+        })
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        console.error('Error guardando quiz en base de datos:', errorData);
+      } else {
+        const saveData = await saveResponse.json();
+        console.log('Quiz guardado exitosamente:', saveData);
+        
+        // Llamar al callback si fue proporcionado
+        if (onQuizSaved) {
+          onQuizSaved();
+        }
+      }
+
       setStep('quiz');
     } catch (err) {
       console.error('Error generando quiz:', err);

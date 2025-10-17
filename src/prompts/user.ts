@@ -54,11 +54,25 @@ nivel_objetivo: "${nivel}"
 n_preguntas: ${n_preguntas}
 tipos_permitidos: ["opcion_multiple","respuesta_corta","verdadero_falso"]
 proporcion_tipos: { "opcion_multiple": ${p_mcq}, "respuesta_corta": ${p_short}, "verdadero_falso": ${p_tf} }
+
+⚠️ DISTRIBUCIÓN REQUERIDA (DEBES CUMPLIR EXACTAMENTE):
+- Preguntas de opción múltiple: ${Math.round(p_mcq * n_preguntas)} de ${n_preguntas}
+- Preguntas de respuesta corta: ${Math.round(p_short * n_preguntas)} de ${n_preguntas}
+- Preguntas verdadero/falso: ${Math.round(p_tf * n_preguntas)} de ${n_preguntas}
+
 temas_prioritarios: ${temas_prioritarios_json}
 max_citas_por_pregunta: 2
 
 # CONTEXTO AUTORIZADO (DOCUMENTOS)
 documents: ${JSON.stringify(documents, null, 2)}
+
+# EJEMPLO DE DISTRIBUCIÓN CORRECTA
+Si n_preguntas=10 y proporcion_tipos={ opcion_multiple:1.0, respuesta_corta:0.0, verdadero_falso:0.0 }
+Entonces TODAS las 10 preguntas DEBEN ser de tipo "opcion_multiple"
+El array quiz.preguntas debe tener 10 elementos con tipo:"opcion_multiple"
+
+Si n_preguntas=10 y proporcion_tipos={ opcion_multiple:0.5, respuesta_corta:0.3, verdadero_falso:0.2 }
+Entonces debes generar: 5 opcion_multiple, 3 respuesta_corta, 2 verdadero_falso
 
 # ESQUEMA DE SALIDA (DEVUELVE SOLO ESTE JSON)
 {
@@ -119,10 +133,39 @@ documents: ${JSON.stringify(documents, null, 2)}
         }
       ]
     },
-    "study_tips": [
-      "Consejo corto de estudio 1 enfocado a los puntos más débiles",
-      "Consejo 2..."
-    ],
+    "study_tips": {
+      "tecnicas_recomendadas": [
+        {
+          "tecnica": "Nombre de la técnica (ej: Mapas Conceptuales, Flashcards, Práctica Espaciada)",
+          "descripcion": "Breve explicación de cómo aplicar esta técnica al contenido",
+          "por_que": "Por qué es efectiva para este material específico",
+          "ejemplo": "Ejemplo concreto aplicado a un concepto del documento"
+        }
+      ],
+      "puntos_criticos": [
+        "Concepto o tema que requiere especial atención basado en la complejidad del material"
+      ],
+      "conexiones_clave": [
+        "Relación importante entre conceptos que ayuda a la comprensión integral"
+      ],
+      "errores_comunes": [
+        {
+          "error": "Error conceptual típico en este tema",
+          "correccion": "Cómo evitarlo o pensarlo correctamente"
+        }
+      ],
+      "recursos_extra": [
+        {
+          "tipo": "ejercicios|lectura|video|práctica",
+          "sugerencia": "Qué tipo de recurso buscar para reforzar (sin URLs específicas)"
+        }
+      ],
+      "plan_repaso": {
+        "primera_revision": "Qué revisar en las próximas 24 horas",
+        "revision_semanal": "Qué practicar durante la semana",
+        "antes_examen": "Qué repasar justo antes de un examen"
+      }
+    },
     "notes": {
       "insuficiente_evidencia": false,
       "detalle": ""
@@ -134,12 +177,42 @@ documents: ${JSON.stringify(documents, null, 2)}
 
 Cobertura: reparte las preguntas para cubrir los temas prioritarios y las secciones más relevantes del resumen.
 
-Variedad: mezcla tipos (MCQ/RC/TF) según proporcion_tipos.
+⚠️ DISTRIBUCIÓN DE TIPOS (MUY IMPORTANTE):
+Debes generar EXACTAMENTE las preguntas según la proporción especificada:
+- Opción múltiple: ${Math.round(p_mcq * n_preguntas)} preguntas (${Math.round(p_mcq * 100)}%)
+- Respuesta corta: ${Math.round(p_short * n_preguntas)} preguntas (${Math.round(p_short * 100)}%)
+- Verdadero/Falso: ${Math.round(p_tf * n_preguntas)} preguntas (${Math.round(p_tf * 100)}%)
+
+Si la proporción es 1.0 (100%) para un tipo, TODAS las preguntas deben ser de ese tipo.
+Si la proporción es 0.0 (0%) para un tipo, NO debe haber preguntas de ese tipo.
+NO ajustes estas proporciones por tu cuenta, respétalas estrictamente.
 
 Claridad: evita enunciados con dependencias externas ("como vimos en clase…").
 
 Verificabilidad: cada explicación debe poder rastrearse a las citas incluidas.
 
 Consistencia: actualiza quiz.n_generadas con el número real que devuelves.
+
+📚 CONSEJOS DE ESTUDIO (REQUERIMIENTOS):
+
+Personalización: Los consejos deben ser ESPECÍFICOS al contenido del documento, no genéricos.
+❌ MAL: "Estudia todos los días" 
+✅ BIEN: "Practica derivadas de funciones compuestas 15 min diarios, empezando por casos simples"
+
+Técnicas variadas: Sugiere al menos 3 técnicas diferentes (mapas conceptuales, flashcards, práctica espaciada, método Feynman, etc.)
+
+Nivel apropiado: Ajusta los consejos al nivel educativo (${nivel}):
+- Secundaria: técnicas visuales, nemotecnias, ejemplos cotidianos
+- Universidad: conexiones teóricas, papers, resolución de problemas complejos
+- Profesional: aplicaciones prácticas, casos reales, tendencias actuales
+
+Errores comunes: Identifica al menos 2 errores típicos que estudiantes cometen con ESTE contenido específico
+
+Plan de repaso: Debe ser concreto y temporal:
+- Primera revisión (24h): Los 3 conceptos más importantes
+- Revisión semanal (7 días): Ejercicios de práctica sugeridos
+- Antes del examen: Fórmulas/conceptos clave para memorizar
+
+Recursos recomendados: Sugiere tipos de recursos (sin URLs) que complementen el material
 `;
 };
