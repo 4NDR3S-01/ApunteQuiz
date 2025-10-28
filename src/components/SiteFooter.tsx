@@ -27,11 +27,20 @@ export default function SiteFooter({ showDownload = true }: SiteFooterProps) {
             para impulsar el aprendizaje activo.
           </p>
           <div className="flex items-center gap-4">
-            <Link href="/#terminos-y-condiciones" className="transition hover:text-[color:var(--foreground)]">
-              Términos y condiciones de uso
+            <Link href="/politica" className="transition hover:text-[color:var(--foreground)]">
+              Política de privacidad
             </Link>
+            <span className="text-[color:var(--text-muted)]">|</span>
+            <Link href="/terminos" className="transition hover:text-[color:var(--foreground)]">
+              Términos de uso
+            </Link>
+            <span className="text-[color:var(--text-muted)]">|</span>
             <Link href="/faq" className="transition hover:text-[color:var(--foreground)]">
-              FAQ / Soporte
+              Ayuda
+            </Link>
+            <span className="text-[color:var(--text-muted)]">|</span>
+            <Link href="/contacto" className="transition hover:text-[color:var(--foreground)]">
+              Soporte
             </Link>
           </div>
         </div>

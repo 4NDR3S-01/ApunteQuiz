@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import FloatingHeader from '@/components/FloatingHeader';
 import SiteFooter from '@/components/SiteFooter';
 
@@ -53,7 +54,9 @@ const steps = [
 export default function Home() {
   return (
     <>
-      <FloatingHeader />
+      <Suspense fallback={null}>
+        <FloatingHeader />
+      </Suspense>
       <main
         id="contenido-principal"
         className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] transition-colors pt-20"

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Mail, Headset, ShieldCheck, GraduationCap, Clock3, MapPin, ArrowLeft } from 'lucide-react';
+import { Suspense } from 'react';
 import FloatingHeader from '@/components/FloatingHeader';
 import SiteFooter from '@/components/SiteFooter';
 
@@ -36,7 +37,9 @@ const supportChannels = [
 export default function ContactoPage() {
   return (
     <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] transition-colors">
-      <FloatingHeader />
+      <Suspense fallback={null}>
+        <FloatingHeader />
+      </Suspense>
       <main className="pt-24 pb-16 lg:pb-20">
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
         <header className="space-y-4 text-center">

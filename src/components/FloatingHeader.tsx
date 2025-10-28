@@ -7,6 +7,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Menu,
   X,
+  Settings,
   BookOpen,
   Sparkles,
   HelpCircle,
@@ -22,6 +23,7 @@ import {
   Search,
 } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/components/LanguageProvider';
 
 // -----------------------
 // Tipos
@@ -168,11 +170,12 @@ const isParentActive = (item: NavigationItem, pathname: string) => {
 export default function FloatingHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [language, setLanguage] = useState<'es' | 'en'>('es');
+  const { language, setLanguage } = useLanguage();
   const [activeDesktopMenu, setActiveDesktopMenu] = useState<string | null>(null);
   const [openMobileMenus, setOpenMobileMenus] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const closeMenuTimeoutRef = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pathname = usePathname() ?? '/';
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -188,25 +191,54 @@ export default function FloatingHeader() {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : 'unset';
   }, [isMobileMenuOpen]);
 
-  useEffect(() => {
-    const storedLanguage = window.localStorage.getItem('aq-language');
-    if (storedLanguage === 'es' || storedLanguage === 'en') {
-      setLanguage(storedLanguage);
-      document.documentElement.lang = storedLanguage;
-    }
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.lang = language;
-    window.localStorage.setItem('aq-language', language);
-    window.dispatchEvent(new CustomEvent('aq-language-change', { detail: language }));
-  }, [language]);
+  // Language is handled globally by LanguageProvider; FloatingHeader consumes it via useLanguage
 
   useEffect(() => {
     return () => {
       if (closeMenuTimeoutRef.current) window.clearTimeout(closeMenuTimeoutRef.current);
     };
   }, []);
+
+  // Keyboard shortcuts: '/' focuses search, Alt+1/2/3 focus nav items, Esc closes menus
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // don't hijack when typing in inputs
+      const active = document.activeElement as HTMLElement | null;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if ((e.key === '/' || e.key === '?') && !isTyping) {
+        e.preventDefault();
+        // focus the first visible search input (desktop or mobile)
+        const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="search"]'));
+        const visible = inputs.find((i) => i.offsetParent !== null && i.getBoundingClientRect().width > 0) ?? inputs[0];
+        visible?.focus();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        setActiveDesktopMenu(null);
+        (document.activeElement as HTMLElement | null)?.blur();
+        return;
+      }
+
+      if (e.altKey && !isTyping) {
+        const idx = { '1': 0, '2': 1, '3': 2 }[e.key as keyof Record<string, number>];
+        if (typeof idx === 'number') {
+          const navItem = navigation[idx];
+          if (navItem) {
+            const el = document.querySelector(`[data-nav="${navItem.name}"]`) as HTMLElement | null;
+            if (el) {
+              el.focus();
+              if (navItem.submenu) setActiveDesktopMenu(navItem.name);
+            }
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [setActiveDesktopMenu]);
 
   // ----- Helpers con estado -----
   const cancelCloseDesktopMenu = () => {
@@ -312,6 +344,7 @@ export default function FloatingHeader() {
                   <div
                     key={item.name}
                     className="relative"
+                    data-nav-wrapper={item.name}
                     onMouseEnter={() => {
                       if (hasSubmenu) {
                         cancelCloseDesktopMenu();
@@ -349,6 +382,7 @@ export default function FloatingHeader() {
                         className={`group relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                           parentActive ? 'text-blue-600' : 'text-[color:var(--text-muted)]'
                         }`}
+                        data-nav={item.name}
                         aria-expanded={isActive}
                         aria-haspopup="true"
                         aria-current={parentActive ? 'page' : undefined}
@@ -373,9 +407,11 @@ export default function FloatingHeader() {
                         }`}
                         aria-current={parentActive ? 'page' : undefined}
                       >
-                        <Icon className={iconClasses} aria-hidden="true" />
-                        <span>{item.name}</span>
-                        <span className={underlineClasses} />
+                        <a data-nav={item.name}>
+                          <Icon className={iconClasses} aria-hidden="true" />
+                          <span>{item.name}</span>
+                          <span className={underlineClasses} />
+                        </a>
                       </Link>
                     )}
                     {hasSubmenu ? (
@@ -391,10 +427,19 @@ export default function FloatingHeader() {
                         <div className="space-y-2">
                           {item.submenu?.map((subItem) => {
                             const SubIcon = subItem.icon;
-                            const subActive =
-                              normalizeHref(subItem.href) === pathname &&
-                              !subItem.href.includes('#');
-                            const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600' : ''}`;
+                              const computeSubActive = (href: string) => {
+                                const normalized = normalizeHref(href);
+                                if (normalized !== pathname) return false;
+                                if (href.includes('#')) {
+                                  if (typeof window === 'undefined') return false;
+                                  const currentHash = window.location.hash.replace('#', '');
+                                  const targetHash = href.split('#')[1] ?? '';
+                                  return targetHash === currentHash;
+                                }
+                                return true;
+                              };
+                              const subActive = computeSubActive(subItem.href);
+                              const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600' : ''}`;
                             return (
                               <Link
                                 key={subItem.name}

@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, CheckCircle, Home as HomeIcon } from 'lucide-react';
+import evaluatePassword from '@/utils/password';
+import PasswordMeter from '@/components/PasswordMeter';
+import useTranslation from '@/hooks/useTranslation';
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -12,6 +15,19 @@ export default function RegisterForm() {
   
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  // load remembered email on mount
+  useEffect(() => {
+    try {
+      const saved = globalThis.localStorage.getItem('aq-remember-email');
+      if (saved) {
+        setEmail(saved);
+        setRememberMe(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,12 +36,16 @@ export default function RegisterForm() {
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { t } = useTranslation();
+
   const validatePassword = (pwd: string) => {
     if (pwd.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
+      return (t('password.minLength', { n: 6 }) as string) || '';
     }
     return '';
   };
+
+  // use shared password evaluator
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +54,7 @@ export default function RegisterForm() {
 
     // Validations
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      setError(t('password.mismatch') as string);
       return;
     }
 
@@ -42,6 +62,18 @@ export default function RegisterForm() {
     if (passwordError) {
       setError(passwordError);
       return;
+    }
+
+    // enforce minimal strength (score 0..4) - require at least 2 (Aceptable)
+    try {
+      const strength = evaluatePassword(password);
+      if (strength.score < 2) {
+        const weakTemplate = (t('password.weak') as string) || 'La contraseña es demasiado débil. {suggestion}';
+        setError(weakTemplate.replace('{suggestion}', strength.suggestions[0] ?? 'Mejora la longitud o la variedad de caracteres.'));
+        return;
+      }
+    } catch {
+      // if evaluation fails, allow submission to avoid blocking by bug
     }
 
     setIsLoading(true);
@@ -64,6 +96,15 @@ export default function RegisterForm() {
 
       if (data.user) {
         setSuccess(true);
+        try {
+          if (rememberMe) {
+            globalThis.localStorage.setItem('aq-remember-email', email);
+          } else {
+            globalThis.localStorage.removeItem('aq-remember-email');
+          }
+        } catch {
+          // ignore
+        }
         // Wait a bit before redirecting
         setTimeout(() => {
           router.push('/login?registered=true');
@@ -71,9 +112,9 @@ export default function RegisterForm() {
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || 'Error al registrarse. Por favor, intenta de nuevo.');
+        setError(err.message || (t('auth.register.error_generic') as string));
       } else {
-        setError('Error al registrarse. Por favor, intenta de nuevo.');
+        setError(t('auth.register.error_generic') as string);
       }
     } finally {
       setIsLoading(false);
@@ -89,17 +130,17 @@ export default function RegisterForm() {
               <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
             </div>
             <h2 className="mb-2 text-2xl font-bold text-[color:var(--foreground)]">
-              ¡Registro exitoso!
+              {t('auth.register.success_title')}
             </h2>
             <p className="text-[color:var(--text-muted)]">
-              Te hemos enviado un correo de confirmación. Por favor, revisa tu bandeja de entrada y confirma tu correo electrónico.
+              {t('auth.register.success_desc')}
             </p>
             <div className="mt-6">
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center rounded-lg bg-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-400"
               >
-                Ir al inicio de sesión
+                {t('common.go_to_login')}
               </Link>
             </div>
           </div>
@@ -111,6 +152,14 @@ export default function RegisterForm() {
   return (
     <div className="w-full max-w-md">
       <div className="a11y-card rounded-3xl p-8 shadow-xl shadow-slate-200/60 dark:shadow-slate-900/60">
+       {/* Back Link */}
+       <Link
+         href="/"
+         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)]"
+       >
+         <HomeIcon className="h-4 w-4" aria-hidden="true" />
+         Volver al inicio
+       </Link>
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors">
@@ -177,6 +226,20 @@ export default function RegisterForm() {
             </div>
           </div>
 
+          {/* Remember me checkbox */}
+          <div className="flex items-center justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-[color:var(--foreground)]">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
+                className="h-4 w-4 rounded border-[color:var(--border-default)] text-blue-600 focus:ring-blue-500"
+              />
+              <span>Recordarme</span>
+            </label>
+          </div>
+
           {/* Password Field */}
           <div className="space-y-2">
             <label htmlFor="password" className="block text-sm font-medium text-[color:var(--foreground)]">
@@ -212,9 +275,35 @@ export default function RegisterForm() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-[color:var(--text-muted)]">
-              Mínimo 6 caracteres
-            </p>
+            {/* Password strength meter */}
+            {(() => {
+              const strength = evaluatePassword(password);
+              const segments = [0, 1, 2, 3];
+              return (
+                <div className="mt-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      {segments.map((i) => (
+                        <div
+                          key={i}
+                          className={`h-2 w-8 rounded ${i <= (strength.score - 1) ? strength.color : 'bg-slate-200 dark:bg-slate-700'}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-[color:var(--text-muted)]">{strength.label}</span>
+                      {strength.suggestions && strength.suggestions.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 text-[color:var(--text-muted)] text-[11px]">
+                          {strength.suggestions.slice(0, 3).map((s) => (
+                            <li key={s}>• {s}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Confirm Password Field */}
@@ -280,12 +369,12 @@ export default function RegisterForm() {
 
         {/* Login Link */}
         <p className="text-center text-sm text-[color:var(--text-muted)]">
-          ¿Ya tienes una cuenta?{' '}
+          {t('auth.register.login_prompt')}{' '}
           <Link
             href="/login"
             className="font-medium text-blue-600 transition-colors hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            Iniciar sesión
+            {t('auth.register.login_cta')}
           </Link>
         </p>
       </div>

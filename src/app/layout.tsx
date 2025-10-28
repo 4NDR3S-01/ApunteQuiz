@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AccessibilityProvider } from "@/components/AccessibilityProvider";
+import { LanguageProvider } from '@/components/LanguageProvider';
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import "./globals.css";
 
@@ -35,13 +36,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AccessibilityProvider>
-          <a href="#contenido-principal" className="skip-to-content">
-            Saltar al contenido principal
-          </a>
-          {children}
-          <AccessibilitySettings />
-        </AccessibilityProvider>
+        <LanguageProvider>
+          <AccessibilityProvider>
+            <a href="#contenido-principal" className="skip-to-content">
+              Saltar al contenido principal
+            </a>
+            {children}
+            <AccessibilitySettings />
+          </AccessibilityProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

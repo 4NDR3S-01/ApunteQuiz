@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
@@ -43,6 +44,35 @@ export default function AccessibilitySettings() {
     readingSupported,
     readingMessage,
     clearReadingMessage,
+    subtitlesEnabled,
+    setSubtitlesEnabled,
+    autoTranscripts,
+    setAutoTranscripts,
+    videoInterpreterEnabled,
+    setVideoInterpreterEnabled,
+    customFont,
+    setCustomFont,
+    customColor,
+    setCustomColor,
+    voiceControlEnabled,
+    setVoiceControlEnabled,
+    blockAutoplay,
+    setBlockAutoplay,
+    customShortcutsEnabled,
+    setCustomShortcutsEnabled,
+    pauseAllMedia,
+    playAllMedia,
+    stopAllMedia,
+    textScale,
+    setTextScale,
+    linkHighlight,
+    setLinkHighlight,
+    focusVisible,
+    setFocusVisible,
+    keyboardNavigationEnabled,
+    setKeyboardNavigationEnabled,
+    largeButtonsScale,
+    setLargeButtonsScale,
   } = useAccessibility();
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -52,6 +82,13 @@ export default function AccessibilitySettings() {
   const dialogDescriptionId = useId();
   const contrastDescriptionId = useId();
   const narratorDescriptionId = useId();
+
+  // Allow opening the panel from external UI via a global event
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener('apq:open-accessibility', handler as EventListener);
+    return () => window.removeEventListener('apq:open-accessibility', handler as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -154,247 +191,135 @@ export default function AccessibilitySettings() {
           </header>
 
           <div className="space-y-5 text-sm">
+            {/* Auditiva */}
             <section className="a11y-card-muted space-y-3 rounded-xl p-3">
               <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">
-                  Tema
-                </h3>
-                <p className="text-xs text-[color:var(--text-muted)]">
-                  Elige manualmente o sincroniza con tu dispositivo.
-                </p>
+                <h3 className="font-medium text-[color:var(--foreground)]">Auditiva</h3>
+                <p className="text-xs text-[color:var(--text-muted)]">Opciones para mejorar la experiencia auditiva y de medios.</p>
               </header>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={subtitlesEnabled} onChange={(e) => setSubtitlesEnabled(e.target.checked)} className="w-4 h-4" />
+                  <span>Subtítulos en videos</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={autoTranscripts} onChange={(e) => setAutoTranscripts(e.target.checked)} className="w-4 h-4" />
+                  <span>Transcripciones textuales automáticas</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={videoInterpreterEnabled} onChange={(e) => setVideoInterpreterEnabled(e.target.checked)} className="w-4 h-4" />
+                  <span>Video-intérprete / avatar (lengua de señas) — UI</span>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={pauseAllMedia} className="a11y-control px-3 py-1 rounded">Pausar medios</button>
+                  <button type="button" onClick={playAllMedia} className="a11y-control px-3 py-1 rounded">Reproducir medios</button>
+                  <button type="button" onClick={stopAllMedia} className="a11y-control px-3 py-1 rounded">Detener medios</button>
+                </div>
+
+                <div className="flex gap-2 pt-2 items-center">
+                  <button type="button" onClick={isReading ? stopReading : startReading} className="a11y-control px-3 py-1 rounded">{isReading ? 'Detener narrador' : 'Iniciar narrador'}</button>
+                  <button type="button" onClick={clearReadingMessage} className="px-2 py-1 rounded border text-sm">Limpiar mensajes</button>
+                </div>
+
+                {readingMessage ? <div className="a11y-muted text-sm pt-2">{readingMessage}</div> : null}
+              </div>
+            </section>
+
+            {/* Visual */}
+            <section className="a11y-card-muted space-y-3 rounded-xl p-3">
+              <header className="space-y-1">
+                <h3 className="font-medium text-[color:var(--foreground)]">Visual</h3>
+                <p className="text-xs text-[color:var(--text-muted)]">Ajustes visuales: tema, tipografía, colores y espaciado.</p>
+              </header>
+
               <div className="grid gap-2 sm:grid-cols-3">
                 {THEME_OPTIONS.map((option) => {
                   const isActive = themePreference === option.value;
                   return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleThemeSelection(option.value)}
-                      aria-pressed={isActive}
-                      className={`flex flex-col items-center justify-center rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                        isActive
-                          ? 'a11y-critical shadow-md'
-                          : 'a11y-control shadow-sm hover:shadow-md'
-                      }`}
-                    >
+                    <button key={option.value} type="button" onClick={() => handleThemeSelection(option.value)} aria-pressed={isActive} className={`flex flex-col items-center justify-center rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${isActive ? 'a11y-critical shadow-md' : 'a11y-control shadow-sm hover:shadow-md'}`}>
                       <span className="text-lg">{option.icon}</span>
                       <span>{option.label}</span>
-                      {option.value === 'system' && (
-                        <span className="mt-1 text-[10px] uppercase tracking-wide opacity-70">
-                          {resolvedTheme === 'dark' ? 'Oscuro' : 'Claro'}
-                        </span>
-                      )}
+                      {option.value === 'system' && <span className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{resolvedTheme === 'dark' ? 'Oscuro' : 'Claro'}</span>}
                     </button>
                   );
                 })}
               </div>
-            </section>
 
-            <section className="a11y-card-muted space-y-2 rounded-xl p-3">
-              <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">
-                  Tamaño del texto
-                </h3>
-                <p className="text-xs text-[color:var(--text-muted)]">
-                  Ajusta la escala tipográfica general.
-                </p>
-              </header>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                {FONT_SCALE_OPTIONS.map((option) => {
-                  const isActive = fontScale === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setFontScale(option.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                        isActive
-                          ? 'a11y-critical shadow-md'
-                          : 'a11y-control shadow-sm hover:shadow-md'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-sm mb-1">Escala de texto (barra): {textScale.toFixed(1)}x</label>
+                  <input aria-label="Escala de texto" type="range" min={0.8} max={2} step={0.1} value={String(textScale)} onChange={(e) => setTextScale(Number(e.target.value))} className="w-full" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-36 text-sm">Tipo de fuente</span>
+                  <select value={customFont ?? ''} onChange={(e) => setCustomFont(e.target.value)} className="a11y-input rounded px-2 py-1">
+                    <option value="">Sistema</option>
+                    <option value="sans">Sans (predeterminado)</option>
+                    <option value="serif">Serif</option>
+                    <option value="dyslexic">Fuente amigable (dislexia)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-36 text-sm">Color personalizado</span>
+                  <input type="color" value={customColor || '#000000'} onChange={(e) => setCustomColor(e.target.value)} className="h-8 w-12 p-0 border rounded" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-36 text-sm">Espaciado</span>
+                  <div className="flex gap-2">
+                    {(['normal', 'relaxed'] as const).map((opt) => (
+                      <button key={opt} type="button" onClick={() => setLineSpacing(opt)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${lineSpacing === opt ? 'a11y-critical' : 'a11y-control'}`} aria-pressed={lineSpacing === opt}>{opt === 'normal' ? 'Estándar' : 'Amplio'}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={linkHighlight} onChange={(e) => setLinkHighlight(e.target.checked)} className="w-4 h-4" />
+                  <span>Resaltar enlaces</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={focusVisible} onChange={(e) => setFocusVisible(e.target.checked)} className="w-4 h-4" />
+                  <span>Foco visible</span>
+                </div>
               </div>
             </section>
 
+            {/* Motriz */}
             <section className="a11y-card-muted space-y-3 rounded-xl p-3">
               <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">
-                  Comodidad de lectura
-                </h3>
-                <p className="text-xs text-[color:var(--text-muted)]">
-                  Ajusta el espaciado y activa una tipografía amigable.
-                </p>
+                <h3 className="font-medium text-[color:var(--foreground)]">Motriz</h3>
+                <p className="text-xs text-[color:var(--text-muted)]">Controles para usuarios con necesidades motrices.</p>
               </header>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                {([
-                  { value: 'normal', label: 'Estándar' },
-                  { value: 'relaxed', label: 'Amplio' },
-                ] as const).map((option) => {
-                  const isActive = lineSpacing === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleLineSpacing(option.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                        isActive
-                          ? 'a11y-critical shadow-md'
-                          : 'a11y-control shadow-sm hover:shadow-md'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="a11y-surface flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-[color:var(--foreground)]">
-                    Fuente amigable
-                  </p>
-                  <p className="text-[11px] text-[color:var(--text-muted)]">
-                    Mejora la legibilidad para dislexia y fatiga visual.
-                  </p>
-                </div>
-                <div className="flex justify-start sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setDyslexicFont(!dyslexicFont)}
-                    aria-pressed={dyslexicFont}
-                    className={`relative inline-flex h-9 w-24 items-center rounded-full border border-transparent px-1 transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                      dyslexicFont
-                        ? 'bg-purple-600 text-white shadow-inner shadow-purple-400/40'
-                        : 'a11y-control shadow-inner shadow-slate-400/40 dark:shadow-slate-900/40'
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex h-7 w-7 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow transition-all duration-200 ease-out ${
-                        dyslexicFont ? 'translate-x-14' : 'translate-x-0'
-                      }`}
-                    >
-                      {dyslexicFont ? 'On' : 'Off'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </section>
 
-            <section
-              className="a11y-card-muted flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
-              aria-describedby={contrastDescriptionId}
-            >
-              <header className="space-y-1 sm:w-2/3">
-                <h3 className="font-medium text-[color:var(--foreground)]">
-                  Alto contraste
-                </h3>
-                <p id={contrastDescriptionId} className="text-xs text-[color:var(--text-muted)]">
-                  Mejora la separación entre texto y fondo.
-                </p>
-                <p className="text-[11px] text-[color:var(--text-muted)]">
-                  {usesSystemContrast
-                    ? 'Siguiendo la preferencia de contraste del sistema.'
-                    : 'Preferencia personalizada aplicada.'}
-                </p>
-              </header>
-              <div className="flex justify-start sm:w-1/3 sm:justify-end">
-                <button
-                  type="button"
-                  onClick={toggleHighContrast}
-                  aria-pressed={highContrast}
-                  className={`relative inline-flex h-10 w-28 items-center rounded-full border border-transparent px-1 transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                    highContrast
-                      ? 'bg-emerald-500 text-white shadow-inner shadow-emerald-300/40'
-                      : 'a11y-control shadow-inner shadow-slate-400/40 dark:shadow-slate-900/40'
-                  }`}
-                >
-                  <span
-                    className={`inline-flex h-8 w-8 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow transition-all duration-200 ease-out ${
-                      highContrast ? 'translate-x-14' : 'translate-x-0'
-                    }`}
-                  >
-                    {highContrast ? '✔️' : '○'}
-                  </span>
-                </button>
-              </div>
-              {!usesSystemContrast && (
-                <div className="sm:w-full">
-                  <button
-                    type="button"
-                    className="mt-1 text-xs font-semibold text-[color:var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
-                    onClick={resetHighContrastPreference}
-                  >
-                    Volver a usar el contraste del sistema
-                  </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={keyboardNavigationEnabled} onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)} className="w-4 h-4" />
+                  <span>Navegación por teclado (Tab, Enter, Esc)</span>
                 </div>
-              )}
-            </section>
 
-            <section
-              className="a11y-card-muted space-y-3 rounded-xl p-3"
-              aria-describedby={narratorDescriptionId}
-            >
-              <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">
-                  Narrador de lectura
-                </h3>
-                <p id={narratorDescriptionId} className="text-xs text-[color:var(--text-muted)]">
-                  Escucha el contenido usando la voz del navegador.
-                </p>
-              </header>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={toggleReading}
-                  aria-pressed={isReading}
-                  disabled={!readingSupported}
-                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                    !readingSupported
-                      ? 'cursor-not-allowed bg-[color:var(--surface-muted)] text-[color:var(--text-muted)] opacity-70'
-                      : isReading
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                        : 'bg-blue-600 text-white hover:bg-blue-500'
-                  }`}
-                >
-                  {isReading ? 'Detener narrador' : 'Iniciar narrador'}
-                </button>
-                <button
-                  type="button"
-                  onClick={stopReading}
-                  disabled={!isReading}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                    isReading
-                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
-                    : 'cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
-                  }`}
-                >
-                  Cancelar
-                </button>
-              </div>
-              <p className="text-[11px] text-[color:var(--text-muted)]">
-                Consejo: ajusta la voz y velocidad desde las preferencias de tu dispositivo o navegador.
-              </p>
-              <div className="space-y-1 text-[11px] text-[color:var(--text-muted)]" aria-live="polite">
-                {readingMessage ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <span>{readingMessage}</span>
-                    <button
-                      type="button"
-                      className="text-[10px] font-semibold text-[color:var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
-                      onClick={clearReadingMessage}
-                    >
-                      Entendido
-                    </button>
-                  </div>
-                ) : (
-                  <span>{isReading ? 'Narrador en reproducción.' : readingSupported ? 'Narrador listo.' : 'Narrador no disponible.'}</span>
-                )}
+                <div>
+                  <label className="block text-sm mb-1">Escala de botones grandes: {largeButtonsScale.toFixed(1)}x</label>
+                  <input aria-label="Escala de botones" type="range" min={1} max={2} step={0.1} value={String(largeButtonsScale)} onChange={(e) => setLargeButtonsScale(Number(e.target.value))} className="w-full" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={voiceControlEnabled} onChange={(e) => setVoiceControlEnabled(e.target.checked)} className="w-4 h-4" />
+                  <span>Control por voz / dictado (UI)</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={blockAutoplay} onChange={(e) => setBlockAutoplay(e.target.checked)} className="w-4 h-4" />
+                  <span>Bloquear auto-scroll / auto-reproducción</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={customShortcutsEnabled} onChange={(e) => setCustomShortcutsEnabled(e.target.checked)} className="w-4 h-4" />
+                  <span>Atajos de teclado personalizados (activar)</span>
+                </div>
               </div>
             </section>
           </div>

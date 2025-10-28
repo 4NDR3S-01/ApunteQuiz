@@ -39,6 +39,38 @@ interface AccessibilityContextValue {
   readonly readingSupported: boolean;
   readonly readingMessage: string | null;
   readonly clearReadingMessage: () => void;
+  // New accessibility controls
+  readonly keyboardNavigationEnabled: boolean;
+  readonly setKeyboardNavigationEnabled: (v: boolean) => void;
+  readonly pauseAllMedia: () => void;
+  readonly playAllMedia: () => void;
+  readonly stopAllMedia: () => void;
+  readonly visualAlerts: boolean;
+  readonly setVisualAlerts: (v: boolean) => void;
+  readonly largeButtonsScale: number;
+  readonly setLargeButtonsScale: (v: number) => void;
+  readonly linkHighlight: boolean;
+  readonly setLinkHighlight: (v: boolean) => void;
+  readonly focusVisible: boolean;
+  readonly setFocusVisible: (v: boolean) => void;
+  readonly subtitlesEnabled: boolean;
+  readonly setSubtitlesEnabled: (v: boolean) => void;
+  readonly autoTranscripts: boolean;
+  readonly setAutoTranscripts: (v: boolean) => void;
+  readonly videoInterpreterEnabled: boolean;
+  readonly setVideoInterpreterEnabled: (v: boolean) => void;
+  readonly customFont: string;
+  readonly setCustomFont: (v: string) => void;
+  readonly customColor: string;
+  readonly setCustomColor: (v: string) => void;
+  readonly voiceControlEnabled: boolean;
+  readonly setVoiceControlEnabled: (v: boolean) => void;
+  readonly blockAutoplay: boolean;
+  readonly setBlockAutoplay: (v: boolean) => void;
+  readonly customShortcutsEnabled: boolean;
+  readonly setCustomShortcutsEnabled: (v: boolean) => void;
+  readonly textScale: number;
+  readonly setTextScale: (v: number) => void;
 }
 
 const AccessibilityContext =
@@ -49,6 +81,20 @@ const FONT_KEY = 'apq-font-scale';
 const CONTRAST_KEY = 'apq-high-contrast';
 const LINE_SPACING_KEY = 'apq-line-spacing';
 const DYSLEXIC_KEY = 'apq-dyslexic-font';
+const KB_NAV_KEY = 'apq-keyboard-navigation';
+const VISUAL_ALERTS_KEY = 'apq-visual-alerts';
+const LARGE_BUTTONS_KEY = 'apq-large-buttons-scale';
+const LINK_HIGHLIGHT_KEY = 'apq-link-highlight';
+const FOCUS_VISIBLE_KEY = 'apq-focus-visible';
+const SUBTITLES_KEY = 'apq-subtitles-enabled';
+const TRANSCRIPTS_KEY = 'apq-auto-transcripts';
+const VIDEO_INTERPRETER_KEY = 'apq-video-interpreter';
+const CUSTOM_FONT_KEY = 'apq-custom-font';
+const CUSTOM_COLOR_KEY = 'apq-custom-color';
+const VOICE_CONTROL_KEY = 'apq-voice-control';
+const BLOCK_AUTOPLAY_KEY = 'apq-block-autoplay';
+const CUSTOM_SHORTCUTS_KEY = 'apq-custom-shortcuts-enabled';
+const TEXT_SCALE_KEY = 'apq-text-scale';
 
 function resolvePreferredTheme(): ThemePreference {
   if (typeof window === 'undefined') return 'system';
@@ -161,6 +207,28 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [dyslexicFont, setDyslexicFontState] = useState<boolean>(() =>
     resolvePreferredDyslexic(),
   );
+  const [keyboardNavigationEnabled, setKeyboardNavigationEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const raw = window.localStorage.getItem(KB_NAV_KEY);
+    return raw === null ? true : raw === '1';
+  });
+  const [visualAlerts, setVisualAlertsState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(VISUAL_ALERTS_KEY) === '1';
+  });
+  const [largeButtonsScale, setLargeButtonsScaleState] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    const raw = window.localStorage.getItem(LARGE_BUTTONS_KEY);
+    return raw ? Number(raw) : 1;
+  });
+  const [linkHighlight, setLinkHighlightState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem(LINK_HIGHLIGHT_KEY) !== '0';
+  });
+  const [focusVisible, setFocusVisibleState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem(FOCUS_VISIBLE_KEY) !== '0';
+  });
   const [isReading, setIsReading] = useState<boolean>(false);
   const [readingSupported, setReadingSupported] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -170,6 +238,43 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     );
   });
   const [readingMessage, setReadingMessage] = useState<string | null>(null);
+  const [subtitlesEnabled, setSubtitlesEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(SUBTITLES_KEY) === '1';
+  });
+  const [autoTranscripts, setAutoTranscriptsState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(TRANSCRIPTS_KEY) === '1';
+  });
+  const [videoInterpreterEnabled, setVideoInterpreterEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(VIDEO_INTERPRETER_KEY) === '1';
+  });
+  const [customFont, setCustomFontState] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(CUSTOM_FONT_KEY) ?? '';
+  });
+  const [customColor, setCustomColorState] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(CUSTOM_COLOR_KEY) ?? '';
+  });
+  const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(VOICE_CONTROL_KEY) === '1';
+  });
+  const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(BLOCK_AUTOPLAY_KEY) === '1';
+  });
+  const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(CUSTOM_SHORTCUTS_KEY) === '1';
+  });
+  const [textScale, setTextScaleState] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    const raw = window.localStorage.getItem(TEXT_SCALE_KEY);
+    return raw ? Number(raw) : 1;
+  });
   const clearReadingMessage = useCallback(() => setReadingMessage(null), []);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voicesLoadedRef = useRef(false);
@@ -215,6 +320,41 @@ useEffect(() => {
   useLayoutEffect(() => {
     applyFontScale(fontScale);
   }, [fontScale]);
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    // Apply numerical text scale multiplicatively over the base font-size
+    const base = fontScale === 'large' ? 18 : 16;
+    const computed = Math.round(base * textScale);
+    try {
+      document.documentElement.style.fontSize = `${computed}px`;
+      document.documentElement.style.setProperty('--a11y-text-scale', String(textScale));
+    } catch {}
+  }, [textScale, fontScale]);
+
+  useLayoutEffect(() => {
+    // apply large buttons scale as CSS variable
+    if (typeof document === 'undefined') return;
+    document.documentElement.style.setProperty('--a11y-large-button-scale', String(largeButtonsScale));
+  }, [largeButtonsScale]);
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (linkHighlight) {
+      document.documentElement.classList.add('a11y-link-highlight');
+    } else {
+      document.documentElement.classList.remove('a11y-link-highlight');
+    }
+  }, [linkHighlight]);
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (focusVisible) {
+      document.documentElement.classList.add('a11y-focus-visible');
+    } else {
+      document.documentElement.classList.remove('a11y-focus-visible');
+    }
+  }, [focusVisible]);
 
   useLayoutEffect(() => {
     applyLineSpacing(lineSpacing);
@@ -317,6 +457,105 @@ useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(DYSLEXIC_KEY, value ? '1' : '0');
     }
+  };
+
+  const setKeyboardNavigationEnabled = (value: boolean) => {
+    setKeyboardNavigationEnabledState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(KB_NAV_KEY, value ? '1' : '0');
+  };
+
+  const setVisualAlerts = (value: boolean) => {
+    setVisualAlertsState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(VISUAL_ALERTS_KEY, value ? '1' : '0');
+  };
+
+  const setLargeButtonsScale = (value: number) => {
+    setLargeButtonsScaleState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(LARGE_BUTTONS_KEY, String(value));
+  };
+
+  const setLinkHighlight = (value: boolean) => {
+    setLinkHighlightState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(LINK_HIGHLIGHT_KEY, value ? '1' : '0');
+  };
+
+  const setFocusVisible = (value: boolean) => {
+    setFocusVisibleState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(FOCUS_VISIBLE_KEY, value ? '1' : '0');
+  };
+
+  const setSubtitlesEnabled = (value: boolean) => {
+    setSubtitlesEnabledState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(SUBTITLES_KEY, value ? '1' : '0');
+  };
+
+  const setAutoTranscripts = (value: boolean) => {
+    setAutoTranscriptsState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(TRANSCRIPTS_KEY, value ? '1' : '0');
+  };
+
+  const setVideoInterpreterEnabled = (value: boolean) => {
+    setVideoInterpreterEnabledState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(VIDEO_INTERPRETER_KEY, value ? '1' : '0');
+  };
+
+  const setCustomFont = (value: string) => {
+    setCustomFontState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(CUSTOM_FONT_KEY, value);
+  };
+
+  const setCustomColor = (value: string) => {
+    setCustomColorState(value);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CUSTOM_COLOR_KEY, value);
+      try {
+        document.documentElement.style.setProperty('--a11y-custom-color', value || '');
+      } catch {}
+    }
+  };
+
+  const setVoiceControlEnabled = (value: boolean) => {
+    setVoiceControlEnabledState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
+  };
+
+  const setBlockAutoplay = (value: boolean) => {
+    setBlockAutoplayState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(BLOCK_AUTOPLAY_KEY, value ? '1' : '0');
+  };
+
+  const setCustomShortcutsEnabled = (value: boolean) => {
+    setCustomShortcutsEnabledState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(CUSTOM_SHORTCUTS_KEY, value ? '1' : '0');
+  };
+
+  const setTextScale = (value: number) => {
+    setTextScaleState(value);
+    if (typeof window !== 'undefined') window.localStorage.setItem(TEXT_SCALE_KEY, String(value));
+  };
+
+  // media control helpers
+  const pauseAllMedia = () => {
+    if (typeof document === 'undefined') return;
+    const media = Array.from(document.querySelectorAll('audio,video')) as HTMLMediaElement[];
+    media.forEach((m) => m.pause());
+  };
+
+  const playAllMedia = () => {
+    if (typeof document === 'undefined') return;
+    const media = Array.from(document.querySelectorAll('audio,video')) as HTMLMediaElement[];
+    media.forEach((m) => { try { m.play(); } catch {} });
+  };
+
+  const stopAllMedia = () => {
+    if (typeof document === 'undefined') return;
+    const media = Array.from(document.querySelectorAll('audio,video')) as HTMLMediaElement[];
+    media.forEach((m) => {
+      try {
+        m.pause();
+        m.currentTime = 0;
+      } catch {}
+    });
   };
 
   const toggleHighContrast = () => setHighContrast(!highContrast);
@@ -472,6 +711,37 @@ useEffect(() => {
       readingSupported,
       readingMessage,
       clearReadingMessage,
+      keyboardNavigationEnabled,
+      setKeyboardNavigationEnabled,
+      pauseAllMedia,
+      playAllMedia,
+      stopAllMedia,
+      visualAlerts,
+      setVisualAlerts,
+      largeButtonsScale,
+      setLargeButtonsScale,
+      linkHighlight,
+      setLinkHighlight,
+      focusVisible,
+      setFocusVisible,
+      subtitlesEnabled,
+      setSubtitlesEnabled,
+      autoTranscripts,
+      setAutoTranscripts,
+      videoInterpreterEnabled,
+      setVideoInterpreterEnabled,
+      customFont,
+      setCustomFont,
+      customColor,
+      setCustomColor,
+      voiceControlEnabled,
+      setVoiceControlEnabled,
+      blockAutoplay,
+      setBlockAutoplay,
+      customShortcutsEnabled,
+      setCustomShortcutsEnabled,
+      textScale,
+      setTextScale,
     }),
     [
       themePreference,
@@ -485,6 +755,20 @@ useEffect(() => {
       hasContrastOverride,
       readingSupported,
       readingMessage,
+      keyboardNavigationEnabled,
+      visualAlerts,
+      largeButtonsScale,
+      linkHighlight,
+      focusVisible,
+      subtitlesEnabled,
+      autoTranscripts,
+      videoInterpreterEnabled,
+      customFont,
+      customColor,
+      voiceControlEnabled,
+      blockAutoplay,
+      customShortcutsEnabled,
+      textScale,
       clearReadingMessage,
     ],
   );

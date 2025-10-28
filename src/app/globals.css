@@ -273,3 +273,43 @@ html.high-contrast [class*='shadow'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Accessibility helpers added for AccessibilityProvider and AccessibilitySettings */
+:root {
+  --a11y-large-button-scale: 1;
+}
+
+/* When link highlight is enabled, make links more visible */
+.a11y-link-highlight a {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+  text-decoration: none;
+}
+
+/* When focus-visible preference is enabled, emphasize focus outlines */
+.a11y-focus-visible a:focus,
+.a11y-focus-visible button:focus,
+.a11y-focus-visible input:focus,
+.a11y-focus-visible textarea:focus,
+.a11y-focus-visible select:focus {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* Scale button size with CSS variable set by provider */
+.a11y-control,
+button,
+input[type="button"],
+input[type="submit"] {
+  font-size: calc(1rem * var(--a11y-large-button-scale));
+  padding: calc(0.5rem * var(--a11y-large-button-scale)) calc(0.75rem * var(--a11y-large-button-scale));
+  border-radius: calc(0.375rem * var(--a11y-large-button-scale));
+}
+
+/* Make elements more tappable when large button scale is greater than 1 */
+@media (pointer: coarse) {
+  .a11y-control,
+  button {
+    min-height: calc(2.25rem * var(--a11y-large-button-scale));
+  }
+}
+

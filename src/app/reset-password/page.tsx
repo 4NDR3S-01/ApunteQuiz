@@ -1,10 +1,13 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Lock, Eye, EyeOff, AlertCircle, Loader2, CheckCircle, BookOpen } from 'lucide-react';
+import evaluatePassword from '@/utils/password';
+import PasswordMeter from '@/components/PasswordMeter';
+import useTranslation from '@/hooks/useTranslation';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -18,9 +21,11 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { t } = useTranslation();
+
   const validatePassword = (pwd: string) => {
     if (pwd.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
+      return (t('password.minLength', { n: 6 }) as string) || '';
     }
     return '';
   };
@@ -31,7 +36,7 @@ export default function ResetPasswordPage() {
 
     // Validations
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      setError(t('password.mismatch') as string);
       return;
     }
 
@@ -39,6 +44,18 @@ export default function ResetPasswordPage() {
     if (passwordError) {
       setError(passwordError);
       return;
+    }
+
+    // enforce minimal strength (score 0..4) - require at least 2 (Aceptable)
+    try {
+      const strength = evaluatePassword(password);
+      if (strength.score < 2) {
+        const weakTemplate = (t('password.weak') as string) || 'La contraseña es demasiado débil. {suggestion}';
+        setError(weakTemplate.replace('{suggestion}', strength.suggestions[0] ?? 'Mejora la longitud o la variedad de caracteres.'));
+        return;
+      }
+    } catch {
+      // ignore evaluator errors
     }
 
     setIsLoading(true);
@@ -60,9 +77,9 @@ export default function ResetPasswordPage() {
       }, 2000);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || 'Error al restablecer la contraseña. Por favor, intenta de nuevo.');
+        setError(err.message || (t('auth.reset.error_generic') as string));
       } else {
-        setError('Error al restablecer la contraseña. Por favor, intenta de nuevo.');
+        setError(t('auth.reset.error_generic') as string);
       }
     } finally {
       setIsLoading(false);
@@ -78,10 +95,10 @@ export default function ResetPasswordPage() {
               <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
             </div>
             <h2 className="mb-2 text-2xl font-bold text-[color:var(--foreground)]">
-              ¡Contraseña actualizada!
+              {t('auth.reset.success_title')}
             </h2>
             <p className="text-[color:var(--text-muted)]">
-              Tu contraseña ha sido restablecida exitosamente. Serás redirigido al inicio de sesión...
+              {t('auth.reset.success_desc')}
             </p>
           </div>
         </div>
@@ -110,10 +127,10 @@ export default function ResetPasswordPage() {
             {/* Header */}
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors">
-                Restablecer contraseña
+                {t('auth.reset.title')}
               </h1>
               <p className="mt-2 text-sm text-[color:var(--text-muted)] transition-colors">
-                Ingresa tu nueva contraseña
+                {t('auth.reset.subtitle')}
               </p>
             </div>
 
@@ -130,7 +147,7 @@ export default function ResetPasswordPage() {
               {/* Password Field */}
               <div className="space-y-2">
                 <label htmlFor="password" className="block text-sm font-medium text-[color:var(--foreground)]">
-                  Nueva contraseña
+                  {t('auth.reset.title')}
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -162,15 +179,41 @@ export default function ResetPasswordPage() {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-[color:var(--text-muted)]">
-                  Mínimo 6 caracteres
-                </p>
+                    {/* Password strength meter */}
+                    {(() => {
+                      const strength = evaluatePassword(password);
+                      const segments = [0, 1, 2, 3];
+                      return (
+                        <div className="mt-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              {segments.map((i) => (
+                                <div
+                                  key={i}
+                                  className={`h-2 w-8 rounded ${i <= (strength.score - 1) ? strength.color : 'bg-slate-200 dark:bg-slate-700'}`}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium text-[color:var(--text-muted)]">{strength.label}</span>
+                              {strength.suggestions && strength.suggestions.length > 0 && (
+                                <ul className="mt-1 space-y-0.5 text-[color:var(--text-muted)] text-[11px]">
+                                  {strength.suggestions.slice(0, 3).map((s) => (
+                                    <li key={s}>• {s}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
               </div>
 
               {/* Confirm Password Field */}
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-[color:var(--foreground)]">
-                  Confirmar nueva contraseña
+                  {t('auth.reset.title')}
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -213,10 +256,10 @@ export default function ResetPasswordPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                    <span>Actualizando...</span>
+                    <span>{t('auth.reset.loading')}</span>
                   </>
                 ) : (
-                  <span>Restablecer contraseña</span>
+                  <span>{t('auth.reset.button')}</span>
                 )}
               </button>
             </form>
