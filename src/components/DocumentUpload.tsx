@@ -3,6 +3,7 @@
 import { useState, useId, useCallback, useRef, useEffect } from 'react';
 import { DocumentInput, ProcessingStatus } from '@/types';
 import { formatFileSize } from '@/utils';
+import useTranslation from '@/hooks/useTranslation';
 
 interface DocumentUploadProps {
   onDocumentProcessed: (document: DocumentInput) => void;
@@ -22,6 +23,7 @@ export default function DocumentUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
   const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>(existingDocuments);
+  const { t } = useTranslation();
 
   // Sincronizar documentos existentes cuando cambian
   useEffect(() => {
@@ -62,18 +64,19 @@ export default function DocumentUpload({
     // Validar tipo de archivo
     const allowedTypes = ['application/pdf', 'text/plain'];
     if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
-      onError(`Tipo de archivo no soportado: ${file.type}. Usa PDF o TXT.`);
+      const typeLabel = file.type || file.name.split('.').pop() || file.name;
+      onError(t('documentUpload.errors.unsupportedType', { type: typeLabel }) as string);
       return;
     }
 
     // Validar tamaño (50MB máximo)
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      onError(`Archivo demasiado grande: ${formatFileSize(file.size)}. Máximo: 50MB.`);
+      onError(t('documentUpload.errors.tooLarge', { size: formatFileSize(file.size) }) as string);
       return;
     }
 
-    setStatus({ status: 'processing', message: 'Procesando archivo...' });
+    setStatus({ status: 'processing', message: t('documentUpload.statuses.processing') as string });
     
     try {
       const formData = new FormData();
@@ -94,18 +97,20 @@ export default function DocumentUpload({
 
       // Actualizar estado
       setProcessedDocuments(prev => [...prev, result.data.document]);
-      setStatus({ status: 'success', message: 'Archivo procesado exitosamente' });
+      setStatus({ status: 'success', message: t('documentUpload.statuses.success') as string });
       
       // Notificar al componente padre
       onDocumentProcessed(result.data.document);
 
     } catch (error) {
       console.error('Error procesando archivo:', error);
+      const fallbackError = t('documentUpload.errors.unknown') as string;
+      const message = error instanceof Error ? error.message : fallbackError;
       setStatus({ 
         status: 'error', 
-        message: error instanceof Error ? error.message : 'Error desconocido' 
+        message 
       });
-      onError(error instanceof Error ? error.message : 'Error procesando archivo');
+      onError(error instanceof Error ? error.message : (t('documentUpload.errors.default') as string));
     }
   };
 
@@ -179,19 +184,21 @@ export default function DocumentUpload({
             </svg>
           </div>
           <div className="text-base font-medium text-[color:var(--foreground)] sm:text-lg">
-            {isDragging ? 'Suelta el archivo aquí' : 'Arrastra archivos aquí'}
+            {isDragging
+              ? (t('documentUpload.dropzone.active') as string)
+              : (t('documentUpload.dropzone.idle') as string)}
           </div>
           <div id={instructionsId} className="text-sm text-[color:var(--text-muted)]">
-            o{' '}
+            {t('documentUpload.dropzone.or')}{' '}
             <label
               htmlFor="file-upload"
               className="cursor-pointer font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
-              selecciona archivos
+              {t('documentUpload.dropzone.select')}
             </label>
           </div>
           <div className="text-xs text-[color:var(--text-muted)]">
-            Formatos soportados: PDF, TXT (máx. 50MB)
+            {t('documentUpload.dropzone.formats')}
           </div>
         </div>
       </button>
@@ -232,7 +239,7 @@ export default function DocumentUpload({
       {/* Lista de documentos procesados (existentes) */}
       {processedDocuments.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-[color:var(--foreground)]">Documentos procesados:</h3>
+          <h3 className="font-medium text-[color:var(--foreground)]">{t('documentUpload.processedListTitle')}</h3>
           <div className="space-y-2">
             {processedDocuments.map((document, index) => (
               <div key={document.doc_id} className="a11y-card-muted flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -247,7 +254,7 @@ export default function DocumentUpload({
                       {document.source_name}
                     </div>
                     <div className="text-sm text-[color:var(--text-muted)]">
-                      Procesado - {document.pages?.length} páginas
+                      {t('documentUpload.processedStatus', { pages: document.pages?.length ?? 0 })}
                     </div>
                   </div>
                 </div>
@@ -256,7 +263,7 @@ export default function DocumentUpload({
                     onClick={() => removeProcessedDocument(index)}
                     className="text-sm font-medium text-red-600 transition hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
                   >
-                    Eliminar
+                    {t('documentUpload.remove')}
                   </button>
                 </div>
               </div>

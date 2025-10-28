@@ -2,18 +2,27 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown, Check } from 'lucide-react';
+import useTranslation from '@/hooks/useTranslation';
 
 type LanguageValue = 'es' | 'en';
 
 type LanguageOption = {
   value: LanguageValue;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
 };
 
 const languageOptions: LanguageOption[] = [
-  { value: 'es', label: 'Español', description: 'Idioma principal' },
-  { value: 'en', label: 'English', description: 'Primary language' },
+  {
+    value: 'es',
+    labelKey: 'languageSwitcher.options.es.label',
+    descriptionKey: 'languageSwitcher.options.es.description',
+  },
+  {
+    value: 'en',
+    labelKey: 'languageSwitcher.options.en.label',
+    descriptionKey: 'languageSwitcher.options.en.description',
+  },
 ];
 
 type LanguageSwitcherProps = {
@@ -30,13 +39,14 @@ export default function LanguageSwitcher({
   value,
   onChange,
   ariaLabel,
-  label = 'Idioma',
+  label,
   currentLabel,
   className = '',
   fullWidth = false,
 }: LanguageSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -63,7 +73,7 @@ export default function LanguageSwitcher({
         className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-4 py-2 text-sm font-semibold text-[color:var(--foreground)] shadow-sm shadow-slate-200/40 transition hover:bg-[color:var(--surface-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label={ariaLabel ?? 'Seleccionar idioma'}
+        aria-label={ariaLabel ?? (t('languageSwitcher.ariaLabel') as string)}
       >
         <span className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
@@ -71,10 +81,10 @@ export default function LanguageSwitcher({
           </span>
           <span className="flex flex-col text-left leading-tight">
             <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
-              {label}
+              {label ?? (t('languageSwitcher.buttonLabel') as string)}
             </span>
             <span className="text-sm font-semibold text-[color:var(--foreground)]">
-              {currentLabel ?? activeOption.label}
+              {currentLabel ?? (t(activeOption.labelKey) as string)}
             </span>
           </span>
         </span>
@@ -87,10 +97,10 @@ export default function LanguageSwitcher({
         <div
           className={`absolute ${dropdownPositionClass} z-50 mt-2 ${dropdownWidthClass} overflow-hidden rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] shadow-xl shadow-slate-200/30`}
           role="listbox"
-          aria-label={ariaLabel ?? 'Seleccionar idioma'}
+          aria-label={ariaLabel ?? (t('languageSwitcher.ariaLabel') as string)}
         >
           <p className="px-4 pt-4 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
-            {label}
+            {label ?? (t('languageSwitcher.buttonLabel') as string)}
           </p>
           <ul className="py-2">
             {languageOptions.map((option) => {
@@ -115,10 +125,10 @@ export default function LanguageSwitcher({
                   >
                     <span>
                       <span className="text-sm font-semibold text-[color:var(--foreground)]">
-                        {option.label}
+                        {t(option.labelKey)}
                       </span>
                       <span className="block text-xs text-[color:var(--text-muted)]">
-                        {option.description}
+                        {t(option.descriptionKey)}
                       </span>
                     </span>
                     {isActive ? <Check className="h-4 w-4 text-blue-600" aria-hidden="true" /> : null}

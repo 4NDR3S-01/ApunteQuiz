@@ -158,15 +158,15 @@ export default function RegisterForm() {
          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)]"
        >
          <HomeIcon className="h-4 w-4" aria-hidden="true" />
-         Volver al inicio
+         {t('auth.register.back')}
        </Link>
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors">
-            Crear cuenta
+            {t('auth.register.title')}
           </h1>
           <p className="mt-2 text-sm text-[color:var(--text-muted)] transition-colors">
-            Comienza a crear quizzes inteligentes gratis
+            {t('auth.register.subtitle')}
           </p>
         </div>
 
@@ -183,7 +183,7 @@ export default function RegisterForm() {
           {/* Full Name Field */}
           <div className="space-y-2">
             <label htmlFor="fullName" className="block text-sm font-medium text-[color:var(--foreground)]">
-              Nombre completo
+              {t('auth.register.fullNameLabel')}
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -197,7 +197,7 @@ export default function RegisterForm() {
                 required
                 disabled={isLoading}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-4 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Juan Pérez"
+                placeholder={t('auth.shared.placeholders.fullName') as string}
                 autoComplete="name"
               />
             </div>
@@ -206,7 +206,7 @@ export default function RegisterForm() {
           {/* Email Field */}
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-[color:var(--foreground)]">
-              Correo electrónico
+              {t('auth.login.emailLabel')}
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -220,7 +220,7 @@ export default function RegisterForm() {
                 required
                 disabled={isLoading}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-4 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="tu@email.com"
+                placeholder={t('auth.shared.placeholders.email') as string}
                 autoComplete="email"
               />
             </div>
@@ -236,14 +236,14 @@ export default function RegisterForm() {
                 disabled={isLoading}
                 className="h-4 w-4 rounded border-[color:var(--border-default)] text-blue-600 focus:ring-blue-500"
               />
-              <span>Recordarme</span>
+              <span>{t('auth.login.remember')}</span>
             </label>
           </div>
 
           {/* Password Field */}
           <div className="space-y-2">
             <label htmlFor="password" className="block text-sm font-medium text-[color:var(--foreground)]">
-              Contraseña
+              {t('auth.login.passwordLabel')}
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -258,7 +258,7 @@ export default function RegisterForm() {
                 disabled={isLoading}
                 minLength={6}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-12 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="••••••••"
+                placeholder={t('auth.shared.placeholders.password') as string}
                 autoComplete="new-password"
               />
               <button
@@ -266,7 +266,11 @@ export default function RegisterForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
                 className="absolute inset-y-0 right-0 flex items-center pr-4 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-label={
+                  showPassword
+                    ? (t('auth.shared.hidePassword') as string)
+                    : (t('auth.shared.showPassword') as string)
+                }
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -309,7 +313,7 @@ export default function RegisterForm() {
           {/* Confirm Password Field */}
           <div className="space-y-2">
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-[color:var(--foreground)]">
-              Confirmar contraseña
+              {t('auth.register.confirmPasswordLabel')}
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -324,7 +328,7 @@ export default function RegisterForm() {
                 disabled={isLoading}
                 minLength={6}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-12 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="••••••••"
+                placeholder={t('auth.shared.placeholders.password') as string}
                 autoComplete="new-password"
               />
               <button
@@ -332,7 +336,11 @@ export default function RegisterForm() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={isLoading}
                 className="absolute inset-y-0 right-0 flex items-center pr-4 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-label={
+                  showConfirmPassword
+                    ? (t('auth.shared.hidePassword') as string)
+                    : (t('auth.shared.showPassword') as string)
+                }
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -352,10 +360,10 @@ export default function RegisterForm() {
             {isLoading ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                <span>Creando cuenta...</span>
+                <span>{t('auth.register.loading')}</span>
               </>
             ) : (
-              <span>Crear cuenta</span>
+              <span>{t('auth.register.button')}</span>
             )}
           </button>
         </form>
@@ -363,7 +371,7 @@ export default function RegisterForm() {
         {/* Divider */}
         <div className="my-6 flex items-center gap-4">
           <div className="h-px flex-1 bg-[color:var(--border-default)]" />
-          <span className="text-sm text-[color:var(--text-muted)]">o</span>
+          <span className="text-sm text-[color:var(--text-muted)]">{t('common.or')}</span>
           <div className="h-px flex-1 bg-[color:var(--border-default)]" />
         </div>
 

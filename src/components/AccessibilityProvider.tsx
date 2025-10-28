@@ -514,6 +514,56 @@ useEffect(() => {
     }
   };
 
+  // Map and apply font family and accent color when changed
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    // Apply custom font mapping to CSS variable --a11y-font-family
+    const mapFont = (key: string) => {
+      switch (key) {
+        case 'sans':
+          return `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`;
+        case 'serif':
+          return `Georgia, 'Times New Roman', Times, serif`;
+        case 'dyslexic':
+          return `'OpenDyslexic', 'Trebuchet MS', Verdana, Arial, sans-serif`;
+        default:
+          return `var(--font-sans), Arial, Helvetica, sans-serif`;
+      }
+    };
+
+    try {
+      const family = mapFont(customFont ?? '');
+      document.documentElement.style.setProperty('--a11y-font-family', family);
+    } catch {}
+
+    // Apply custom color as the accent and also set contrast-aware accent-contrast
+    try {
+      const color = customColor && customColor.length ? customColor : '';
+      if (color) {
+        document.documentElement.style.setProperty('--a11y-custom-color', color);
+        // override primary accent to match user's chosen color
+        document.documentElement.style.setProperty('--accent', color);
+        // compute simple contrast (luminance) to pick white or black for accent contrast
+        const hex = color.replace('#', '');
+        if (hex.length === 3) {
+          const r = parseInt(hex[0] + hex[0], 16);
+          const g = parseInt(hex[1] + hex[1], 16);
+          const b = parseInt(hex[2] + hex[2], 16);
+          const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          const contrast = lum > 0.5 ? '#000000' : '#ffffff';
+          document.documentElement.style.setProperty('--accent-contrast', contrast);
+        } else if (hex.length === 6) {
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const b = parseInt(hex.slice(4, 6), 16);
+          const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          const contrast = lum > 0.5 ? '#000000' : '#ffffff';
+          document.documentElement.style.setProperty('--accent-contrast', contrast);
+        }
+      }
+    } catch {}
+  }, [customFont, customColor]);
+
   const setVoiceControlEnabled = (value: boolean) => {
     setVoiceControlEnabledState(value);
     if (typeof window !== 'undefined') window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');

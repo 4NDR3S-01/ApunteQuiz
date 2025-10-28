@@ -147,7 +147,7 @@ export default function ResetPasswordPage() {
               {/* Password Field */}
               <div className="space-y-2">
                 <label htmlFor="password" className="block text-sm font-medium text-[color:var(--foreground)]">
-                  {t('auth.reset.title')}
+                  {t('auth.reset.passwordLabel')}
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -162,7 +162,7 @@ export default function ResetPasswordPage() {
                     disabled={isLoading}
                     minLength={6}
                     className="a11y-input block w-full rounded-lg py-3 pl-12 pr-12 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="••••••••"
+                    placeholder={t('auth.shared.placeholders.password') as string}
                     autoComplete="new-password"
                   />
                   <button
@@ -170,7 +170,11 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={isLoading}
                     className="absolute inset-y-0 right-0 flex items-center pr-4 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    aria-label={
+                      showPassword
+                        ? (t('auth.shared.hidePassword') as string)
+                        : (t('auth.shared.showPassword') as string)
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -213,7 +217,7 @@ export default function ResetPasswordPage() {
               {/* Confirm Password Field */}
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-[color:var(--foreground)]">
-                  {t('auth.reset.title')}
+                  {t('auth.reset.confirmPasswordLabel')}
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -228,7 +232,7 @@ export default function ResetPasswordPage() {
                     disabled={isLoading}
                     minLength={6}
                     className="a11y-input block w-full rounded-lg py-3 pl-12 pr-12 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="••••••••"
+                    placeholder={t('auth.shared.placeholders.password') as string}
                     autoComplete="new-password"
                   />
                   <button
@@ -236,7 +240,11 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     disabled={isLoading}
                     className="absolute inset-y-0 right-0 flex items-center pr-4 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    aria-label={
+                      showConfirmPassword
+                        ? (t('auth.shared.hidePassword') as string)
+                        : (t('auth.shared.showPassword') as string)
+                    }
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-5 w-5" aria-hidden="true" />

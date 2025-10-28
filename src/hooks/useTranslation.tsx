@@ -23,5 +23,7 @@ export default function useTranslation() {
     return text;
   };
 
-  return { t, lang } as const;
+  const dictionary = translations[lang];
+
+  return { t, lang, dictionary } as const;
 }

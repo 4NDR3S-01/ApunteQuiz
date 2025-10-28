@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AccessibilityProvider } from "@/components/AccessibilityProvider";
 import { LanguageProvider } from '@/components/LanguageProvider';
 import AccessibilitySettings from "@/components/AccessibilitySettings";
+import SkipToContentLink from '@/components/SkipToContentLink';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,9 +39,7 @@ export default function RootLayout({
       >
         <LanguageProvider>
           <AccessibilityProvider>
-            <a href="#contenido-principal" className="skip-to-content">
-              Saltar al contenido principal
-            </a>
+            <SkipToContentLink />
             {children}
             <AccessibilitySettings />
           </AccessibilityProvider>

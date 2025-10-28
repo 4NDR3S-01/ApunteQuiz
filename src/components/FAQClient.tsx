@@ -1,15 +1,28 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { sections } from '@/data/faqs';
+import { MessageCircleQuestion, UserCog, Layers } from 'lucide-react';
+import useTranslation from '@/hooks/useTranslation';
+
+const sectionIcons = {
+  generales: MessageCircleQuestion,
+  cuenta: UserCog,
+  colaboracion: Layers,
+} as const;
 
 export default function FAQClient() {
   const searchParams = useSearchParams();
   const query = (searchParams?.get('query') ?? '').trim().toLowerCase();
+  const { dictionary } = useTranslation();
+  const faq = dictionary.faq;
+
+  const sectionsWithIcons = faq.sections.map((section) => ({
+    ...section,
+    icon: sectionIcons[section.id as keyof typeof sectionIcons] ?? MessageCircleQuestion,
+  }));
 
   const filtered = query
-    ? sections
+    ? sectionsWithIcons
         .map((section) => ({
           ...section,
           entries: section.entries.filter((e) =>
@@ -17,7 +30,7 @@ export default function FAQClient() {
           ),
         }))
         .filter((s) => s.entries.length > 0)
-    : sections;
+    : sectionsWithIcons;
 
   return (
     <div>
@@ -41,12 +54,6 @@ export default function FAQClient() {
                     <p className="text-sm text-[color:var(--text-muted)]">{section.description}</p>
                   </div>
                 </div>
-                <Link
-                  href={`#${section.id}`}
-                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-600 transition hover:text-blue-500"
-                >
-                  Navegar a sección
-                </Link>
               </div>
               <dl className="mt-6 space-y-4">
                 {section.entries.map((entry) => (

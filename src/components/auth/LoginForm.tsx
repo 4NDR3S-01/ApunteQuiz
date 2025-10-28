@@ -219,7 +219,7 @@ export default function LoginForm() {
                 required
                 disabled={isLoading || (lockedUntil ? lockedUntil > Date.now() : false)}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-4 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="tu@email.com"
+                placeholder={t('auth.shared.placeholders.email') as string}
                 autoComplete="email"
               />
             </div>
@@ -243,7 +243,7 @@ export default function LoginForm() {
                 disabled={isLoading || (lockedUntil ? lockedUntil > Date.now() : false)}
                 minLength={6}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-12 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="••••••••"
+                placeholder={t('auth.shared.placeholders.password') as string}
                 autoComplete="current-password"
               />
               <button
@@ -251,7 +251,11 @@ export default function LoginForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
                 className="absolute inset-y-0 right-0 flex items-center pr-4 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-label={
+                  showPassword
+                    ? (t('auth.shared.hidePassword') as string)
+                    : (t('auth.shared.showPassword') as string)
+                }
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, Smartphone, QrCode, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
+import useTranslation from '@/hooks/useTranslation';
 
 interface AppDownloadSectionProps {
   variant?: 'landing' | 'footer';
@@ -25,10 +26,10 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
             <Smartphone className="h-6 w-6 text-blue-500 dark:text-blue-400" />
             <div className="text-center md:text-left">
               <p className="text-sm font-semibold text-[color:var(--foreground)]">
-                ¿Prefieres usar la app móvil?
+                {appDownload.footer.prompt}
               </p>
               <p className="text-xs text-[color:var(--text-muted)]">
-                Descarga ApunteQuiz APK
+                {appDownload.footer.description}
               </p>
             </div>
           </div>
@@ -38,10 +39,10 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
             <button
               onClick={() => setShowQR(!showQR)}
               className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[color:var(--surface-muted)]"
-              title="Mostrar código QR"
+              title={appDownload.footer.toggleTitle}
             >
               <QrCode className="h-4 w-4" />
-              <span className="hidden sm:inline">Ver QR</span>
+              <span className="hidden sm:inline">{appDownload.footer.showQr}</span>
             </button>
             <a
               href={apkUrl}
@@ -49,7 +50,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
               className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400"
             >
               <Download className="h-4 w-4" />
-              Descargar APK
+              {appDownload.footer.download}
             </a>
           </div>
         </div>
@@ -64,7 +65,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
               <button
                 onClick={() => setShowQR(false)}
                 className="absolute right-4 top-4 text-[color:var(--text-muted)] hover:text-[color:var(--foreground)] transition"
-                aria-label="Cerrar"
+                aria-label={appDownload.footer.modal.close}
               >
                 ✕
               </button>
@@ -73,15 +74,15 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                   <Smartphone className="h-6 w-6 text-blue-500" />
                 </div>
                 <h3 className="text-xl font-bold text-[color:var(--foreground)]">
-                  Escanea con tu móvil
+                  {appDownload.footer.modal.title}
                 </h3>
                 <p className="text-sm text-[color:var(--text-muted)]">
-                  Apunta la cámara de tu teléfono al código QR para descargar la APK
+                  {appDownload.footer.modal.description}
                 </p>
                 <div className="flex justify-center rounded-xl bg-white p-4">
                   <Image 
                     src={qrCodeUrl}
-                    alt="Código QR para descargar ApunteQuiz APK"
+                    alt={appDownload.qrAlt}
                     width={200}
                     height={200}
                     unoptimized
@@ -90,9 +91,9 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                 <div className="space-y-2 text-xs text-[color:var(--text-muted)]">
                   <p className="flex items-center justify-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    Android 5.0 o superior
+                    {appDownload.footer.modal.compatibility}
                   </p>
-                  <p>Asegúrate de permitir instalación de fuentes desconocidas</p>
+                  <p>{appDownload.footer.modal.instructions}</p>
                 </div>
               </div>
             </div>
@@ -109,14 +110,13 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
         <div className="space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-200">
             <Smartphone className="h-4 w-4" />
-            Disponible en móvil
+            {appDownload.landing.badge}
           </div>
           <h3 className="text-3xl font-bold text-[color:var(--foreground)]">
-            Lleva ApunteQuiz contigo
+            {appDownload.landing.title}
           </h3>
           <p className="text-[color:var(--text-muted)]">
-            Descarga la aplicación móvil de ApunteQuiz y genera quizzes desde tu dispositivo Android. 
-            Estudia en cualquier lugar, en cualquier momento.
+            {appDownload.landing.description}
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <button
@@ -124,7 +124,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
               className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-blue-500 bg-white dark:bg-slate-900 px-6 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 transition hover:bg-blue-50 dark:hover:bg-slate-800"
             >
               <QrCode className="h-5 w-5" />
-              Ver código QR
+              {appDownload.landing.qrButton}
             </button>
             <a
               href={apkUrl}
@@ -132,12 +132,12 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
             >
               <Download className="h-5 w-5" />
-              Descargar APK
+              {appDownload.landing.downloadButton}
             </a>
           </div>
           <div className="flex items-center gap-2 text-sm text-[color:var(--text-muted)]">
             <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Compatible con Android 5.0+</span>
+            <span>{appDownload.landing.compatibility}</span>
           </div>
         </div>
 
@@ -146,11 +146,11 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
             <div className="rounded-2xl border border-[color:var(--border-default)] bg-white p-6 shadow-xl">
               <div className="space-y-4 text-center">
                 <p className="text-sm font-semibold text-gray-700">
-                  Escanea para descargar
+                  {appDownload.landing.modalTitle}
                 </p>
                 <Image 
                   src={qrCodeUrl}
-                  alt="Código QR para descargar ApunteQuiz APK"
+                  alt={appDownload.qrAlt}
                   width={250}
                   height={250}
                   unoptimized
@@ -160,7 +160,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                   onClick={() => setShowQR(false)}
                   className="text-xs text-blue-600 hover:text-blue-500 underline"
                 >
-                  Ocultar QR
+                  {appDownload.landing.hideQr}
                 </button>
               </div>
             </div>
@@ -174,16 +174,16 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                   </div>
                   <div className="space-y-2">
                     <p className="text-2xl font-bold text-[color:var(--foreground)]">
-                      ApunteQuiz
+                      {appDownload.landing.phoneCard.name}
                     </p>
                     <p className="text-sm text-[color:var(--text-muted)]">
-                      Aplicación Android
+                      {appDownload.landing.phoneCard.subtitle}
                     </p>
                   </div>
                   <div className="space-y-2 text-xs text-[color:var(--text-muted)]">
-                    <p>✨ Generación de quizzes</p>
-                    <p>📚 Acceso offline a tus quizzes</p>
-                    <p>🎯 Interfaz optimizada</p>
+                    {appDownload.landing.phoneCard.features.map((feature) => (
+                      <p key={feature}>{feature}</p>
+                    ))}
                   </div>
                 </div>
               </div>

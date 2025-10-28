@@ -1,57 +1,15 @@
+"use client";
+
 import Link from 'next/link';
 import { Suspense } from 'react';
 import FloatingHeader from '@/components/FloatingHeader';
 import SiteFooter from '@/components/SiteFooter';
-
-const features = [
-  {
-    title: 'Preguntas generadas con IA',
-    description: 'Transforma tus apuntes en evaluaciones personalizadas y listas para practicar en segundos.',
-    bullets: [
-      'Entiende el contexto del PDF para crear preguntas acertadas',
-      'Ajusta la dificultad según el nivel académico seleccionado',
-      'Genera múltiples tipos de pregunta para reforzar el aprendizaje'
-    ]
-  },
-  {
-    title: 'Flujo simplificado y rápido',
-    description: 'Controla cada paso del proceso con indicaciones claras y sin complicaciones de configuración.',
-    bullets: [
-      'Previsualiza los documentos que vas cargando',
-      'Define la proporción de tipos de pregunta que prefieras',
-      'Sistema pre-configurado listo para usar sin configuraciones adicionales'
-    ]
-  },
-  {
-    title: 'Hecho para equipos académicos',
-    description: 'Organiza sesiones de estudio, pon a prueba a tus estudiantes o prepara material de repaso con facilidad.',
-    bullets: [
-      'Comparte quizzes listos para ser resueltos en clase o en casa',
-      'Recibe una estructura clara para evaluar resultados',
-      'Escala desde apuntes cortos hasta manuales completos'
-    ]
-  }
-] as const;
-
-const steps = [
-  {
-    title: 'Carga tus PDFs o apuntes',
-    description: 'Sube uno o varios documentos y deja que el sistema los procese de manera automática.',
-    badge: 'Paso 1'
-  },
-  {
-    title: 'Configura la evaluación',
-    description: 'Elige idioma, nivel educativo, número de preguntas y tipos para que el quiz se adapte a tu objetivo.',
-    badge: 'Paso 2'
-  },
-  {
-    title: 'Genera y practica el quiz',
-    description: 'Obtén tu cuestionario personalizado listo para resolver o compartir de inmediato.',
-    badge: 'Paso 3'
-  }
-] as const;
+import useTranslation from '@/hooks/useTranslation';
 
 export default function Home() {
+  const { dictionary } = useTranslation();
+  const home = dictionary.home;
+
   return (
     <>
       <Suspense fallback={null}>
@@ -69,42 +27,35 @@ export default function Home() {
         <div className="relative mx-auto flex max-w-6xl flex-col gap-16 px-6 py-24 text-[color:var(--foreground)] transition-colors lg:flex-row lg:items-center lg:justify-between lg:py-32">
           <div className="max-w-xl space-y-8">
             <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-200">
-              Disponible en beta · Potenciado con IA
+              {home.hero.badge}
             </span>
             <h1 className="text-4xl font-bold text-[color:var(--foreground)] transition-colors sm:text-5xl lg:text-6xl">
-              Genera quizzes inteligentes a partir de tus PDFs en minutos
+              {home.hero.title}
             </h1>
             <p className="text-lg text-[color:var(--text-muted)]">
-              ApunteQuiz combina el poder de la IA con un flujo pensado para educadores y estudiantes.
-              Sube tus apuntes, elige cómo quieres evaluar y obtén cuestionarios personalizados listos para practicar.
+              {home.hero.description}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/register"
                 className="inline-flex items-center justify-center rounded-lg bg-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
               >
-                Comenzar gratis
+                {home.hero.primaryCta}
               </Link>
               <Link
                 href="/#features"
                 className="inline-flex items-center justify-center rounded-lg border border-[color:var(--border-default)] px-6 py-3 text-sm font-semibold text-[color:var(--foreground)] transition hover:brightness-105"
               >
-                Ver cómo funciona
+                {home.hero.secondaryCta}
               </Link>
             </div>
             <dl className="grid gap-6 sm:grid-cols-3">
-              <div>
-                <dt className="text-sm text-[color:var(--text-muted)]">Documentos soportados</dt>
-                <dd className="text-2xl font-semibold text-[color:var(--foreground)]">PDF y texto</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-[color:var(--text-muted)]">Tipos de pregunta</dt>
-                <dd className="text-2xl font-semibold text-[color:var(--foreground)]">3 formatos</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-[color:var(--text-muted)]">Tiempo estimado</dt>
-                <dd className="text-2xl font-semibold text-[color:var(--foreground)]">≈ 90 seg</dd>
-              </div>
+              {home.hero.stats.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="text-sm text-[color:var(--text-muted)]">{stat.label}</dt>
+                  <dd className="text-2xl font-semibold text-[color:var(--foreground)]">{stat.value}</dd>
+                </div>
+              ))}
             </dl>
           </div>
 
@@ -113,27 +64,18 @@ export default function Home() {
             <div className="relative w-full rounded-3xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur">
               <div className="space-y-4">
                 <p className="text-sm font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-200">
-                  Así se ve tu flujo
+                  {home.hero.flowPreview.title}
                 </p>
                 <ul className="space-y-3 text-sm">
-                  <li className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm">
-                    <p className="font-semibold text-[color:var(--foreground)]">1. Carga tus documentos</p>
-                    <p className="text-[color:var(--text-muted)]">
-                      Arrastra archivos PDF o pega notas escritas para iniciar.
-                    </p>
-                  </li>
-                  <li className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm">
-                    <p className="font-semibold text-[color:var(--foreground)]">2. Personaliza la evaluación</p>
-                    <p className="text-[color:var(--text-muted)]">
-                      Define idioma, nivel y distribución de tipos de pregunta.
-                    </p>
-                  </li>
-                  <li className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm">
-                    <p className="font-semibold text-[color:var(--foreground)]">3. Genera y practica</p>
-                    <p className="text-[color:var(--text-muted)]">
-                      Obtén un quiz listo para practicar o compartir al instante.
-                    </p>
-                  </li>
+                  {home.hero.flowPreview.steps.map((item) => (
+                    <li
+                      key={item.title}
+                      className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm"
+                    >
+                      <p className="font-semibold text-[color:var(--foreground)]">{item.title}</p>
+                      <p className="text-[color:var(--text-muted)]">{item.description}</p>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -144,14 +86,14 @@ export default function Home() {
       <section id="features" className="mx-auto max-w-6xl space-y-12 px-6 py-20">
         <header className="max-w-3xl space-y-4">
           <h2 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors sm:text-4xl">
-            Diseñado para transformar tus apuntes en experiencias de estudio activas
+            {home.features.title}
           </h2>
           <p className="text-lg text-[color:var(--text-muted)]">
-            Cada sección del flujo se pensó para ahorrarte tiempo y garantizar preguntas de calidad, sin depender de procesos manuales.
+            {home.features.description}
           </p>
         </header>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {features.map((feature) => (
+          {home.features.items.map((feature) => (
             <article
               key={feature.title}
               className="a11y-card flex flex-col gap-4 rounded-2xl p-6 shadow-lg shadow-slate-200/40 transition-colors"
@@ -177,18 +119,18 @@ export default function Home() {
         <div id="como-funciona" className="mx-auto max-w-6xl space-y-12 px-6 py-20">
           <header className="space-y-4 text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-600 transition-colors dark:text-emerald-200">
-              ¿Cómo funciona?
+              {home.howItWorks.badge}
             </span>
             <h2 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors sm:text-4xl">
-              Un flujo escalonado para que no te pierdas en el proceso
+              {home.howItWorks.title}
             </h2>
             <p className="mx-auto max-w-2xl text-lg text-[color:var(--text-muted)] transition-colors">
-              Pasa de un PDF a un cuestionario listo para practicar en menos de dos minutos con una experiencia guiada y clara.
+              {home.howItWorks.description}
             </p>
           </header>
 
           <div className="grid gap-8 md:grid-cols-3">
-            {steps.map((step) => (
+            {home.howItWorks.steps.map((step) => (
               <div
                 key={step.title}
                 className="relative flex flex-col gap-4 rounded-3xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] p-8 text-left shadow-lg shadow-slate-200/60 transition-colors"

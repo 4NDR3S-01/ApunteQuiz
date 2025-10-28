@@ -1,4 +1,7 @@
+"use client";
+
 import Link from 'next/link';
+import useTranslation from '@/hooks/useTranslation';
 
 export const metadata = {
   title: 'Términos de uso - ApunteQuiz',
@@ -6,21 +9,27 @@ export const metadata = {
 };
 
 export default function TerminosPage() {
+  const { dictionary } = useTranslation();
+  const termsPage = dictionary.termsPage;
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="mb-4 text-2xl font-bold">Términos de uso</h1>
-      <p className="mb-4 text-[color:var(--text-muted)]">Estos son los términos y condiciones de uso de ApunteQuiz. (Contenido de ejemplo — reemplaza con los términos reales).</p>
+      <h1 className="mb-4 text-2xl font-bold">{termsPage.title}</h1>
+      <p className="mb-4 text-[color:var(--text-muted)]">{termsPage.description}</p>
 
       <section className="mt-6 space-y-4">
-        <h2 className="text-lg font-semibold">Aceptación de términos</h2>
-        <p className="text-[color:var(--text-muted)]">Al usar ApunteQuiz aceptas los presentes términos; no utilices el servicio para actividades prohibidas.</p>
-
-        <h2 className="text-lg font-semibold">Modificaciones</h2>
-        <p className="text-[color:var(--text-muted)]">Podemos actualizar estos términos; las modificaciones se reflejarán en esta página y entrarán en vigor al publicarse.</p>
+        {termsPage.sections.map((section) => (
+          <div key={section.title}>
+            <h2 className="text-lg font-semibold">{section.title}</h2>
+            <p className="text-[color:var(--text-muted)]">{section.description}</p>
+          </div>
+        ))}
       </section>
 
       <div className="mt-8">
-        <Link href="/" className="text-sm text-blue-600 hover:underline">Volver al inicio</Link>
+        <Link href="/" className="text-sm text-blue-600 hover:underline">
+          {termsPage.back}
+        </Link>
       </div>
     </main>
   );

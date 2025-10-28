@@ -91,7 +91,7 @@ export default function ForgotPasswordForm() {
                 }}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-6 py-3 text-sm font-semibold text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
               >
-                Enviar otro correo
+                {t('auth.forgot.resend')}
               </button>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function ForgotPasswordForm() {
           className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--foreground)]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Volver al inicio de sesión
+          {t('auth.forgot.back')}
         </Link>
 
         {/* Header */}
@@ -135,7 +135,7 @@ export default function ForgotPasswordForm() {
           {/* Email Field */}
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-[color:var(--foreground)]">
-              Correo electrónico
+              {t('auth.login.emailLabel')}
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -149,7 +149,7 @@ export default function ForgotPasswordForm() {
                 required
                 disabled={isLoading}
                 className="a11y-input block w-full rounded-lg py-3 pl-12 pr-4 text-[color:var(--foreground)] placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="tu@email.com"
+                placeholder={t('auth.shared.placeholders.email') as string}
                 autoComplete="email"
               />
             </div>

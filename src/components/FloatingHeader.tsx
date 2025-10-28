@@ -24,21 +24,24 @@ import {
 } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
+import { useT } from '@/i18n';
 
 // -----------------------
 // Tipos
 // -----------------------
 type NavigationSubItem = {
-  name: string;
+  id: string;
   href: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: LucideIcon;
 };
 
 type NavigationItem = {
-  name: string;
+  id: string;
   href: string;
   icon: LucideIcon;
+  labelKey: string;
   submenu?: NavigationSubItem[];
 };
 
@@ -47,94 +50,93 @@ type NavigationItem = {
 // -----------------------
 const navigation: NavigationItem[] = [
   {
-    name: 'Inicio',
+    id: 'home',
+    labelKey: 'nav.home',
     href: '/',
     icon: BookOpen,
     submenu: [
       {
-        name: 'Visión general',
+        id: 'overview',
         href: '/#resumen',
-        description: 'Accede al panorama general con métricas esenciales.',
+        titleKey: 'header.nav.home.overview.title',
+        descriptionKey: 'header.nav.home.overview.description',
         icon: LayoutDashboard,
       },
       {
-        name: 'Características',
+        id: 'features',
         href: '/#features',
-        description: 'Explora el potencial de cada módulo clave.',
+        titleKey: 'header.nav.home.features.title',
+        descriptionKey: 'header.nav.home.features.description',
         icon: Sparkles,
       },
       {
-        name: 'Cómo funciona',
+        id: 'how',
         href: '/#como-funciona',
-        description: 'Recorre el flujo completo paso a paso.',
+        titleKey: 'header.nav.home.how.title',
+        descriptionKey: 'header.nav.home.how.description',
         icon: ClipboardList,
       },
     ],
   },
   {
-    name: 'FAQ',
+    id: 'faq',
+    labelKey: 'nav.faq',
     href: '/faq',
     icon: HelpCircle,
     submenu: [
       {
-        name: 'Visitar FAQ',
+        id: 'overview',
         href: '/faq',
-        description: 'Reúne todas las preguntas frecuentes.',
+        titleKey: 'header.nav.faq.overview.title',
+        descriptionKey: 'header.nav.faq.overview.description',
         icon: HelpCircle,
       },
       {
-        name: 'Preguntas generales',
+        id: 'generales',
         href: '/faq#generales',
-        description: 'Las respuestas más consultadas por nuevos usuarios.',
+        titleKey: 'header.nav.faq.generales.title',
+        descriptionKey: 'header.nav.faq.generales.description',
         icon: MessageCircleQuestion,
       },
       {
-        name: 'Cuenta y acceso',
+        id: 'account',
         href: '/faq#cuenta',
-        description: 'Gestiona credenciales, roles y sesiones activas.',
+        titleKey: 'header.nav.faq.account.title',
+        descriptionKey: 'header.nav.faq.account.description',
         icon: ShieldCheck,
       },
     ],
   },
   {
-    name: 'Contacto',
+    id: 'contact',
+    labelKey: 'nav.contact',
     href: '/contacto',
     icon: Mail,
     submenu: [
       {
-        name: 'Visitar contacto',
+        id: 'overview',
         href: '/contacto',
-        description: 'Encuentra horarios, ubicaciones y nuestros canales oficiales.',
+        titleKey: 'header.nav.contact.overview.title',
+        descriptionKey: 'header.nav.contact.overview.description',
         icon: Mail,
       },
       {
-        name: 'Soporte directo',
+        id: 'support',
         href: '/contacto#soporte',
-        description: 'Elige el canal ideal para enviar tus consultas.',
+        titleKey: 'header.nav.contact.support.title',
+        descriptionKey: 'header.nav.contact.support.description',
         icon: Headset,
       },
       {
-        name: 'Capacitaciones',
+        id: 'training',
         href: '/contacto#capacitacion',
-        description: 'Coordina sesiones de entrenamiento personalizadas.',
+        titleKey: 'header.nav.contact.training.title',
+        descriptionKey: 'header.nav.contact.training.description',
         icon: GraduationCap,
       },
     ],
   },
 ];
-
-const languageCopy = {
-  es: {
-    label: 'Idioma',
-    current: 'Español',
-    hint: 'Cambiar idioma a inglés',
-  },
-  en: {
-    label: 'Language',
-    current: 'English',
-    hint: 'Switch language to Spanish',
-  },
-} as const;
 
 // -----------------------
 // Utilidades puras (sin estado)
@@ -179,6 +181,7 @@ export default function FloatingHeader() {
   const pathname = usePathname() ?? '/';
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useT();
 
   // ----- Efectos -----
   useEffect(() => {
@@ -226,10 +229,10 @@ export default function FloatingHeader() {
         if (typeof idx === 'number') {
           const navItem = navigation[idx];
           if (navItem) {
-            const el = document.querySelector(`[data-nav="${navItem.name}"]`) as HTMLElement | null;
+            const el = document.querySelector(`[data-nav="${navItem.id}"]`) as HTMLElement | null;
             if (el) {
               el.focus();
-              if (navItem.submenu) setActiveDesktopMenu(navItem.name);
+              if (navItem.submenu) setActiveDesktopMenu(navItem.id);
             }
             e.preventDefault();
           }
@@ -261,8 +264,8 @@ export default function FloatingHeader() {
     setActiveDesktopMenu(null);
   };
 
-  const toggleMobileSection = (name: string) => {
-    setOpenMobileMenus((prev) => ({ ...prev, [name]: !prev[name] }));
+  const toggleMobileSection = (sectionId: string) => {
+    setOpenMobileMenus((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
   useEffect(() => {
@@ -271,12 +274,9 @@ export default function FloatingHeader() {
 
   // ----- Derivados (dependen de estado) -----
   const activePageName =
-    navigation.find((item) => isParentActive(item, pathname))?.name ?? 'Inicio';
-  const searchPlaceholder =
-    language === 'es'
-      ? 'Buscar formularios, sesiones o miembros…'
-      : 'Search forms, sessions, or people…';
-  const currentPageLabel = language === 'es' ? 'Estás en' : 'You are on';
+    navigation.find((item) => isParentActive(item, pathname))?.id ?? 'home';
+  const searchPlaceholder = t('header.searchPlaceholder');
+  const currentPageLabel = t('nav.home');
 
   useEffect(() => {
     const query = searchParams?.get('query') ?? '';
@@ -311,7 +311,10 @@ export default function FloatingHeader() {
             : 'py-5 bg-transparent'
         }`}
       >
-        <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Navegación principal">
+        <nav
+          className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+          aria-label={t('header.primaryNavAria') as string}
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center justify-between gap-3">
             {/* Logo */}
@@ -332,7 +335,7 @@ export default function FloatingHeader() {
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const hasSubmenu = Boolean(item.submenu?.length);
-                const isActive = activeDesktopMenu === item.name;
+                const isActive = activeDesktopMenu === item.id;
                 const parentActive = isParentActive(item, pathname);
                 const iconClasses = `h-4 w-4 transition-transform group-hover:scale-110 ${
                   parentActive ? 'text-blue-600' : ''
@@ -342,13 +345,13 @@ export default function FloatingHeader() {
                 } -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all`;
                 return (
                   <div
-                    key={item.name}
+                    key={item.id}
                     className="relative"
-                    data-nav-wrapper={item.name}
+                    data-nav-wrapper={item.id}
                     onMouseEnter={() => {
                       if (hasSubmenu) {
                         cancelCloseDesktopMenu();
-                        setActiveDesktopMenu(item.name);
+                        setActiveDesktopMenu(item.id);
                       }
                     }}
                     onMouseLeave={() => {
@@ -357,7 +360,7 @@ export default function FloatingHeader() {
                     onFocus={() => {
                       if (hasSubmenu) {
                         cancelCloseDesktopMenu();
-                        setActiveDesktopMenu(item.name);
+                        setActiveDesktopMenu(item.id);
                       }
                     }}
                     onBlur={(event) => {
@@ -376,19 +379,19 @@ export default function FloatingHeader() {
                           event.preventDefault();
                           cancelCloseDesktopMenu();
                           setActiveDesktopMenu((current) =>
-                            current === item.name ? null : item.name,
+                            current === item.id ? null : item.id,
                           );
                         }}
                         className={`group relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                           parentActive ? 'text-blue-600' : 'text-[color:var(--text-muted)]'
                         }`}
-                        data-nav={item.name}
+                        data-nav={item.id}
                         aria-expanded={isActive}
                         aria-haspopup="true"
                         aria-current={parentActive ? 'page' : undefined}
                       >
                         <Icon className={iconClasses} aria-hidden="true" />
-                        <span>{item.name}</span>
+                        <span>{t(item.labelKey)}</span>
                         <ChevronDown
                           className={`h-3.5 w-3.5 transition-transform ${
                             isActive
@@ -402,16 +405,15 @@ export default function FloatingHeader() {
                     ) : (
                       <Link
                         href={item.href}
+                        data-nav={item.id}
                         className={`group relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                           parentActive ? 'text-blue-600' : 'text-[color:var(--text-muted)]'
                         }`}
                         aria-current={parentActive ? 'page' : undefined}
                       >
-                        <a data-nav={item.name}>
-                          <Icon className={iconClasses} aria-hidden="true" />
-                          <span>{item.name}</span>
-                          <span className={underlineClasses} />
-                        </a>
+                        <Icon className={iconClasses} aria-hidden="true" />
+                        <span>{t(item.labelKey)}</span>
+                        <span className={underlineClasses} />
                       </Link>
                     )}
                     {hasSubmenu ? (
@@ -427,22 +429,22 @@ export default function FloatingHeader() {
                         <div className="space-y-2">
                           {item.submenu?.map((subItem) => {
                             const SubIcon = subItem.icon;
-                              const computeSubActive = (href: string) => {
-                                const normalized = normalizeHref(href);
-                                if (normalized !== pathname) return false;
-                                if (href.includes('#')) {
-                                  if (typeof window === 'undefined') return false;
-                                  const currentHash = window.location.hash.replace('#', '');
-                                  const targetHash = href.split('#')[1] ?? '';
-                                  return targetHash === currentHash;
-                                }
-                                return true;
-                              };
-                              const subActive = computeSubActive(subItem.href);
-                              const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600' : ''}`;
+                            const computeSubActive = (href: string) => {
+                              const normalized = normalizeHref(href);
+                              if (normalized !== pathname) return false;
+                              if (href.includes('#')) {
+                                if (typeof window === 'undefined') return false;
+                                const currentHash = window.location.hash.replace('#', '');
+                                const targetHash = href.split('#')[1] ?? '';
+                                return targetHash === currentHash;
+                              }
+                              return true;
+                            };
+                            const subActive = computeSubActive(subItem.href);
+                            const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600' : ''}`;
                             return (
                               <Link
-                                key={subItem.name}
+                                key={subItem.id}
                                 href={subItem.href}
                                 onClick={closeDesktopMenu}
                                 className={`group/sub flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-blue-500/10 hover:text-[color:var(--foreground)] focus:bg-blue-500/10 focus:text-[color:var(--foreground)] focus:outline-none ${
@@ -461,10 +463,10 @@ export default function FloatingHeader() {
                                 </span>
                                 <span className="flex-1 space-y-1">
                                   <span className="block text-sm font-semibold text-[color:var(--foreground)]">
-                                    {subItem.name}
+                                    {t(subItem.titleKey)}
                                   </span>
                                   <span className="block text-xs text-[color:var(--text-muted)]">
-                                    {subItem.description}
+                                    {t(subItem.descriptionKey)}
                                   </span>
                                 </span>
                                 <ArrowUpRight
@@ -484,19 +486,12 @@ export default function FloatingHeader() {
 
             {/* CTA Button - Desktop */}
             <div className="hidden items-center gap-3 md:flex">
-              <LanguageSwitcher
-                value={language}
-                onChange={setLanguage}
-                ariaLabel={languageCopy[language].hint}
-                label={languageCopy[language].label}
-                currentLabel={languageCopy[language].current}
-                className="min-w-[14rem]"
-              />
+              <LanguageSwitcher value={language} onChange={setLanguage} className="min-w-[14rem]" />
               <Link
                 href="/login"
                 className="rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
               >
-                Iniciar sesión
+                {t('header.login')}
               </Link>
               <Link
                 href="/register"
@@ -504,7 +499,7 @@ export default function FloatingHeader() {
               >
                 <span className="relative z-10 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  Registrarse
+                  {t('header.register')}
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 opacity-0 transition-opacity group-hover:opacity-100" />
               </Link>
@@ -514,7 +509,7 @@ export default function FloatingHeader() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--surface-muted)] md:hidden"
-              aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-label={t(isMobileMenuOpen ? 'header.closeMenu' : 'header.openMenu') as string}
               aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? (
@@ -529,7 +524,7 @@ export default function FloatingHeader() {
                 onSubmit={handleSearchSubmit}
                 className="relative w-full"
                 role="search"
-                aria-label={language === 'es' ? 'Búsqueda global' : 'Global search'}
+                aria-label={t('header.searchAria') as string}
               >
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-muted)]" />
                 <input
@@ -579,30 +574,25 @@ export default function FloatingHeader() {
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--text-muted)] transition-colors hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--foreground)]"
-              aria-label="Cerrar menú"
+              aria-label={t('header.closeMenu') as string}
             >
               <X className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
 
           {/* Mobile Menu Navigation */}
-          <nav className="flex-1 overflow-y-auto p-6 space-y-5" aria-label="Navegación móvil">
+          <nav
+            className="flex-1 overflow-y-auto p-6 space-y-5"
+            aria-label={t('header.mobileNavAria') as string}
+          >
             <div className="flex justify-center">
-              <LanguageSwitcher
-                value={language}
-                onChange={setLanguage}
-                ariaLabel={languageCopy[language].hint}
-                label={languageCopy[language].label}
-                currentLabel={languageCopy[language].current}
-                className="w-full"
-                fullWidth
-              />
+              <LanguageSwitcher value={language} onChange={setLanguage} className="w-full" fullWidth />
             </div>
             <form
               onSubmit={handleSearchSubmit}
               className="relative"
               role="search"
-              aria-label={language === 'es' ? 'Búsqueda global' : 'Global search'}
+              aria-label={t('header.searchAria') as string}
             >
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-muted)]" />
               <input
@@ -618,7 +608,7 @@ export default function FloatingHeader() {
               {navigation.map((item, index) => {
                 const Icon = item.icon;
                 const hasSubmenu = Boolean(item.submenu?.length);
-                const isOpen = Boolean(openMobileMenus[item.name]);
+                const isOpen = Boolean(openMobileMenus[item.id]);
                 const parentActive = isParentActive(item, pathname);
                 const iconWrapperClasses = `flex h-10 w-10 items-center justify-center rounded-lg ${
                   parentActive
@@ -628,7 +618,7 @@ export default function FloatingHeader() {
                 const iconClasses = `h-5 w-5 ${parentActive ? 'text-blue-600' : ''}`;
                 return (
                   <li
-                    key={item.name}
+                    key={item.id}
                     style={{
                       animation: isMobileMenuOpen
                         ? `slideInRight 0.3s ease-out ${index * 0.05}s both`
@@ -639,18 +629,18 @@ export default function FloatingHeader() {
                       <div className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] shadow-sm shadow-slate-200/20 dark:bg-slate-900">
                         <button
                           type="button"
-                          onClick={() => toggleMobileSection(item.name)}
+                          onClick={() => toggleMobileSection(item.id)}
                           className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-base font-semibold ${
                             parentActive ? 'text-blue-600' : 'text-[color:var(--foreground)]'
                           }`}
                           aria-expanded={isOpen}
                           aria-current={parentActive ? 'page' : undefined}
                         >
-                          <span className="flex items-center gap-3">
+                            <span className="flex items-center gap-3">
                             <span className={iconWrapperClasses}>
                               <Icon className={iconClasses} aria-hidden="true" />
                             </span>
-                            {item.name}
+                            {t(item.labelKey)}
                           </span>
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
@@ -668,7 +658,7 @@ export default function FloatingHeader() {
                                 !subItem.href.includes('#');
                               return (
                                 <Link
-                                  key={subItem.name}
+                                  key={subItem.id}
                                   href={subItem.href}
                                   onClick={() => {
                                     setIsMobileMenuOpen(false);
@@ -690,10 +680,10 @@ export default function FloatingHeader() {
                                   </span>
                                   <span className="flex-1 space-y-1">
                                     <span className="block text-sm font-semibold text-[color:var(--foreground)]">
-                                      {subItem.name}
+                                      {t(subItem.titleKey)}
                                     </span>
                                     <span className="block text-xs text-[color:var(--text-muted)]">
-                                      {subItem.description}
+                                      {t(subItem.descriptionKey)}
                                     </span>
                                   </span>
                                 </Link>
@@ -716,7 +706,7 @@ export default function FloatingHeader() {
                         >
                           <Icon className={iconClasses} aria-hidden="true" />
                         </span>
-                        {item.name}
+                        {t(item.labelKey)}
                       </Link>
                     )}
                   </li>
@@ -732,7 +722,7 @@ export default function FloatingHeader() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-6 py-3 text-base font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
             >
-              Iniciar sesión
+              {t('header.login')}
             </Link>
             <Link
               href="/register"
@@ -740,7 +730,7 @@ export default function FloatingHeader() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/40"
             >
               <Sparkles className="h-5 w-5" aria-hidden="true" />
-              Registrarse gratis
+              {t('header.register')}
             </Link>
           </div>
         </div>
