@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
 import FloatingHeader from '@/components/FloatingHeader';
-import AppDownloadSection from '@/components/AppDownloadSection';
+import SiteFooter from '@/components/SiteFooter';
 
 const features = [
   {
@@ -51,25 +50,6 @@ const steps = [
   }
 ] as const;
 
-const faqs = [
-  {
-    question: '¿Necesito una cuenta para usar ApunteQuiz?',
-    answer: 'Sí, necesitas crear una cuenta gratuita para acceder al generador de quizzes. El registro es rápido, sin tarjeta de crédito, y te da acceso completo a todas las funcionalidades.'
-  },
-  {
-    question: '¿Es realmente gratis?',
-    answer: 'Sí. ApunteQuiz ofrece un plan gratuito para estudiantes con acceso completo al generador de quizzes. No se requiere tarjeta de crédito para comenzar.'
-  },
-  {
-    question: '¿Se almacenan mis documentos?',
-    answer: 'Los documentos se procesan de forma segura durante tu sesión. No se almacenan de manera permanente en nuestros servidores sin tu consentimiento.'
-  },
-  {
-    question: '¿Puedo generar preguntas en otros idiomas?',
-    answer: 'Sí. Una vez que inicies sesión, podrás configurar el idioma en la sección de ajustes y el sistema redactará las preguntas en esa lengua.'
-  }
-] as const;
-
 export default function Home() {
   return (
     <>
@@ -78,7 +58,10 @@ export default function Home() {
         id="contenido-principal"
         className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] transition-colors pt-20"
       >
-        <section className="relative overflow-hidden bg-gradient-to-b from-slate-100 via-white to-slate-100 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <section
+          id="resumen"
+          className="relative overflow-hidden bg-gradient-to-b from-slate-100 via-white to-slate-100 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950"
+        >
         <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_transparent_60%)] dark:bg-[radial-gradient(circle_at_top,_#1e293b,_transparent_55%)]" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-16 px-6 py-24 text-[color:var(--foreground)] transition-colors lg:flex-row lg:items-center lg:justify-between lg:py-32">
           <div className="max-w-xl space-y-8">
@@ -100,7 +83,7 @@ export default function Home() {
                 Comenzar gratis
               </Link>
               <Link
-                href="#features"
+                href="/#features"
                 className="inline-flex items-center justify-center rounded-lg border border-[color:var(--border-default)] px-6 py-3 text-sm font-semibold text-[color:var(--foreground)] transition hover:brightness-105"
               >
                 Ver cómo funciona
@@ -223,120 +206,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-gradient-to-b from-white via-slate-50 to-white transition-colors dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
-        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,_rgba(59,130,246,0.15),_transparent_70%)] dark:bg-[radial-gradient(circle_at_center,_#1e293b,_transparent_60%)]" />
-        <div className="relative mx-auto max-w-4xl px-6 py-24">
-          <div className="a11y-card rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-200/60 dark:shadow-slate-900/60">
-            <div className="space-y-6 text-center">
-              <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-200">
-                ✨ Regístrate hoy y empieza a crear quizzes
-              </span>
-              <h2 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors sm:text-4xl lg:text-5xl">
-                Listo para transformar tu forma de estudiar
-              </h2>
-              <p className="mx-auto max-w-2xl text-lg text-[color:var(--text-muted)] transition-colors">
-                Únete a ApunteQuiz y descubre cómo la inteligencia artificial puede ayudarte a crear evaluaciones personalizadas en minutos. Regístrate gratis y accede al generador completo.
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center pt-4">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-400 hover:shadow-xl hover:shadow-blue-500/40"
-                >
-                  <Sparkles className="h-5 w-5" aria-hidden="true" />
-                  Crear cuenta gratis
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-8 py-4 text-base font-semibold text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
-                >
-                  Ya tengo cuenta
-                </Link>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-sm text-[color:var(--text-muted)] transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg" aria-hidden="true">🎓</span>
-                  <span>Gratis para estudiantes</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg" aria-hidden="true">💳</span>
-                  <span>Sin tarjeta de crédito</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg" aria-hidden="true">⚡</span>
-                  <span>Acceso inmediato</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="faq" className="bg-slate-200/70 transition-colors dark:bg-slate-900/50">
-        <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[2fr_3fr]">
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-[color:var(--foreground)] transition-colors sm:text-4xl">
-              Preguntas frecuentes
-            </h2>
-            <p className="text-lg text-[color:var(--text-muted)] transition-colors">
-              Aclaramos las dudas más comunes para que puedas comenzar sin fricciones.
-              ¿Necesitas algo más? Escríbenos y con gusto te ayudamos.
-            </p>
-            <Link
-              href="mailto:ac20102003@gmail.com"
-              className="inline-flex w-max items-center justify-center rounded-lg border border-[color:var(--border-default)] px-5 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:brightness-105"
-            >
-              Enviar un correo
-            </Link>
-          </div>
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <details
-                key={faq.question}
-                className="group rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] p-5 transition hover:brightness-105"
-              >
-                <summary className="cursor-pointer list-none text-lg font-semibold text-[color:var(--foreground)] transition group-hover:text-blue-600">
-                  {faq.question}
-                </summary>
-                <p className="mt-3 text-sm text-[color:var(--text-muted)]">{faq.answer}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/80 transition-colors">
-        <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
-          {/* Sección de descarga de APK */}
-          <div className="pb-6 border-b border-[color:var(--border-default)]">
-            <AppDownloadSection variant="footer" />
-          </div>
-          
-          {/* Footer original */}
-          <div className="flex flex-col items-center justify-between gap-4 text-sm text-[color:var(--text-muted)] transition-colors sm:flex-row">
-            <p>© {new Date().getFullYear()} ApunteQuiz. Construido con cariño ❤️ por <a href="https://www.instagram.com/andres.cabrera20" className="text-blue-600 hover:underline">William Cabrera</a> para impulsar el aprendizaje activo.</p>
-            <div className="flex items-center gap-4">
-              <Link
-                href="#features"
-                className="transition hover:text-[color:var(--foreground)]"
-              >
-                Características
-              </Link>
-              <Link
-                href="#como-funciona"
-                className="transition hover:text-[color:var(--foreground)]"
-              >
-                Cómo funciona
-              </Link>
-              <Link
-                href="mailto:ac20102003@gmail.com"
-                className="transition hover:text-[color:var(--foreground)]"
-              >
-                Soporte
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
     </>
   );
