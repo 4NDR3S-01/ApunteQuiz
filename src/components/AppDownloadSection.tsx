@@ -17,6 +17,10 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
   // URL completa para el código QR (se generará con la URL completa del sitio)
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + apkUrl : apkUrl)}`;
 
+  // Obtener las traducciones y crear la variable esperada por el componente
+  const { dictionary } = useTranslation();
+  const appDownload = (dictionary as any)?.appDownload || {};
+
   if (variant === 'footer') {
     return (
       <div className={`relative ${className}`}>
@@ -181,9 +185,11 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                     </p>
                   </div>
                   <div className="space-y-2 text-xs text-[color:var(--text-muted)]">
-                    {appDownload.landing.phoneCard.features.map((feature) => (
-                      <p key={feature}>{feature}</p>
-                    ))}
+                    {Array.isArray(appDownload?.landing?.phoneCard?.features) ? (
+                      appDownload.landing.phoneCard.features.map((feature: any, idx: number) => (
+                        <p key={typeof feature === 'string' ? feature : `feature-${idx}`}>{feature}</p>
+                      ))
+                    ) : null}
                   </div>
                 </div>
               </div>
