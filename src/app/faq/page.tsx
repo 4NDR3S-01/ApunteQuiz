@@ -37,13 +37,13 @@ export default function FAQPage() {
           <div className="mt-8 rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/90 p-4 shadow-sm shadow-slate-200/20">
             <h3 className="text-sm font-semibold text-[color:var(--foreground)]">{faqPage.shortcutsTitle}</h3>
             <p className="mt-2 text-sm text-[color:var(--text-muted)]">{faqPage.shortcutsDescription}</p>
-            <ul className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <ul className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               {faqPage.shortcuts.map((shortcut) => (
-                <li key={shortcut.combo} className="flex items-center gap-3">
-                  <kbd className="rounded-md border border-[color:var(--border-default)] px-2 py-1 text-xs">
+                <li key={shortcut.combo} className="flex items-start gap-3">
+                  <kbd className="rounded-md border border-[color:var(--border-default)] px-2 py-1 text-xs font-mono whitespace-nowrap">
                     {shortcut.combo}
                   </kbd>
-                  <span className="text-[color:var(--text-muted)]">{shortcut.label}</span>
+                  <span className="text-[color:var(--text-muted)] flex-1">{shortcut.label}</span>
                 </li>
               ))}
             </ul>

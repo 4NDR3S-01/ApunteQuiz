@@ -25,6 +25,7 @@ import {
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
 import { useT } from '@/i18n';
+import { useAccessibility } from '@/components/AccessibilityProvider';
 
 // -----------------------
 // Tipos
@@ -173,6 +174,7 @@ export default function FloatingHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
+  const { keyboardNavigationEnabled, customShortcutsEnabled } = useAccessibility();
   const [activeDesktopMenu, setActiveDesktopMenu] = useState<string | null>(null);
   const [openMobileMenus, setOpenMobileMenus] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -238,46 +240,93 @@ export default function FloatingHeader() {
   }, []);
 
   // Keyboard shortcuts: '/' focuses search, Alt+1/2/3 focus nav items, Esc closes menus
+  // Solo activo si keyboardNavigationEnabled o customShortcutsEnabled están habilitados
   useEffect(() => {
     if (typeof globalThis.window === 'undefined') return;
+    if (!keyboardNavigationEnabled && !customShortcutsEnabled) return;
+    
     const handler = (e: KeyboardEvent) => {
       // don't hijack when typing in inputs
       const active = document.activeElement as HTMLElement | null;
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-      if ((e.key === '/' || e.key === '?') && !isTyping) {
-        e.preventDefault();
-        // focus the first visible search input (desktop or mobile)
-        const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="search"]'));
-        const visible = inputs.find((i) => i.offsetParent !== null && i.getBoundingClientRect().width > 0) ?? inputs[0];
-        visible?.focus();
-        return;
-      }
+      
+      // Atajos básicos siempre disponibles si keyboardNavigationEnabled
+      if (keyboardNavigationEnabled) {
+        if ((e.key === '/' || e.key === '?') && !isTyping) {
+          e.preventDefault();
+          // focus the first visible search input (desktop or mobile)
+          const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="search"]'));
+          const visible = inputs.find((i) => i.offsetParent !== null && i.getBoundingClientRect().width > 0) ?? inputs[0];
+          visible?.focus();
+          return;
+        }
 
-      if (e.key === 'Escape') {
-        setIsMobileMenuOpen(false);
-        setActiveDesktopMenu(null);
-        (document.activeElement as HTMLElement | null)?.blur();
-        return;
-      }
+        if (e.key === 'Escape') {
+          setIsMobileMenuOpen(false);
+          setActiveDesktopMenu(null);
+          (document.activeElement as HTMLElement | null)?.blur();
+          return;
+        }
 
-      if (e.altKey && !isTyping) {
-        const idx = { '1': 0, '2': 1, '3': 2 }[e.key as keyof Record<string, number>];
-        if (typeof idx === 'number') {
-          const navItem = navigation[idx];
-          if (navItem) {
-            const el = document.querySelector(`[data-nav="${navItem.id}"]`) as HTMLElement | null;
-            if (el) {
-              el.focus();
-              if (navItem.submenu) setActiveDesktopMenu(navItem.id);
+        if (e.altKey && !isTyping) {
+          const idx = { '1': 0, '2': 1, '3': 2 }[e.key as keyof Record<string, number>];
+          if (typeof idx === 'number') {
+            const navItem = navigation[idx];
+            if (navItem) {
+              const el = document.querySelector(`[data-nav="${navItem.id}"]`) as HTMLElement | null;
+              if (el) {
+                el.focus();
+                if (navItem.submenu) setActiveDesktopMenu(navItem.id);
+              }
+              e.preventDefault();
             }
-            e.preventDefault();
           }
+        }
+      }
+
+      // Atajos personalizados adicionales si customShortcutsEnabled está habilitado
+      if (customShortcutsEnabled && !isTyping) {
+        // Ctrl/Cmd + K para abrir ajustes de accesibilidad
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          globalThis.dispatchEvent(new Event('apq:open-accessibility'));
+          return;
+        }
+        
+        // Alt + S para buscar
+        if (e.altKey && e.key === 's') {
+          e.preventDefault();
+          const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="search"]'));
+          const visible = inputs.find((i) => i.offsetParent !== null && i.getBoundingClientRect().width > 0) ?? inputs[0];
+          visible?.focus();
+          return;
+        }
+
+        // Alt + H para ir a inicio
+        if (e.altKey && e.key === 'h') {
+          e.preventDefault();
+          router.push('/');
+          return;
+        }
+
+        // Alt + F para ir a FAQ
+        if (e.altKey && e.key === 'f') {
+          e.preventDefault();
+          router.push('/faq');
+          return;
+        }
+
+        // Alt + C para ir a contacto
+        if (e.altKey && e.key === 'c') {
+          e.preventDefault();
+          router.push('/contacto');
+          return;
         }
       }
     };
     globalThis.window.addEventListener('keydown', handler);
     return () => globalThis.window.removeEventListener('keydown', handler);
-  }, [setActiveDesktopMenu]);
+  }, [setActiveDesktopMenu, keyboardNavigationEnabled, customShortcutsEnabled, router]);
 
   // ----- Helpers con estado -----
   const cancelCloseDesktopMenu = () => {

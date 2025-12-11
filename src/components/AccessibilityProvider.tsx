@@ -12,6 +12,54 @@ import {
   type ReactNode,
 } from 'react';
 
+// Tipos para reconocimiento de voz
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 type ThemePreference = 'light' | 'dark' | 'system';
 type ResolvedTheme = 'light' | 'dark';
 type FontScale = 'base' | 'large';
@@ -65,6 +113,8 @@ interface AccessibilityContextValue {
   readonly setCustomColor: (v: string) => void;
   readonly voiceControlEnabled: boolean;
   readonly setVoiceControlEnabled: (v: boolean) => void;
+  readonly voiceControlActive: boolean;
+  readonly voiceControlMessage: string | null;
   readonly blockAutoplay: boolean;
   readonly setBlockAutoplay: (v: boolean) => void;
   readonly customShortcutsEnabled: boolean;
@@ -207,6 +257,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [customFont, setCustomFontState] = useState<string>('');
   const [customColor, setCustomColorState] = useState<string>('');
   const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(false);
+  const [voiceControlActive, setVoiceControlActive] = useState<boolean>(false);
+  const [voiceControlMessage, setVoiceControlMessage] = useState<string | null>(null);
   const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(false);
   const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(false);
   const [textScale, setTextScaleState] = useState<number>(1);
@@ -723,6 +775,214 @@ useEffect(() => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [hasContrastOverride]);
 
+  // Implementar reconocimiento de voz
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined' || !voiceControlEnabled) {
+      setVoiceControlActive(false);
+      setVoiceControlMessage(null);
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+        recognitionRef.current = null;
+      }
+      return;
+    }
+
+    // Verificar soporte de reconocimiento de voz
+    const SpeechRecognition = 
+      (globalThis.window as any).SpeechRecognition || 
+      (globalThis.window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setVoiceControlMessage('Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.');
+      setVoiceControlActive(false);
+      return;
+    }
+
+    // Verificar permisos del micrófono
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
+        if (result.state === 'denied') {
+          setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
+          setVoiceControlActive(false);
+          return;
+        }
+      }).catch(() => {
+        // Algunos navegadores no soportan la API de permisos
+      });
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'es-ES';
+
+    recognition.onstart = () => {
+      setVoiceControlActive(true);
+      setVoiceControlMessage('Escuchando... Di un comando.');
+    };
+
+    recognition.onresult = (event: any) => {
+      const results = event.results as SpeechRecognitionResultList;
+      const lastResult = results[results.length - 1];
+      if (lastResult.isFinal) {
+        const command = lastResult[0].transcript.toLowerCase().trim();
+        setVoiceControlMessage(`Comando reconocido: "${command}"`);
+        
+        // Comandos de navegación
+        if (command.includes('ir a inicio') || command.includes('inicio')) {
+          setTimeout(() => {
+            globalThis.window.location.href = '/';
+          }, 500);
+        } else if (command.includes('ir a faq') || command.includes('faq')) {
+          setTimeout(() => {
+            globalThis.window.location.href = '/faq';
+          }, 500);
+        } else if (command.includes('ir a contacto') || command.includes('contacto')) {
+          setTimeout(() => {
+            globalThis.window.location.href = '/contacto';
+          }, 500);
+        } else if (command.includes('abrir ajustes') || command.includes('ajustes')) {
+          globalThis.dispatchEvent(new Event('apq:open-accessibility'));
+          setVoiceControlMessage('Ajustes abiertos');
+        } else if (command.includes('cerrar') || command.includes('salir')) {
+          const activeElement = document.activeElement as HTMLElement;
+          if (activeElement && 'blur' in activeElement) {
+            activeElement.blur();
+          }
+          setVoiceControlMessage('Cerrado');
+        } else if (command.includes('pausar video') || command.includes('pausar medios')) {
+          pauseAllMedia();
+          setVoiceControlMessage('Medios pausados');
+        } else if (command.includes('reproducir video') || command.includes('reproducir medios')) {
+          playAllMedia();
+          setVoiceControlMessage('Medios reproducidos');
+        } else {
+          setVoiceControlMessage(`Comando no reconocido: "${command}". Intenta: "ir a inicio", "ir a faq", "abrir ajustes", etc.`);
+        }
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => {
+          setVoiceControlMessage('Escuchando... Di un comando.');
+        }, 3000);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      const error = event.error as string;
+      setVoiceControlActive(false);
+      
+      if (error === 'not-allowed') {
+        setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
+      } else if (error === 'no-speech') {
+        // No mostrar mensaje para este error común
+        setVoiceControlMessage('Escuchando... Di un comando.');
+        setVoiceControlActive(true);
+      } else if (error === 'audio-capture') {
+        setVoiceControlMessage('No se pudo acceder al micrófono. Verifica que esté conectado y habilitado.');
+      } else if (error === 'network') {
+        setVoiceControlMessage('Error de red. Verifica tu conexión a internet.');
+      } else {
+        setVoiceControlMessage(`Error: ${error}. Intenta desactivar y reactivar el control por voz.`);
+      }
+    };
+
+    recognition.onend = () => {
+      if (voiceControlEnabled) {
+        setVoiceControlActive(false);
+        // Reintentar después de un breve delay
+        setTimeout(() => {
+          if (voiceControlEnabled && recognitionRef.current === recognition) {
+            try {
+              recognition.start();
+            } catch (e) {
+              // Ya está iniciado o hay un error
+              setVoiceControlMessage('Reiniciando reconocimiento de voz...');
+            }
+          }
+        }, 1000);
+      } else {
+        setVoiceControlActive(false);
+      }
+    };
+
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (e) {
+      setVoiceControlMessage('No se pudo iniciar el reconocimiento de voz. Asegúrate de dar permisos al micrófono.');
+      setVoiceControlActive(false);
+      console.warn('No se pudo iniciar el reconocimiento de voz:', e);
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+        recognitionRef.current = null;
+      }
+      setVoiceControlActive(false);
+      setVoiceControlMessage(null);
+    };
+  }, [voiceControlEnabled, pauseAllMedia, playAllMedia]);
+
+  // Mejorar navegación por teclado cuando está habilitada
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined' || !keyboardNavigationEnabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement as HTMLElement;
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        activeElement.isContentEditable
+      );
+
+      // Solo aplicar mejoras si no está escribiendo
+      if (isTyping) return;
+
+      // Mejorar navegación con flechas en elementos interactivos
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const focusableElements = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden';
+        });
+
+        const currentIndex = focusableElements.indexOf(activeElement);
+        if (currentIndex === -1) return;
+
+        let nextIndex: number;
+        if (e.key === 'ArrowDown') {
+          nextIndex = (currentIndex + 1) % focusableElements.length;
+        } else {
+          nextIndex = currentIndex === 0 ? focusableElements.length - 1 : currentIndex - 1;
+        }
+
+        e.preventDefault();
+        focusableElements[nextIndex]?.focus();
+      }
+
+      // Enter en enlaces actúa como clic
+      if (e.key === 'Enter' && activeElement?.tagName === 'A') {
+        const link = activeElement as HTMLAnchorElement;
+        if (link.href) {
+          e.preventDefault();
+          link.click();
+        }
+      }
+    };
+
+    globalThis.window.addEventListener('keydown', handleKeyDown);
+    return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
+  }, [keyboardNavigationEnabled]);
+
   const value = useMemo<AccessibilityContextValue>(
     () => ({
       themePreference,
@@ -771,6 +1031,8 @@ useEffect(() => {
       setCustomColor,
       voiceControlEnabled,
       setVoiceControlEnabled,
+      voiceControlActive,
+      voiceControlMessage,
       blockAutoplay,
       setBlockAutoplay,
       customShortcutsEnabled,
@@ -801,6 +1063,8 @@ useEffect(() => {
       customFont,
       customColor,
       voiceControlEnabled,
+      voiceControlActive,
+      voiceControlMessage,
       blockAutoplay,
       customShortcutsEnabled,
       textScale,

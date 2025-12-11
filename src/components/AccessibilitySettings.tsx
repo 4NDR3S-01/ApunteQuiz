@@ -55,6 +55,8 @@ export default function AccessibilitySettings() {
     setCustomColor,
     voiceControlEnabled,
     setVoiceControlEnabled,
+    voiceControlActive,
+    voiceControlMessage,
     blockAutoplay,
     setBlockAutoplay,
     customShortcutsEnabled,
@@ -198,7 +200,7 @@ export default function AccessibilitySettings() {
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={pauseAllMedia} className="a11y-control px-3 py-1 rounded">Pausar medios</button>
                   <button type="button" onClick={playAllMedia} className="a11y-control px-3 py-1 rounded">Reproducir medios</button>
-                  <button type="button" onClick={stopAllMedia} className="a11y-control px-3 py-1 rounded">Detener medios</button>
+                  <button type="button" onClick={stopAllMedia} className="a11y-control px-3 py-1 rounded">Reiniciar medios</button>
                 </div>
 
                 <div className="flex gap-2 pt-2 items-center">
@@ -333,9 +335,26 @@ export default function AccessibilitySettings() {
                   <input aria-label="Escala de botones" type="range" min={1} max={2} step={0.1} value={String(largeButtonsScale)} onChange={(e) => setLargeButtonsScale(Number(e.target.value))} className="w-full" />
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" checked={voiceControlEnabled} onChange={(e) => setVoiceControlEnabled(e.target.checked)} className="w-4 h-4" />
-                  <span>Control por voz / dictado (UI)</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={voiceControlEnabled} onChange={(e) => setVoiceControlEnabled(e.target.checked)} className="w-4 h-4" />
+                    <span>Control por voz / dictado (UI)</span>
+                    {voiceControlEnabled && voiceControlActive && (
+                      <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-label="Escuchando" title="Escuchando"></span>
+                    )}
+                  </div>
+                  {voiceControlEnabled && (
+                    <div className="text-xs text-[color:var(--text-muted)] pl-7 space-y-1">
+                      <div className="italic">
+                        Comandos disponibles: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video", "reproducir video"
+                      </div>
+                      {voiceControlMessage && (
+                        <div className={`mt-1 ${voiceControlActive ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                          {voiceControlMessage}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -343,9 +362,16 @@ export default function AccessibilitySettings() {
                   <span>Bloquear auto-scroll / auto-reproducción</span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" checked={customShortcutsEnabled} onChange={(e) => setCustomShortcutsEnabled(e.target.checked)} className="w-4 h-4" />
-                  <span>Atajos de teclado personalizados (activar)</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={customShortcutsEnabled} onChange={(e) => setCustomShortcutsEnabled(e.target.checked)} className="w-4 h-4" />
+                    <span>Atajos de teclado personalizados (activar)</span>
+                  </div>
+                  {customShortcutsEnabled && (
+                    <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">
+                      Atajos adicionales: Ctrl/Cmd+K (ajustes), Alt+S (buscar), Alt+H (inicio), Alt+F (FAQ), Alt+C (contacto)
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
