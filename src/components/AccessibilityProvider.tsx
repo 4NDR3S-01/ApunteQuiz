@@ -283,56 +283,81 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  // Detectar interacción del usuario
+  // Detectar interacción del usuario (solo interacciones intencionales)
   useEffect(() => {
     if (typeof globalThis.window === 'undefined') return;
 
-    const handleInteraction = () => {
-      setUserHasInteracted(true);
-      lastInteractionTimeRef.current = Date.now();
-      
-      // Si el control por voz automático está activo, desactivarlo
-      if (autoVoiceControlActive) {
-        setAutoVoiceControlActive(false);
-        setVoiceControlEnabledState(false);
-        showToast('Control por voz desactivado debido a interacción del usuario', 'info');
+    let interactionDebounce: number | null = null;
+    let lastToastTime = 0;
+    const TOAST_COOLDOWN = 2000; // 2 segundos entre toasts
+
+    const handleInteraction = (e: Event) => {
+      // Ignorar eventos que no son interacciones intencionales
+      // No contar movimientos de mouse, solo clicks y teclas
+      const isIntentional = 
+        e.type === 'click' || 
+        (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Tab') ||
+        e.type === 'touchstart' ||
+        (e.type === 'mousedown' && (e as MouseEvent).button === 0);
+
+      if (!isIntentional) return;
+
+      // Debounce para evitar múltiples llamadas
+      if (interactionDebounce) {
+        clearTimeout(interactionDebounce);
       }
 
-      // Limpiar timer de inactividad
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
-      }
-
-      // Reiniciar timer de inactividad (10 segundos)
-      inactivityTimerRef.current = window.setTimeout(() => {
-        // Si el usuario no ha interactuado manualmente con el control por voz
-        // y no ha habido interacción en 10 segundos, activar automáticamente
-        if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
-          setVoiceControlEnabledState(true);
-          setAutoVoiceControlActive(true);
-          showToast('Control por voz activado automáticamente. Di un comando para navegar.', 'success');
+      interactionDebounce = window.setTimeout(() => {
+        setUserHasInteracted(true);
+        lastInteractionTimeRef.current = Date.now();
+        
+        // Si el control por voz automático está activo, desactivarlo
+        // Pero solo mostrar toast una vez cada cierto tiempo
+        const now = Date.now();
+        if (autoVoiceControlActive) {
+          setAutoVoiceControlActive(false);
+          setVoiceControlEnabledState(false);
+          
+          if (now - lastToastTime > TOAST_COOLDOWN) {
+            showToast('Control por voz desactivado debido a interacción del usuario', 'info');
+            lastToastTime = now;
+          }
         }
-      }, 10000);
+
+        // Limpiar timer de inactividad
+        if (inactivityTimerRef.current) {
+          clearTimeout(inactivityTimerRef.current);
+          inactivityTimerRef.current = null;
+        }
+
+        // NO reiniciar timer si el control por voz automático está activo
+        // Solo reiniciar si está desactivado
+        if (!autoVoiceControlActive && !voiceControlEnabled) {
+          inactivityTimerRef.current = window.setTimeout(() => {
+            if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
+              setVoiceControlEnabledState(true);
+              setAutoVoiceControlActive(true);
+              showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+            }
+          }, 10000);
+        }
+      }, 300); // Debounce de 300ms
     };
 
-    // Eventos que indican interacción del usuario
-    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    // Solo eventos que indican interacción intencional del usuario
+    const events = ['click', 'keydown', 'touchstart', 'mousedown'];
     events.forEach((event) => {
       window.addEventListener(event, handleInteraction, { passive: true });
     });
 
     // Iniciar timer de inactividad inicial solo si no hay interacción previa
-    // Esperar un momento para verificar si el usuario ya interactuó
-    const initialTimer = window.setTimeout(() => {
+    inactivityTimerRef.current = window.setTimeout(() => {
       if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
         setVoiceControlEnabledState(true);
         setAutoVoiceControlActive(true);
-        showToast('Control por voz activado automáticamente. Di un comando para navegar.', 'success');
+        showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
       }
     }, 10000);
-    
-    inactivityTimerRef.current = initialTimer;
 
     return () => {
       events.forEach((event) => {
@@ -340,6 +365,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       });
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
+      }
+      if (interactionDebounce) {
+        clearTimeout(interactionDebounce);
       }
     };
   }, [voiceControlEnabled, userHasInteracted, autoVoiceControlActive, showToast]);
@@ -683,9 +711,13 @@ useEffect(() => {
     setVoiceControlEnabledState(value);
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
     
-    // Si el usuario activa manualmente, marcar como interactuado
+    // Si el usuario activa manualmente, marcar como interactuado y mostrar comandos
     if (value && !autoVoiceControlActive) {
       setUserHasInteracted(true);
+      // Mostrar toast con comandos cuando se activa manualmente
+      setTimeout(() => {
+        showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+      }, 500);
     }
     
     // Si desactiva manualmente, también marcar como interactuado
@@ -885,21 +917,27 @@ useEffect(() => {
       (globalThis.window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      setVoiceControlMessage('Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.');
+      const errorMsg = 'Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.';
+      setVoiceControlMessage(errorMsg);
       setVoiceControlActive(false);
+      showToast(errorMsg, 'error');
       return;
     }
 
     // Verificar permisos del micrófono
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
+        console.log('Estado de permisos del micrófono:', result.state);
         if (result.state === 'denied') {
-          setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
+          const errorMsg = 'Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.';
+          setVoiceControlMessage(errorMsg);
           setVoiceControlActive(false);
+          showToast(errorMsg, 'error');
           return;
         }
-      }).catch(() => {
+      }).catch((err) => {
         // Algunos navegadores no soportan la API de permisos
+        console.log('No se pudo verificar permisos (normal en algunos navegadores):', err);
       });
     }
 
@@ -910,7 +948,9 @@ useEffect(() => {
 
     recognition.onstart = () => {
       setVoiceControlActive(true);
+      const commandsList = 'Comandos disponibles: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video", "reproducir video"';
       setVoiceControlMessage('Escuchando... Di un comando.');
+      showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
     };
 
     recognition.onresult = (event: any) => {
@@ -949,7 +989,8 @@ useEffect(() => {
           playAllMedia();
           setVoiceControlMessage('Medios reproducidos');
         } else {
-          setVoiceControlMessage(`Comando no reconocido: "${command}". Intenta: "ir a inicio", "ir a faq", "abrir ajustes", etc.`);
+          setVoiceControlMessage(`Comando no reconocido: "${command}"`);
+          showToast(`Comando no reconocido. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"`, 'warning');
         }
         
         // Limpiar mensaje después de 3 segundos
@@ -961,34 +1002,65 @@ useEffect(() => {
 
     recognition.onerror = (event: any) => {
       const error = event.error as string;
-      setVoiceControlActive(false);
       
       if (error === 'not-allowed') {
+        setVoiceControlActive(false);
         setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
+        showToast('Permisos del micrófono denegados. Habilítalos en la configuración del navegador.', 'error');
       } else if (error === 'no-speech') {
-        // No mostrar mensaje para este error común
+        // No mostrar mensaje para este error común, solo mantener escuchando
         setVoiceControlMessage('Escuchando... Di un comando.');
         setVoiceControlActive(true);
       } else if (error === 'audio-capture') {
+        setVoiceControlActive(false);
         setVoiceControlMessage('No se pudo acceder al micrófono. Verifica que esté conectado y habilitado.');
+        showToast('No se pudo acceder al micrófono. Verifica que esté conectado.', 'error');
       } else if (error === 'network') {
+        setVoiceControlActive(false);
         setVoiceControlMessage('Error de red. Verifica tu conexión a internet.');
+        showToast('Error de red. Verifica tu conexión a internet.', 'error');
+      } else if (error === 'aborted') {
+        // Reconocimiento abortado, intentar reiniciar
+        setVoiceControlActive(false);
+        if (voiceControlEnabled) {
+          setTimeout(() => {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.warn('No se pudo reiniciar reconocimiento:', e);
+            }
+          }, 1000);
+        }
       } else {
+        setVoiceControlActive(false);
         setVoiceControlMessage(`Error: ${error}. Intenta desactivar y reactivar el control por voz.`);
+        showToast(`Error en reconocimiento de voz: ${error}. Intenta reactivarlo.`, 'error');
       }
     };
 
     recognition.onend = () => {
+      console.log('Reconocimiento de voz finalizado');
       if (voiceControlEnabled) {
         setVoiceControlActive(false);
         // Reintentar después de un breve delay
         setTimeout(() => {
           if (voiceControlEnabled && recognitionRef.current === recognition) {
             try {
+              console.log('Reiniciando reconocimiento de voz...');
               recognition.start();
-            } catch (e) {
-              // Ya está iniciado o hay un error
+            } catch (e: any) {
+              console.warn('No se pudo reiniciar reconocimiento:', e);
               setVoiceControlMessage('Reiniciando reconocimiento de voz...');
+              // Si falla, intentar de nuevo después de más tiempo
+              setTimeout(() => {
+                if (voiceControlEnabled && recognitionRef.current === recognition) {
+                  try {
+                    recognition.start();
+                  } catch (e2) {
+                    console.error('Error al reintentar reconocimiento:', e2);
+                  }
+                }
+              }, 2000);
             }
           }
         }, 1000);
@@ -1000,9 +1072,12 @@ useEffect(() => {
     try {
       recognition.start();
       recognitionRef.current = recognition;
-    } catch (e) {
-      setVoiceControlMessage('No se pudo iniciar el reconocimiento de voz. Asegúrate de dar permisos al micrófono.');
+      console.log('Reconocimiento de voz iniciado correctamente');
+    } catch (e: any) {
+      const errorMsg = e?.message || 'Error desconocido';
+      setVoiceControlMessage(`No se pudo iniciar el reconocimiento de voz: ${errorMsg}. Asegúrate de dar permisos al micrófono.`);
       setVoiceControlActive(false);
+      showToast(`No se pudo iniciar el reconocimiento de voz. Verifica los permisos del micrófono.`, 'error');
       console.warn('No se pudo iniciar el reconocimiento de voz:', e);
     }
 

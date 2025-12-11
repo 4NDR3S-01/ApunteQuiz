@@ -345,12 +345,26 @@ export default function AccessibilitySettings() {
                   </div>
                   {voiceControlEnabled && (
                     <div className="text-xs text-[color:var(--text-muted)] pl-7 space-y-1">
-                      <div className="italic">
-                        Comandos disponibles: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video", "reproducir video"
+                      <div className="font-semibold mb-1 text-[color:var(--foreground)]">
+                        Comandos disponibles:
                       </div>
+                      <ul className="list-disc list-inside space-y-0.5 italic mb-2">
+                        <li>"ir a inicio" o "inicio"</li>
+                        <li>"ir a faq" o "faq"</li>
+                        <li>"ir a contacto" o "contacto"</li>
+                        <li>"abrir ajustes" o "ajustes"</li>
+                        <li>"pausar video" o "pausar medios"</li>
+                        <li>"reproducir video" o "reproducir medios"</li>
+                        <li>"cerrar" o "salir"</li>
+                      </ul>
                       {voiceControlMessage && (
-                        <div className={`mt-1 ${voiceControlActive ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                        <div className={`mt-1 p-2 rounded ${voiceControlActive ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300'}`}>
                           {voiceControlMessage}
+                        </div>
+                      )}
+                      {!voiceControlActive && voiceControlEnabled && (
+                        <div className="mt-1 text-orange-600 dark:text-orange-400">
+                          Esperando activación del reconocimiento de voz...
                         </div>
                       )}
                     </div>
