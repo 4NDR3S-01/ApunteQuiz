@@ -52,10 +52,25 @@ export default function AccessibleVideo({
       const video = videoRef.current;
       const tracks = video.textTracks;
       
-      for (const track of tracks) {
-        if (subtitlesEnabled) {
-          track.mode = 'showing';
-        } else {
+      if (subtitlesEnabled) {
+        // Activar solo un track a la vez (preferir español, luego inglés)
+        let activated = false;
+        for (const track of tracks) {
+          if (track.kind === 'subtitles') {
+            if (!activated && (track.language === 'es' || track.language.startsWith('es-'))) {
+              track.mode = 'showing';
+              activated = true;
+            } else if (!activated && (track.language === 'en' || track.language.startsWith('en-'))) {
+              track.mode = 'showing';
+              activated = true;
+            } else {
+              track.mode = 'hidden';
+            }
+          }
+        }
+      } else {
+        // Desactivar todos los tracks
+        for (const track of tracks) {
           track.mode = 'hidden';
         }
       }
@@ -69,10 +84,26 @@ export default function AccessibleVideo({
 
     const handleLoadedMetadata = () => {
       const tracks = video.textTracks;
-      for (const track of tracks) {
-        if (subtitlesEnabled) {
-          track.mode = 'showing';
-        } else {
+      
+      if (subtitlesEnabled) {
+        // Activar solo un track a la vez (preferir español, luego inglés)
+        let activated = false;
+        for (const track of tracks) {
+          if (track.kind === 'subtitles') {
+            if (!activated && (track.language === 'es' || track.language.startsWith('es-'))) {
+              track.mode = 'showing';
+              activated = true;
+            } else if (!activated && (track.language === 'en' || track.language.startsWith('en-'))) {
+              track.mode = 'showing';
+              activated = true;
+            } else {
+              track.mode = 'hidden';
+            }
+          }
+        }
+      } else {
+        // Desactivar todos los tracks
+        for (const track of tracks) {
           track.mode = 'hidden';
         }
       }
@@ -93,8 +124,9 @@ export default function AccessibleVideo({
       const tracks = video.textTracks;
       let hasVisibleTracks = false;
       
+      // Verificar si hay algún track de subtítulos visible
       for (const track of tracks) {
-        if (track.mode === 'showing') {
+        if (track.kind === 'subtitles' && track.mode === 'showing') {
           hasVisibleTracks = true;
           break;
         }
