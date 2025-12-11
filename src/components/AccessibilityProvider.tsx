@@ -196,8 +196,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [keyboardNavigationEnabled, setKeyboardNavigationEnabledState] = useState<boolean>(true);
   const [visualAlerts, setVisualAlertsState] = useState<boolean>(false);
   const [largeButtonsScale, setLargeButtonsScaleState] = useState<number>(1);
-  const [linkHighlight, setLinkHighlightState] = useState<boolean>(true);
-  const [focusVisible, setFocusVisibleState] = useState<boolean>(true);
+  const [linkHighlight, setLinkHighlightState] = useState<boolean>(false);
+  const [focusVisible, setFocusVisibleState] = useState<boolean>(false);
   const [isReading, setIsReading] = useState<boolean>(false);
   const [readingSupported, setReadingSupported] = useState<boolean>(false);
   const [readingMessage, setReadingMessage] = useState<string | null>(null);
@@ -241,10 +241,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setLargeButtonsScaleState(largeButtonsRaw ? Number(largeButtonsRaw) : 1);
     
     const linkHighlightRaw = globalThis.window.localStorage.getItem(LINK_HIGHLIGHT_KEY);
-    setLinkHighlightState(linkHighlightRaw !== '0');
+    setLinkHighlightState(linkHighlightRaw === '1');
     
     const focusVisibleRaw = globalThis.window.localStorage.getItem(FOCUS_VISIBLE_KEY);
-    setFocusVisibleState(focusVisibleRaw !== '0');
+    setFocusVisibleState(focusVisibleRaw === '1');
     
     setReadingSupported(
       'speechSynthesis' in globalThis.window &&

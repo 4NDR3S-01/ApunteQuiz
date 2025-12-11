@@ -516,7 +516,7 @@ export default function FloatingHeader() {
               <LanguageSwitcher value={language} onChange={setLanguage} className="min-w-[14rem]" />
               <Link
                 href="/login"
-                className="rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-5 py-2.5 text-sm font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
+                className="whitespace-nowrap rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-5 py-2.5 text-sm font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
               >
                 {t('header.login')}
               </Link>
@@ -746,7 +746,7 @@ export default function FloatingHeader() {
             <Link
               href="/login"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-6 py-3 text-base font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
+              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-6 py-3 text-base font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
             >
               {t('header.login')}
             </Link>
