@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Smartphone, QrCode, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import useTranslation from '@/hooks/useTranslation';
@@ -11,15 +11,18 @@ interface AppDownloadSectionProps {
 }
 
 export default function AppDownloadSection({ variant = 'landing', className = '' }: AppDownloadSectionProps) {
+  const { dictionary } = useTranslation();
+  const appDownload = dictionary.appDownload;
   const [showQR, setShowQR] = useState(false);
   const apkUrl = '/downloads/apuntequiz.apk';
-  
-  // URL completa para el código QR (se generará con la URL completa del sitio)
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + apkUrl : apkUrl)}`;
+  const qrBase = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=`;
+  const [qrCodeUrl, setQrCodeUrl] = useState(() => `${qrBase}${encodeURIComponent(apkUrl)}`);
 
-  // Obtener las traducciones y crear la variable esperada por el componente
-  const { dictionary } = useTranslation();
-  const appDownload = (dictionary as any)?.appDownload || {};
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const absoluteUrl = `${window.location.origin}${apkUrl}`;
+    setQrCodeUrl(`${qrBase}${encodeURIComponent(absoluteUrl)}`);
+  }, [apkUrl, qrBase]);
 
   if (variant === 'footer') {
     return (

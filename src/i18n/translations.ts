@@ -969,7 +969,7 @@ const translations = {
     policyPage: {
       title: 'Privacy policy',
       description:
-        "Here you'll find ApunteQuiz's privacy policy. This page explains how we collect and use your data. (Sample content — replace with the actual policy.)",
+        'Here you\'ll find ApunteQuiz\'s privacy policy. This page explains how we collect and use your data. (Sample content — replace with the actual policy.)',
       sections: [
         {
           title: 'Data we collect',
