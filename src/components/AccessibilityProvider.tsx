@@ -115,6 +115,7 @@ interface AccessibilityContextValue {
   readonly setVoiceControlEnabled: (v: boolean) => void;
   readonly voiceControlActive: boolean;
   readonly voiceControlMessage: string | null;
+  readonly showToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   readonly blockAutoplay: boolean;
   readonly setBlockAutoplay: (v: boolean) => void;
   readonly customShortcutsEnabled: boolean;
@@ -259,12 +260,89 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(false);
   const [voiceControlActive, setVoiceControlActive] = useState<boolean>(false);
   const [voiceControlMessage, setVoiceControlMessage] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'info' | 'success' | 'warning' | 'error' }>>([]);
+  const [userHasInteracted, setUserHasInteracted] = useState<boolean>(false);
+  const [autoVoiceControlActive, setAutoVoiceControlActive] = useState<boolean>(false);
   const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(false);
   const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(false);
   const [textScale, setTextScaleState] = useState<number>(1);
   const clearReadingMessage = useCallback(() => setReadingMessage(null), []);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voicesLoadedRef = useRef(false);
+  const inactivityTimerRef = useRef<number | null>(null);
+  const lastInteractionTimeRef = useRef<number>(Date.now());
+
+  // Función para mostrar toast
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  // Función para remover toast
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  // Detectar interacción del usuario
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return;
+
+    const handleInteraction = () => {
+      setUserHasInteracted(true);
+      lastInteractionTimeRef.current = Date.now();
+      
+      // Si el control por voz automático está activo, desactivarlo
+      if (autoVoiceControlActive) {
+        setAutoVoiceControlActive(false);
+        setVoiceControlEnabledState(false);
+        showToast('Control por voz desactivado debido a interacción del usuario', 'info');
+      }
+
+      // Limpiar timer de inactividad
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+
+      // Reiniciar timer de inactividad (10 segundos)
+      inactivityTimerRef.current = window.setTimeout(() => {
+        // Si el usuario no ha interactuado manualmente con el control por voz
+        // y no ha habido interacción en 10 segundos, activar automáticamente
+        if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
+          setVoiceControlEnabledState(true);
+          setAutoVoiceControlActive(true);
+          showToast('Control por voz activado automáticamente. Di un comando para navegar.', 'success');
+        }
+      }, 10000);
+    };
+
+    // Eventos que indican interacción del usuario
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach((event) => {
+      window.addEventListener(event, handleInteraction, { passive: true });
+    });
+
+    // Iniciar timer de inactividad inicial solo si no hay interacción previa
+    // Esperar un momento para verificar si el usuario ya interactuó
+    const initialTimer = window.setTimeout(() => {
+      if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
+        setVoiceControlEnabledState(true);
+        setAutoVoiceControlActive(true);
+        showToast('Control por voz activado automáticamente. Di un comando para navegar.', 'success');
+      }
+    }, 10000);
+    
+    inactivityTimerRef.current = initialTimer;
+
+    return () => {
+      events.forEach((event) => {
+        window.removeEventListener(event, handleInteraction);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [voiceControlEnabled, userHasInteracted, autoVoiceControlActive, showToast]);
 
   // Load preferences from localStorage after hydration to avoid mismatch
   useEffect(() => {
@@ -604,6 +682,17 @@ useEffect(() => {
   const setVoiceControlEnabled = (value: boolean) => {
     setVoiceControlEnabledState(value);
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
+    
+    // Si el usuario activa manualmente, marcar como interactuado
+    if (value && !autoVoiceControlActive) {
+      setUserHasInteracted(true);
+    }
+    
+    // Si desactiva manualmente, también marcar como interactuado
+    if (!value && autoVoiceControlActive) {
+      setAutoVoiceControlActive(false);
+      setUserHasInteracted(true);
+    }
   };
 
   const setBlockAutoplay = (value: boolean) => {
@@ -1033,6 +1122,7 @@ useEffect(() => {
       setVoiceControlEnabled,
       voiceControlActive,
       voiceControlMessage,
+      showToast,
       blockAutoplay,
       setBlockAutoplay,
       customShortcutsEnabled,
@@ -1065,6 +1155,7 @@ useEffect(() => {
       voiceControlEnabled,
       voiceControlActive,
       voiceControlMessage,
+      showToast,
       blockAutoplay,
       customShortcutsEnabled,
       textScale,
@@ -1075,6 +1166,34 @@ useEffect(() => {
   return (
     <AccessibilityContext.Provider value={value}>
       {children}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all duration-300 ${
+                toast.type === 'success' ? 'bg-green-500 text-white border-green-600' :
+                toast.type === 'warning' ? 'bg-orange-500 text-white border-orange-600' :
+                toast.type === 'error' ? 'bg-red-500 text-white border-red-600' :
+                'bg-blue-500 text-white border-blue-600'
+              }`}
+              role="alert"
+              aria-live="polite"
+            >
+              <p className="text-sm font-medium">{toast.message}</p>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="ml-2 rounded p-1 hover:bg-white/20 transition-colors"
+                aria-label="Cerrar notificación"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </AccessibilityContext.Provider>
   );
 }
