@@ -2,17 +2,18 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { Sun, Monitor, Moon, Settings, X, RotateCcw } from 'lucide-react';
 import { useAccessibility } from './AccessibilityProvider';
 import type { ThemePreference, FontScale } from './AccessibilityProvider';
 
 const THEME_OPTIONS: ReadonlyArray<{
   readonly value: ThemePreference;
   readonly label: string;
-  readonly icon: string;
+  readonly Icon: typeof Sun;
 }> = [
-  { value: 'light', label: 'Claro', icon: '☀️' },
-  { value: 'system', label: 'Sistema', icon: '💻' },
-  { value: 'dark', label: 'Oscuro', icon: '🌙' },
+  { value: 'light', label: 'Claro', Icon: Sun },
+  { value: 'system', label: 'Sistema', Icon: Monitor },
+  { value: 'dark', label: 'Oscuro', Icon: Moon },
 ];
 
 const FONT_SCALE_OPTIONS: ReadonlyArray<{
@@ -47,8 +48,6 @@ export default function AccessibilitySettings() {
     setSubtitlesEnabled,
     autoTranscripts,
     setAutoTranscripts,
-    videoInterpreterEnabled,
-    setVideoInterpreterEnabled,
     customFont,
     setCustomFont,
     customColor,
@@ -57,6 +56,7 @@ export default function AccessibilitySettings() {
     setVoiceControlEnabled,
     voiceControlActive,
     voiceControlMessage,
+    autoVoiceControlActive,
     blockAutoplay,
     setBlockAutoplay,
     customShortcutsEnabled,
@@ -192,16 +192,6 @@ export default function AccessibilitySettings() {
                   <input type="checkbox" checked={autoTranscripts} onChange={(e) => setAutoTranscripts(e.target.checked)} className="w-4 h-4" />
                   <span>Transcripciones textuales automáticas</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" checked={videoInterpreterEnabled} onChange={(e) => setVideoInterpreterEnabled(e.target.checked)} className="w-4 h-4" />
-                  <span>Video-intérprete / avatar (lengua de señas) — UI</span>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={pauseAllMedia} className="a11y-control px-3 py-1 rounded">Pausar medios</button>
-                  <button type="button" onClick={playAllMedia} className="a11y-control px-3 py-1 rounded">Reproducir medios</button>
-                  <button type="button" onClick={stopAllMedia} className="a11y-control px-3 py-1 rounded">Reiniciar medios</button>
-                </div>
 
                 <div className="flex gap-2 pt-2 items-center">
                   <button 
@@ -235,9 +225,10 @@ export default function AccessibilitySettings() {
               <div className="grid gap-2 sm:grid-cols-3">
                 {THEME_OPTIONS.map((option) => {
                   const isActive = themePreference === option.value;
+                  const Icon = option.Icon;
                   return (
-                    <button key={option.value} type="button" onClick={() => handleThemeSelection(option.value)} aria-pressed={isActive} className={`flex flex-col items-center justify-center rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${isActive ? 'a11y-critical shadow-md' : 'a11y-control shadow-sm hover:shadow-md'}`}>
-                      <span className="text-lg">{option.icon}</span>
+                    <button key={option.value} type="button" onClick={() => handleThemeSelection(option.value)} aria-pressed={isActive} className={`flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${isActive ? 'a11y-critical shadow-md' : 'a11y-control shadow-sm hover:shadow-md'}`}>
+                      <Icon className="h-5 w-5" />
                       <span>{option.label}</span>
                       {option.value === 'system' && <span className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{resolvedTheme === 'dark' ? 'Oscuro' : 'Claro'}</span>}
                     </button>
@@ -293,7 +284,20 @@ export default function AccessibilitySettings() {
 
                 <div className="flex items-center gap-3">
                   <span className="w-36 text-sm">Color personalizado</span>
-                  <input type="color" value={customColor || '#000000'} onChange={(e) => setCustomColor(e.target.value)} className="h-8 w-12 p-0 border rounded" />
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={customColor || '#000000'} onChange={(e) => setCustomColor(e.target.value)} className="h-8 w-12 p-0 border rounded cursor-pointer" />
+                    {customColor && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomColor('')}
+                        className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        aria-label="Restablecer color personalizado"
+                        title="Restablecer color personalizado"
+                      >
+                        <RotateCcw className="h-4 w-4 text-[color:var(--text-muted)]" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -341,6 +345,11 @@ export default function AccessibilitySettings() {
                     <span>Control por voz / dictado (UI)</span>
                     {voiceControlEnabled && voiceControlActive && (
                       <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-label="Escuchando" title="Escuchando"></span>
+                    )}
+                    {autoVoiceControlActive && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                        Auto
+                      </span>
                     )}
                   </div>
                   {voiceControlEnabled && (
@@ -403,9 +412,9 @@ export default function AccessibilitySettings() {
         className="grid h-14 w-14 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 dark:bg-blue-500 dark:hover:bg-blue-400"
       >
         {isOpen ? (
-          <span aria-hidden className="text-xl">✖️</span>
+          <X className="h-6 w-6" aria-hidden />
         ) : (
-          <span aria-hidden className="text-2xl">⚙️</span>
+          <Settings className="h-7 w-7" aria-hidden />
         )}
       </button>
     </div>

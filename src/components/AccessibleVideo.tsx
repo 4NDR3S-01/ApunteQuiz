@@ -8,7 +8,6 @@ interface AccessibleVideoProps {
   readonly videoSrc: string;
   readonly subtitleSrcEs?: string;
   readonly subtitleSrcEn?: string;
-  readonly captionSrcEs?: string;
   readonly title?: string;
   readonly description?: string;
   readonly transcript?: string;
@@ -20,7 +19,6 @@ export default function AccessibleVideo({
   videoSrc,
   subtitleSrcEs,
   subtitleSrcEn,
-  captionSrcEs,
   title,
   description,
   transcript,
@@ -181,15 +179,6 @@ export default function AccessibleVideo({
               srcLang="en"
               src={subtitleSrcEn}
               label="English"
-            />
-          )}
-          {(captionSrcEs || (subtitleSrcEs && !subtitleSrcEn)) && (
-            <track
-              kind="captions"
-              srcLang={captionSrcEs ? "es" : "en"}
-              src={captionSrcEs || subtitleSrcEs || ""}
-              label={captionSrcEs ? "Español (CC)" : (subtitleSrcEs ? "Español" : "English")}
-              default={subtitlesEnabled && Boolean(captionSrcEs || subtitleSrcEs)}
             />
           )}
           Tu navegador no soporta el elemento de video.

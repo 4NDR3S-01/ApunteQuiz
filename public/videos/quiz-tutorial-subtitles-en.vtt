@@ -1,0 +1,20 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.000
+Hello, welcome to ApunteQuiz. In this tutorial I'll show you how to generate a quiz from your notes in just 3 simple steps.
+
+00:00:10.000 --> 00:00:30.000
+First, let's load our documents. You can drag and drop a PDF file or click on "Select files". You can also paste text directly from your notes. As you can see, the system processes the document automatically.
+
+00:00:30.000 --> 00:01:00.000
+Now let's configure our quiz. Select the language, in this case English. Choose the educational level, for example university. Define how many questions you want, let's say 10. And adjust the distribution of question types using these sliders.
+
+00:01:00.000 --> 00:01:30.000
+Finally, click on the "Generate Quiz" button. The system will process your document with artificial intelligence. This may take between 30 and 60 seconds depending on the document size.
+
+00:01:30.000 --> 00:02:00.000
+Done! Your quiz has been generated. You can see the questions here, each with detailed explanations. You also have a complete summary with key points, glossary, and important formulas.
+
+00:02:00.000 --> 00:02:15.000
+That's it. In just 3 steps you've created a personalized quiz. Thank you for using ApunteQuiz!
+

@@ -105,8 +105,6 @@ interface AccessibilityContextValue {
   readonly setSubtitlesEnabled: (v: boolean) => void;
   readonly autoTranscripts: boolean;
   readonly setAutoTranscripts: (v: boolean) => void;
-  readonly videoInterpreterEnabled: boolean;
-  readonly setVideoInterpreterEnabled: (v: boolean) => void;
   readonly customFont: string;
   readonly setCustomFont: (v: string) => void;
   readonly customColor: string;
@@ -115,6 +113,7 @@ interface AccessibilityContextValue {
   readonly setVoiceControlEnabled: (v: boolean) => void;
   readonly voiceControlActive: boolean;
   readonly voiceControlMessage: string | null;
+  readonly autoVoiceControlActive: boolean;
   readonly showToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   readonly blockAutoplay: boolean;
   readonly setBlockAutoplay: (v: boolean) => void;
@@ -139,7 +138,6 @@ const LINK_HIGHLIGHT_KEY = 'apq-link-highlight';
 const FOCUS_VISIBLE_KEY = 'apq-focus-visible';
 const SUBTITLES_KEY = 'apq-subtitles-enabled';
 const TRANSCRIPTS_KEY = 'apq-auto-transcripts';
-const VIDEO_INTERPRETER_KEY = 'apq-video-interpreter';
 const CUSTOM_FONT_KEY = 'apq-custom-font';
 const CUSTOM_COLOR_KEY = 'apq-custom-color';
 const VOICE_CONTROL_KEY = 'apq-voice-control';
@@ -254,7 +252,6 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [readingMessage, setReadingMessage] = useState<string | null>(null);
   const [subtitlesEnabled, setSubtitlesEnabledState] = useState<boolean>(false);
   const [autoTranscripts, setAutoTranscriptsState] = useState<boolean>(false);
-  const [videoInterpreterEnabled, setVideoInterpreterEnabledState] = useState<boolean>(false);
   const [customFont, setCustomFontState] = useState<string>('');
   const [customColor, setCustomColorState] = useState<string>('');
   const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(false);
@@ -411,7 +408,6 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     
     setSubtitlesEnabledState(globalThis.window.localStorage.getItem(SUBTITLES_KEY) === '1');
     setAutoTranscriptsState(globalThis.window.localStorage.getItem(TRANSCRIPTS_KEY) === '1');
-    setVideoInterpreterEnabledState(globalThis.window.localStorage.getItem(VIDEO_INTERPRETER_KEY) === '1');
     setCustomFontState(globalThis.window.localStorage.getItem(CUSTOM_FONT_KEY) ?? '');
     setCustomColorState(globalThis.window.localStorage.getItem(CUSTOM_COLOR_KEY) ?? '');
     setVoiceControlEnabledState(globalThis.window.localStorage.getItem(VOICE_CONTROL_KEY) === '1');
@@ -637,11 +633,6 @@ useEffect(() => {
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(TRANSCRIPTS_KEY, value ? '1' : '0');
   };
 
-  const setVideoInterpreterEnabled = (value: boolean) => {
-    setVideoInterpreterEnabledState(value);
-    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VIDEO_INTERPRETER_KEY, value ? '1' : '0');
-  };
-
   const setCustomFont = (value: string) => {
     setCustomFontState(value);
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(CUSTOM_FONT_KEY, value);
@@ -678,6 +669,14 @@ useEffect(() => {
       const family = mapFont(customFont ?? '');
       document.documentElement.style.setProperty('--a11y-font-family', family);
     } catch {}
+    
+    // Add/remove class for custom color styling
+    const root = document.documentElement;
+    if (customColor && customColor.length) {
+      root.classList.add('has-custom-color');
+    } else {
+      root.classList.remove('has-custom-color');
+    }
 
     // Apply custom color as the accent and also set contrast-aware accent-contrast
     try {
@@ -686,23 +685,82 @@ useEffect(() => {
         document.documentElement.style.setProperty('--a11y-custom-color', color);
         // override primary accent to match user's chosen color
         document.documentElement.style.setProperty('--accent', color);
-        // compute simple contrast (luminance) to pick white or black for accent contrast
-        const hex = color.replace('#', '');
-        if (hex.length === 3) {
-          const r = parseInt(hex[0] + hex[0], 16);
-          const g = parseInt(hex[1] + hex[1], 16);
-          const b = parseInt(hex[2] + hex[2], 16);
-          const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-          const contrast = lum > 0.5 ? '#000000' : '#ffffff';
-          document.documentElement.style.setProperty('--accent-contrast', contrast);
-        } else if (hex.length === 6) {
-          const r = parseInt(hex.slice(0, 2), 16);
-          const g = parseInt(hex.slice(2, 4), 16);
-          const b = parseInt(hex.slice(4, 6), 16);
-          const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-          const contrast = lum > 0.5 ? '#000000' : '#ffffff';
-          document.documentElement.style.setProperty('--accent-contrast', contrast);
-        }
+        
+        // Helper function to parse hex color
+        const parseHex = (hex: string): { r: number; g: number; b: number } => {
+          const cleanHex = hex.replace('#', '');
+          if (cleanHex.length === 3) {
+            return {
+              r: parseInt(cleanHex[0] + cleanHex[0], 16),
+              g: parseInt(cleanHex[1] + cleanHex[1], 16),
+              b: parseInt(cleanHex[2] + cleanHex[2], 16),
+            };
+          } else if (cleanHex.length === 6) {
+            return {
+              r: parseInt(cleanHex.slice(0, 2), 16),
+              g: parseInt(cleanHex.slice(2, 4), 16),
+              b: parseInt(cleanHex.slice(4, 6), 16),
+            };
+          }
+          return { r: 0, g: 0, b: 0 };
+        };
+
+        // Helper function to calculate luminance
+        const getLuminance = (r: number, g: number, b: number): number => {
+          return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        };
+
+        // Helper function to darken/lighten color
+        const adjustBrightness = (hex: string, percent: number): string => {
+          const { r, g, b } = parseHex(hex);
+          const factor = 1 + (percent / 100);
+          const newR = Math.min(255, Math.max(0, Math.round(r * factor)));
+          const newG = Math.min(255, Math.max(0, Math.round(g * factor)));
+          const newB = Math.min(255, Math.max(0, Math.round(b * factor)));
+          return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+        };
+
+        // Helper function to create rgba from hex
+        const hexToRgba = (hex: string, alpha: number): string => {
+          const { r, g, b } = parseHex(hex);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
+        const { r, g, b } = parseHex(color);
+        const lum = getLuminance(r, g, b);
+        const contrast = lum > 0.5 ? '#000000' : '#ffffff';
+        
+        // Set contrast color
+        document.documentElement.style.setProperty('--accent-contrast', contrast);
+        
+        // Apply to primary colors for broader coverage
+        document.documentElement.style.setProperty('--color-primary', color);
+        document.documentElement.style.setProperty('--color-primary-hover', adjustBrightness(color, -10));
+        document.documentElement.style.setProperty('--color-primary-light', hexToRgba(color, 0.1));
+        document.documentElement.style.setProperty('--color-primary-text', adjustBrightness(color, -20));
+        
+        // Also apply to info color (commonly used for buttons)
+        document.documentElement.style.setProperty('--color-info', color);
+        document.documentElement.style.setProperty('--color-info-light', hexToRgba(color, 0.1));
+        document.documentElement.style.setProperty('--color-info-text', adjustBrightness(color, -20));
+        
+        // Apply to focus ring
+        document.documentElement.style.setProperty('--focus-ring', hexToRgba(color, 0.6));
+      } else {
+        // Reset to defaults when color is cleared
+        document.documentElement.style.removeProperty('--a11y-custom-color');
+        document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-contrast');
+        document.documentElement.style.removeProperty('--color-primary');
+        document.documentElement.style.removeProperty('--color-primary-hover');
+        document.documentElement.style.removeProperty('--color-primary-light');
+        document.documentElement.style.removeProperty('--color-primary-text');
+        document.documentElement.style.removeProperty('--color-info');
+        document.documentElement.style.removeProperty('--color-info-light');
+        document.documentElement.style.removeProperty('--color-info-text');
+        document.documentElement.style.removeProperty('--focus-ring');
+        // Remove custom color class
+        root.classList.remove('has-custom-color');
       }
     } catch {}
   }, [customFont, customColor]);
@@ -898,10 +956,15 @@ useEffect(() => {
 
   // Implementar reconocimiento de voz
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const errorCountRef = useRef<number>(0);
+  const lastErrorTimeRef = useRef<number>(0);
+  const errorToastCooldownRef = useRef<number>(0);
+  
   useEffect(() => {
     if (typeof globalThis.window === 'undefined' || !voiceControlEnabled) {
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
+      errorCountRef.current = 0;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -948,9 +1011,10 @@ useEffect(() => {
 
     recognition.onstart = () => {
       setVoiceControlActive(true);
-      const commandsList = 'Comandos disponibles: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video", "reproducir video"';
       setVoiceControlMessage('Escuchando... Di un comando.');
-      showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+      // Resetear contador de errores cuando inicia correctamente
+      errorCountRef.current = 0;
+      console.log('Reconocimiento de voz iniciado correctamente');
     };
 
     recognition.onresult = (event: any) => {
@@ -1002,39 +1066,87 @@ useEffect(() => {
 
     recognition.onerror = (event: any) => {
       const error = event.error as string;
+      const now = Date.now();
+      
+      // Incrementar contador de errores
+      errorCountRef.current += 1;
+      
+      // Si hay demasiados errores seguidos (más de 5 en 10 segundos), desactivar
+      if (errorCountRef.current > 5 && (now - lastErrorTimeRef.current) < 10000) {
+        setVoiceControlActive(false);
+        setVoiceControlEnabledState(false);
+        setAutoVoiceControlActive(false);
+        setVoiceControlMessage('Control por voz desactivado debido a múltiples errores. Verifica tu conexión a internet y los permisos del micrófono.');
+        showToast('Control por voz desactivado. Verifica tu conexión a internet y los permisos del micrófono.', 'error');
+        return;
+      }
+      
+      lastErrorTimeRef.current = now;
+      
+      // Cooldown para toasts de error (máximo 1 cada 5 segundos)
+      const canShowErrorToast = (now - errorToastCooldownRef.current) > 5000;
       
       if (error === 'not-allowed') {
         setVoiceControlActive(false);
         setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
-        showToast('Permisos del micrófono denegados. Habilítalos en la configuración del navegador.', 'error');
+        if (canShowErrorToast) {
+          showToast('Permisos del micrófono denegados. Habilítalos en la configuración del navegador.', 'error');
+          errorToastCooldownRef.current = now;
+        }
       } else if (error === 'no-speech') {
         // No mostrar mensaje para este error común, solo mantener escuchando
         setVoiceControlMessage('Escuchando... Di un comando.');
         setVoiceControlActive(true);
+        // Resetear contador si es solo falta de habla
+        errorCountRef.current = Math.max(0, errorCountRef.current - 1);
       } else if (error === 'audio-capture') {
         setVoiceControlActive(false);
         setVoiceControlMessage('No se pudo acceder al micrófono. Verifica que esté conectado y habilitado.');
-        showToast('No se pudo acceder al micrófono. Verifica que esté conectado.', 'error');
+        if (canShowErrorToast) {
+          showToast('No se pudo acceder al micrófono. Verifica que esté conectado.', 'error');
+          errorToastCooldownRef.current = now;
+        }
       } else if (error === 'network') {
         setVoiceControlActive(false);
-        setVoiceControlMessage('Error de red. Verifica tu conexión a internet.');
-        showToast('Error de red. Verifica tu conexión a internet.', 'error');
+        setVoiceControlMessage('Error de red. El reconocimiento de voz requiere conexión a internet.');
+        // Solo mostrar toast si no se ha mostrado recientemente
+        if (canShowErrorToast) {
+          showToast('Error de red. El reconocimiento de voz requiere conexión a internet. Se intentará reconectar automáticamente.', 'warning');
+          errorToastCooldownRef.current = now;
+        }
+        // Intentar reconectar después de un delay
+        if (voiceControlEnabled) {
+          setTimeout(() => {
+            if (voiceControlEnabled && recognitionRef.current === recognition) {
+              try {
+                recognition.start();
+              } catch (e) {
+                console.warn('No se pudo reconectar después de error de red:', e);
+              }
+            }
+          }, 3000);
+        }
       } else if (error === 'aborted') {
         // Reconocimiento abortado, intentar reiniciar
         setVoiceControlActive(false);
         if (voiceControlEnabled) {
           setTimeout(() => {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.warn('No se pudo reiniciar reconocimiento:', e);
+            if (voiceControlEnabled && recognitionRef.current === recognition) {
+              try {
+                recognition.start();
+              } catch (e) {
+                console.warn('No se pudo reiniciar reconocimiento:', e);
+              }
             }
           }, 1000);
         }
       } else {
         setVoiceControlActive(false);
         setVoiceControlMessage(`Error: ${error}. Intenta desactivar y reactivar el control por voz.`);
-        showToast(`Error en reconocimiento de voz: ${error}. Intenta reactivarlo.`, 'error');
+        if (canShowErrorToast) {
+          showToast(`Error en reconocimiento de voz: ${error}. Intenta reactivarlo.`, 'error');
+          errorToastCooldownRef.current = now;
+        }
       }
     };
 
@@ -1187,8 +1299,6 @@ useEffect(() => {
       setSubtitlesEnabled,
       autoTranscripts,
       setAutoTranscripts,
-      videoInterpreterEnabled,
-      setVideoInterpreterEnabled,
       customFont,
       setCustomFont,
       customColor,
@@ -1197,6 +1307,7 @@ useEffect(() => {
       setVoiceControlEnabled,
       voiceControlActive,
       voiceControlMessage,
+      autoVoiceControlActive,
       showToast,
       blockAutoplay,
       setBlockAutoplay,
@@ -1224,12 +1335,12 @@ useEffect(() => {
       focusVisible,
       subtitlesEnabled,
       autoTranscripts,
-      videoInterpreterEnabled,
       customFont,
       customColor,
       voiceControlEnabled,
       voiceControlActive,
       voiceControlMessage,
+      autoVoiceControlActive,
       showToast,
       blockAutoplay,
       customShortcutsEnabled,

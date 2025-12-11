@@ -1004,3 +1004,30 @@ input[type="submit"] {
   }
 }
 
+/* Apply custom color to common button classes when custom color is set */
+html.has-custom-color button.bg-blue-600,
+html.has-custom-color button.bg-blue-500,
+html.has-custom-color a.bg-blue-600,
+html.has-custom-color a.bg-blue-500,
+html.has-custom-color .bg-blue-600,
+html.has-custom-color .bg-blue-500 {
+  background-color: var(--a11y-custom-color, var(--accent)) !important;
+}
+
+html.has-custom-color button.hover\:bg-blue-500:hover,
+html.has-custom-color button.hover\:bg-blue-600:hover,
+html.has-custom-color a.hover\:bg-blue-500:hover,
+html.has-custom-color a.hover\:bg-blue-600:hover {
+  background-color: var(--color-primary-hover, var(--accent)) !important;
+}
+
+html.has-custom-color .text-blue-600,
+html.has-custom-color .text-blue-500 {
+  color: var(--a11y-custom-color, var(--accent)) !important;
+}
+
+html.has-custom-color .border-blue-600,
+html.has-custom-color .border-blue-500 {
+  border-color: var(--a11y-custom-color, var(--accent)) !important;
+}
+

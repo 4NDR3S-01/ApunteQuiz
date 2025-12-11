@@ -156,7 +156,6 @@ export default function Home() {
               videoSrc="/videos/quiz-tutorial.mp4"
               subtitleSrcEs="/videos/quiz-tutorial-subtitles-es.vtt"
               subtitleSrcEn="/videos/quiz-tutorial-subtitles-en.vtt"
-              captionSrcEs="/videos/quiz-tutorial-captions-es.vtt"
               title={home.videoTutorial?.title || 'Video tutorial: Cómo generar un quiz'}
               description={home.videoTutorial?.description || 'Aprende paso a paso cómo crear un quiz desde tus apuntes. Este video incluye subtítulos y transcripciones para accesibilidad.'}
               transcript={home.videoTutorial?.transcript || 'Este es un video tutorial que muestra cómo generar un quiz en ApunteQuiz. Primero, sube tu documento PDF o pega tus apuntes. Luego, selecciona el idioma, el nivel educativo y el número de preguntas que deseas. Finalmente, haz clic en generar y obtendrás tu quiz personalizado listo para practicar.'}

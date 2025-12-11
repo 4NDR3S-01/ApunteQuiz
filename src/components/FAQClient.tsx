@@ -76,7 +76,6 @@ export default function FAQClient() {
                       videoSrc="/videos/register-tutorial.mp4"
                       subtitleSrcEs="/videos/register-tutorial-subtitles-es.vtt"
                       subtitleSrcEn="/videos/register-tutorial-subtitles-en.vtt"
-                      captionSrcEs="/videos/register-tutorial-captions-es.vtt"
                       title={section.videos.register.title}
                       description={section.videos.register.description}
                       transcript={section.videos.register.transcript}
@@ -88,7 +87,6 @@ export default function FAQClient() {
                       videoSrc="/videos/login-tutorial.mp4"
                       subtitleSrcEs="/videos/login-tutorial-subtitles-es.vtt"
                       subtitleSrcEn="/videos/login-tutorial-subtitles-en.vtt"
-                      captionSrcEs="/videos/login-tutorial-captions-es.vtt"
                       title={section.videos.login.title}
                       description={section.videos.login.description}
                       transcript={section.videos.login.transcript}
