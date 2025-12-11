@@ -1,12 +1,7 @@
-\"use client\";
+"use client";
 
 import Link from 'next/link';
 import useTranslation from '@/hooks/useTranslation';
-
-export const metadata = {
-  title: 'Política de privacidad - ApunteQuiz',
-  description: 'Política de privacidad de ApunteQuiz',
-};
 
 export default function PoliticaPage() {
   const { dictionary } = useTranslation();

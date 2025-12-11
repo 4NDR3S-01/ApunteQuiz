@@ -101,7 +101,7 @@ export default function AccessibleVideo({
             srcLang={captionSrcEs ? "es" : "en"}
             src={captionSrcEs || subtitleSrcEs || subtitleSrcEn || ""}
             label={captionSrcEs ? "Español (CC)" : (subtitleSrcEs ? "Español" : "English")}
-            default={subtitlesEnabled && (captionSrcEs || subtitleSrcEs)}
+            default={subtitlesEnabled && Boolean(captionSrcEs || subtitleSrcEs)}
           />
           Tu navegador no soporta el elemento de video.
         </video>

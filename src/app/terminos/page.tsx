@@ -3,11 +3,6 @@
 import Link from 'next/link';
 import useTranslation from '@/hooks/useTranslation';
 
-export const metadata = {
-  title: 'Términos de uso - ApunteQuiz',
-  description: 'Términos y condiciones de uso de ApunteQuiz',
-};
-
 export default function TerminosPage() {
   const { dictionary } = useTranslation();
   const termsPage = dictionary.termsPage;
