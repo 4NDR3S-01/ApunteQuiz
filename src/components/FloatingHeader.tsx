@@ -176,6 +176,8 @@ export default function FloatingHeader() {
   const [activeDesktopMenu, setActiveDesktopMenu] = useState<string | null>(null);
   const [openMobileMenus, setOpenMobileMenus] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [activeSubItems, setActiveSubItems] = useState<Set<string>>(new Set());
   const closeMenuTimeoutRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pathname = usePathname() ?? '/';
@@ -184,26 +186,60 @@ export default function FloatingHeader() {
   const t = useT();
 
   // ----- Efectos -----
+  // Mark as hydrated after first render to avoid hydration mismatch
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    setIsHydrated(true);
+  }, []);
+
+  // Calculate active sub-items after hydration
+  useEffect(() => {
+    if (!isHydrated || typeof globalThis.window === 'undefined') return;
+    
+    const activeSet = new Set<string>();
+    navigation.forEach((item) => {
+      item.submenu?.forEach((subItem) => {
+        const normalized = normalizeHref(subItem.href);
+        if (normalized === pathname) {
+          if (subItem.href.includes('#')) {
+            const currentHash = globalThis.window.location.hash.replace('#', '');
+            const targetHash = subItem.href.split('#')[1] ?? '';
+            if (targetHash === currentHash) {
+              activeSet.add(subItem.href);
+            }
+          } else {
+            activeSet.add(subItem.href);
+          }
+        }
+      });
+    });
+    setActiveSubItems(activeSet);
+  }, [isHydrated, pathname]);
+
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return;
+    const handleScroll = () => setIsScrolled(globalThis.window.scrollY > 20);
+    globalThis.window.addEventListener('scroll', handleScroll);
+    return () => globalThis.window.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : 'unset';
+    if (typeof globalThis.document === 'undefined') return;
+    globalThis.document.body.style.overflow = isMobileMenuOpen ? 'hidden' : 'unset';
   }, [isMobileMenuOpen]);
 
   // Language is handled globally by LanguageProvider; FloatingHeader consumes it via useLanguage
 
   useEffect(() => {
     return () => {
-      if (closeMenuTimeoutRef.current) window.clearTimeout(closeMenuTimeoutRef.current);
+      if (closeMenuTimeoutRef.current && typeof globalThis.window !== 'undefined') {
+        globalThis.window.clearTimeout(closeMenuTimeoutRef.current);
+      }
     };
   }, []);
 
   // Keyboard shortcuts: '/' focuses search, Alt+1/2/3 focus nav items, Esc closes menus
   useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return;
     const handler = (e: KeyboardEvent) => {
       // don't hijack when typing in inputs
       const active = document.activeElement as HTMLElement | null;
@@ -239,21 +275,22 @@ export default function FloatingHeader() {
         }
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    globalThis.window.addEventListener('keydown', handler);
+    return () => globalThis.window.removeEventListener('keydown', handler);
   }, [setActiveDesktopMenu]);
 
   // ----- Helpers con estado -----
   const cancelCloseDesktopMenu = () => {
-    if (closeMenuTimeoutRef.current) {
-      window.clearTimeout(closeMenuTimeoutRef.current);
+    if (closeMenuTimeoutRef.current && typeof globalThis.window !== 'undefined') {
+      globalThis.window.clearTimeout(closeMenuTimeoutRef.current);
       closeMenuTimeoutRef.current = null;
     }
   };
 
   const scheduleCloseDesktopMenu = () => {
+    if (typeof globalThis.window === 'undefined') return;
     cancelCloseDesktopMenu();
-    closeMenuTimeoutRef.current = window.setTimeout(() => {
+    closeMenuTimeoutRef.current = globalThis.window.setTimeout(() => {
       setActiveDesktopMenu(null);
       closeMenuTimeoutRef.current = null;
     }, 120);
@@ -307,42 +344,42 @@ export default function FloatingHeader() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'py-3 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50'
-            : 'py-5 bg-transparent'
+            ? 'py-4 bg-[color:var(--surface-elevated)]/95 backdrop-blur-lg shadow-lg border-b border-[color:var(--border-default)]'
+            : 'py-4 bg-transparent'
         }`}
       >
         <nav
           className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
           aria-label={t('header.primaryNavAria') as string}
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div className="flex items-center justify-between gap-4 lg:gap-6">
             {/* Logo */}
             <Link
               href="/"
-              className="group flex items-center gap-2 text-xl font-bold text-[color:var(--foreground)] transition-transform hover:scale-105"
+              className="group flex items-center gap-2.5 text-xl font-bold text-[color:var(--foreground)] transition-transform hover:scale-105"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg shadow-blue-500/30 transition-all group-hover:shadow-xl group-hover:shadow-blue-500/40">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 dark:bg-blue-400 shadow-lg transition-all group-hover:shadow-xl">
                 <BookOpen className="h-5 w-5 text-white" aria-hidden="true" />
               </div>
-              <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-400">
+              <span className="text-blue-600 dark:text-blue-400">
                 ApunteQuiz
               </span>
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden items-center gap-1 md:flex">
+            <div className="hidden items-center gap-2 lg:flex">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const hasSubmenu = Boolean(item.submenu?.length);
                 const isActive = activeDesktopMenu === item.id;
                 const parentActive = isParentActive(item, pathname);
                 const iconClasses = `h-4 w-4 transition-transform group-hover:scale-110 ${
-                  parentActive ? 'text-blue-600' : ''
+                  parentActive ? 'text-blue-600 dark:text-blue-400' : ''
                 }`;
                 const underlineClasses = `absolute bottom-0 left-1/2 h-0.5 ${
                   parentActive ? 'w-3/4' : 'w-0'
-                } -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all`;
+                } -translate-x-1/2 rounded-full bg-blue-500 dark:bg-blue-400 transition-all`;
                 return (
                   <div
                     key={item.id}
@@ -382,8 +419,8 @@ export default function FloatingHeader() {
                             current === item.id ? null : item.id,
                           );
                         }}
-                        className={`group relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
-                          parentActive ? 'text-blue-600' : 'text-[color:var(--text-muted)]'
+                        className={`group relative flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                          parentActive ? 'text-blue-600 dark:text-blue-400' : 'text-[color:var(--text-muted)]'
                         }`}
                         data-nav={item.id}
                         aria-expanded={isActive}
@@ -395,7 +432,7 @@ export default function FloatingHeader() {
                         <ChevronDown
                           className={`h-3.5 w-3.5 transition-transform ${
                             isActive
-                              ? 'rotate-180 text-blue-600'
+                              ? 'rotate-180 text-blue-600 dark:text-blue-400'
                               : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--foreground)]'
                           }`}
                           aria-hidden="true"
@@ -406,8 +443,8 @@ export default function FloatingHeader() {
                       <Link
                         href={item.href}
                         data-nav={item.id}
-                        className={`group relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
-                          parentActive ? 'text-blue-600' : 'text-[color:var(--text-muted)]'
+                        className={`group relative flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors hover:text-[color:var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                          parentActive ? 'text-blue-600 dark:text-blue-400' : 'text-[color:var(--text-muted)]'
                         }`}
                         aria-current={parentActive ? 'page' : undefined}
                       >
@@ -418,7 +455,7 @@ export default function FloatingHeader() {
                     )}
                     {hasSubmenu ? (
                       <div
-                        className={`absolute left-0 top-full mt-3 w-80 rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 p-4 shadow-xl shadow-slate-200/30 transition ${
+                        className={`absolute left-0 top-full mt-3 w-80 rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 p-4 shadow-xl transition ${
                           isActive
                             ? 'pointer-events-auto translate-y-0 opacity-100'
                             : 'pointer-events-none -translate-y-2 opacity-0'
@@ -429,34 +466,24 @@ export default function FloatingHeader() {
                         <div className="space-y-2">
                           {item.submenu?.map((subItem) => {
                             const SubIcon = subItem.icon;
-                            const computeSubActive = (href: string) => {
-                              const normalized = normalizeHref(href);
-                              if (normalized !== pathname) return false;
-                              if (href.includes('#')) {
-                                if (typeof window === 'undefined') return false;
-                                const currentHash = window.location.hash.replace('#', '');
-                                const targetHash = href.split('#')[1] ?? '';
-                                return targetHash === currentHash;
-                              }
-                              return true;
-                            };
-                            const subActive = computeSubActive(subItem.href);
-                            const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600' : ''}`;
+                            // Only calculate active state after hydration to avoid mismatch
+                            const subActive = isHydrated && activeSubItems.has(subItem.href);
+                            const subIconClasses = `h-4 w-4 ${subActive ? 'text-blue-600 dark:text-blue-400' : ''}`;
                             return (
                               <Link
                                 key={subItem.id}
                                 href={subItem.href}
                                 onClick={closeDesktopMenu}
                                 className={`group/sub flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-blue-500/10 hover:text-[color:var(--foreground)] focus:bg-blue-500/10 focus:text-[color:var(--foreground)] focus:outline-none ${
-                                  subActive ? 'bg-blue-500/10 text-blue-700' : 'text-[color:var(--text-muted)]'
+                                  subActive ? 'bg-blue-500/10 text-blue-700 dark:text-blue-200' : 'text-[color:var(--text-muted)]'
                                 }`}
                                 aria-current={subActive ? 'page' : undefined}
                               >
                                 <span
                                   className={`mt-1 flex h-8 w-8 items-center justify-center rounded-lg ${
                                     subActive
-                                      ? 'bg-blue-500/15 text-blue-600'
-                                      : 'bg-[color:var(--surface-muted)] text-blue-600'
+                                      ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400'
                                   }`}
                                 >
                                   <SubIcon className={subIconClasses} aria-hidden="true" />
@@ -469,8 +496,8 @@ export default function FloatingHeader() {
                                     {t(subItem.descriptionKey)}
                                   </span>
                                 </span>
-                                <ArrowUpRight
-                                  className="mt-1 h-4 w-4 text-blue-500 transition group-hover/sub:translate-x-0.5"
+                                  <ArrowUpRight
+                                  className="mt-1 h-4 w-4 text-blue-500 dark:text-blue-400 transition group-hover/sub:translate-x-0.5"
                                   aria-hidden="true"
                                 />
                               </Link>
@@ -485,17 +512,17 @@ export default function FloatingHeader() {
             </div>
 
             {/* CTA Button - Desktop */}
-            <div className="hidden items-center gap-3 md:flex">
+            <div className="hidden items-center gap-4 lg:flex">
               <LanguageSwitcher value={language} onChange={setLanguage} className="min-w-[14rem]" />
               <Link
                 href="/login"
-                className="rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
+                className="rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-5 py-2.5 text-sm font-medium text-[color:var(--foreground)] transition-all hover:bg-[color:var(--surface-muted)]"
               >
                 {t('header.login')}
               </Link>
               <Link
                 href="/register"
-                className="group relative overflow-hidden rounded-lg bg-gradient-to-r from-blue-500 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
+                className="group relative overflow-hidden rounded-lg bg-blue-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-400 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -508,7 +535,7 @@ export default function FloatingHeader() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--surface-muted)] md:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--surface-muted)] lg:hidden"
               aria-label={t(isMobileMenuOpen ? 'header.closeMenu' : 'header.openMenu') as string}
               aria-expanded={isMobileMenuOpen}
             >
@@ -533,7 +560,7 @@ export default function FloatingHeader() {
                   value={searchTerm}
                   onChange={handleSearchChange}
                   placeholder={searchPlaceholder}
-                  className="w-full rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] py-3 pl-11 pr-4 text-sm text-[color:var(--foreground)] shadow-sm shadow-slate-200/40 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 py-3 pl-11 pr-4 text-sm text-[color:var(--foreground)] shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </form>
             </div>
@@ -552,7 +579,7 @@ export default function FloatingHeader() {
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm transform border-l border-[color:var(--border-default)] bg-[color:var(--background)] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm transform border-l border-[color:var(--border-default)] bg-[color:var(--background)] shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
           isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -564,10 +591,10 @@ export default function FloatingHeader() {
               className="flex items-center gap-2 text-xl font-bold text-[color:var(--foreground)]"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 dark:bg-blue-400 shadow-lg">
                 <BookOpen className="h-5 w-5 text-white" aria-hidden="true" />
               </div>
-              <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-400">
+              <span className="text-blue-600 dark:text-blue-400">
                 ApunteQuiz
               </span>
             </Link>
@@ -601,7 +628,7 @@ export default function FloatingHeader() {
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder={searchPlaceholder}
-                className="w-full rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] py-3 pl-11 pr-4 text-sm text-[color:var(--foreground)] shadow-sm shadow-slate-200/40 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 py-3 pl-11 pr-4 text-sm text-[color:var(--foreground)] shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </form>
             <ul className="space-y-3">
@@ -612,10 +639,10 @@ export default function FloatingHeader() {
                 const parentActive = isParentActive(item, pathname);
                 const iconWrapperClasses = `flex h-10 w-10 items-center justify-center rounded-lg ${
                   parentActive
-                    ? 'bg-blue-500/15 text-blue-600'
-                    : 'bg-[color:var(--surface-muted)] text-[color:var(--foreground)]'
+                    ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-[color:var(--foreground)]'
                 }`;
-                const iconClasses = `h-5 w-5 ${parentActive ? 'text-blue-600' : ''}`;
+                const iconClasses = `h-5 w-5 ${parentActive ? 'text-blue-600 dark:text-blue-400' : ''}`;
                 return (
                   <li
                     key={item.id}
@@ -626,12 +653,12 @@ export default function FloatingHeader() {
                     }}
                   >
                     {hasSubmenu ? (
-                      <div className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] shadow-sm shadow-slate-200/20 dark:bg-slate-900">
+                      <div className="rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 shadow-sm">
                         <button
                           type="button"
                           onClick={() => toggleMobileSection(item.id)}
                           className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-base font-semibold ${
-                            parentActive ? 'text-blue-600' : 'text-[color:var(--foreground)]'
+                            parentActive ? 'text-blue-600 dark:text-blue-400' : 'text-[color:var(--foreground)]'
                           }`}
                           aria-expanded={isOpen}
                           aria-current={parentActive ? 'page' : undefined}
@@ -644,7 +671,7 @@ export default function FloatingHeader() {
                           </span>
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
-                              isOpen ? 'rotate-180 text-blue-500' : 'text-[color:var(--text-muted)]'
+                              isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : 'text-[color:var(--text-muted)]'
                             }`}
                             aria-hidden="true"
                           />
@@ -653,9 +680,8 @@ export default function FloatingHeader() {
                           <div className="space-y-2 border-t border-[color:var(--border-default)] px-4 py-4">
                             {item.submenu?.map((subItem) => {
                               const SubIcon = subItem.icon;
-                              const subActive =
-                                normalizeHref(subItem.href) === pathname &&
-                                !subItem.href.includes('#');
+                              // Only calculate active state after hydration to avoid mismatch
+                              const subActive = isHydrated && activeSubItems.has(subItem.href);
                               return (
                                 <Link
                                   key={subItem.id}
@@ -665,18 +691,18 @@ export default function FloatingHeader() {
                                     setOpenMobileMenus({});
                                   }}
                                   className={`flex items-start gap-3 rounded-xl border border-transparent px-3 py-2 text-sm transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-[color:var(--foreground)] ${
-                                    subActive ? 'bg-blue-500/10 text-blue-700' : 'text-[color:var(--text-muted)]'
+                                    subActive ? 'bg-blue-500/10 text-blue-700 dark:text-blue-200' : 'text-[color:var(--text-muted)]'
                                   }`}
                                   aria-current={subActive ? 'page' : undefined}
                                 >
                                   <span
                                     className={`mt-1 flex h-8 w-8 items-center justify-center rounded-lg ${
                                       subActive
-                                        ? 'bg-blue-500/15 text-blue-600'
-                                        : 'bg-[color:var(--surface-muted)] text-blue-600'
+                                      ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400'
                                     }`}
                                   >
-                                    <SubIcon className={`h-4 w-4 ${subActive ? 'text-blue-600' : ''}`} aria-hidden="true" />
+                                    <SubIcon className={`h-4 w-4 ${subActive ? 'text-blue-600 dark:text-blue-400' : ''}`} aria-hidden="true" />
                                   </span>
                                   <span className="flex-1 space-y-1">
                                     <span className="block text-sm font-semibold text-[color:var(--foreground)]">
@@ -696,13 +722,13 @@ export default function FloatingHeader() {
                       <Link
                         href={item.href}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className={`group flex items-center gap-3 rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/90 px-4 py-3 text-base font-semibold transition hover:bg-blue-500/10 ${
-                          parentActive ? 'text-blue-600' : 'text-[color:var(--foreground)]'
+                        className={`group flex items-center gap-3 rounded-2xl border border-[color:var(--border-default)] bg-white/90 dark:bg-slate-900/90 px-4 py-3 text-base font-semibold transition hover:bg-blue-500/10 ${
+                          parentActive ? 'text-blue-600 dark:text-blue-400' : 'text-[color:var(--foreground)]'
                         }`}
                         aria-current={parentActive ? 'page' : undefined}
                       >
                         <span
-                          className={`${iconWrapperClasses} transition group-hover:bg-blue-500/10 group-hover:text-blue-600`}
+                          className={`${iconWrapperClasses} transition group-hover:bg-blue-500/10 group-hover:text-blue-600 dark:group-hover:text-blue-400`}
                         >
                           <Icon className={iconClasses} aria-hidden="true" />
                         </span>
@@ -727,7 +753,7 @@ export default function FloatingHeader() {
             <Link
               href="/register"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/40"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-400 hover:shadow-xl hover:shadow-blue-500/40"
             >
               <Sparkles className="h-5 w-5" aria-hidden="true" />
               {t('header.register')}

@@ -19,8 +19,8 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
   const [qrCodeUrl, setQrCodeUrl] = useState(() => `${qrBase}${encodeURIComponent(apkUrl)}`);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const absoluteUrl = `${window.location.origin}${apkUrl}`;
+    if (typeof globalThis.window === 'undefined') return;
+    const absoluteUrl = `${globalThis.window.location.origin}${apkUrl}`;
     setQrCodeUrl(`${qrBase}${encodeURIComponent(absoluteUrl)}`);
   }, [apkUrl, qrBase]);
 
@@ -97,7 +97,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                 </div>
                 <div className="space-y-2 text-xs text-[color:var(--text-muted)]">
                   <p className="flex items-center justify-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle className="h-4 w-4 text-[color:var(--color-success-text)]" />
                     {appDownload.footer.modal.compatibility}
                   </p>
                   <p>{appDownload.footer.modal.instructions}</p>
@@ -143,7 +143,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
             </a>
           </div>
           <div className="flex items-center gap-2 text-sm text-[color:var(--text-muted)]">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-[color:var(--color-success-text)]" />
             <span>{appDownload.landing.compatibility}</span>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function AppDownloadSection({ variant = 'landing', className = ''
                 />
                 <button
                   onClick={() => setShowQR(false)}
-                  className="text-xs text-blue-600 hover:text-blue-500 underline"
+                  className="text-xs text-blue-600 hover:text-blue-500 underline dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   {appDownload.landing.hideQr}
                 </button>

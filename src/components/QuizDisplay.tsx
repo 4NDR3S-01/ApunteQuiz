@@ -42,7 +42,7 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
     return (
       <div className="a11y-card rounded-lg p-6 text-center">
         <div className="mb-4">
-          <svg className="mx-auto h-12 w-12 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="mx-auto h-12 w-12 text-[color:var(--color-warning-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
         </div>
@@ -165,9 +165,9 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
   };
 
   const getScoreColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-600 dark:text-green-400';
-    if (percentage >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (percentage >= 80) return 'text-[color:var(--color-success-text)]';
+    if (percentage >= 60) return 'text-[color:var(--color-warning-text)]';
+    return 'text-[color:var(--color-error-text)]';
   };
 
   const typeDistribution = calculateTypeDistribution();
@@ -304,31 +304,27 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
             
             return (
               <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
-                <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                <p className="text-sm font-bold text-[color:var(--color-success-text)]">
                   ✅ ¡Quiz completado!
                 </p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 border border-green-200 dark:border-green-800">
+                  <div className="rounded-lg bg-[color:var(--color-success-light)] p-3 border border-[color:var(--border-default)]">
                     <div className="flex items-center justify-between">
-                      <span className="text-green-700 dark:text-green-300">Correctas</span>
-                      <span className="text-2xl font-bold text-green-600 dark:text-green-400">{correctCount}</span>
+                      <span className="text-[color:var(--color-success-text)]">Correctas</span>
+                      <span className="text-2xl font-bold text-[color:var(--color-success-text)]">{correctCount}</span>
                     </div>
                   </div>
-                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 border border-red-200 dark:border-red-800">
+                  <div className="rounded-lg bg-[color:var(--color-error-light)] p-3 border border-[color:var(--border-default)]">
                     <div className="flex items-center justify-between">
-                      <span className="text-red-700 dark:text-red-300">Incorrectas</span>
-                      <span className="text-2xl font-bold text-red-600 dark:text-red-400">{incorrectCount}</span>
+                      <span className="text-[color:var(--color-error-text)]">Incorrectas</span>
+                      <span className="text-2xl font-bold text-[color:var(--color-error-text)]">{incorrectCount}</span>
                     </div>
                   </div>
                 </div>
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-200 dark:border-blue-800">
+                <div className="rounded-lg bg-[color:var(--color-primary-light)] p-3 border border-[color:var(--border-default)]">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Calificación</span>
-                    <span className={`text-2xl font-bold ${
-                      percentage >= 80 ? 'text-green-600 dark:text-green-400' :
-                      percentage >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-red-600 dark:text-red-400'
-                    }`}>
+                    <span className="text-sm font-medium text-[color:var(--color-primary-text)]">Calificación</span>
+                    <span className={`text-2xl font-bold ${getScoreColor(percentage)}`}>
                       {percentage}%
                     </span>
                   </div>

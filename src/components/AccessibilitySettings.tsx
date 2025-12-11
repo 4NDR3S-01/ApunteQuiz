@@ -3,7 +3,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useAccessibility } from './AccessibilityProvider';
-import type { ThemePreference, FontScale, LineSpacing } from './AccessibilityProvider';
+import type { ThemePreference, FontScale } from './AccessibilityProvider';
 
 const THEME_OPTIONS: ReadonlyArray<{
   readonly value: ThemePreference;
@@ -32,7 +32,6 @@ export default function AccessibilitySettings() {
     setFontScale,
     highContrast,
     toggleHighContrast,
-    resetHighContrastPreference,
     usesSystemContrast,
     lineSpacing,
     setLineSpacing,
@@ -80,14 +79,12 @@ export default function AccessibilitySettings() {
   const floatingButtonId = useId();
   const dialogTitleId = useId();
   const dialogDescriptionId = useId();
-  const contrastDescriptionId = useId();
-  const narratorDescriptionId = useId();
 
   // Allow opening the panel from external UI via a global event
   useEffect(() => {
     const handler = () => setIsOpen(true);
-    window.addEventListener('apq:open-accessibility', handler as EventListener);
-    return () => window.removeEventListener('apq:open-accessibility', handler as EventListener);
+    globalThis.addEventListener('apq:open-accessibility', handler as EventListener);
+    return () => globalThis.removeEventListener('apq:open-accessibility', handler as EventListener);
   }, []);
 
   useEffect(() => {
@@ -123,23 +120,10 @@ export default function AccessibilitySettings() {
     }
   }, [isOpen]);
 
+
   const handleThemeSelection = (value: ThemePreference) => {
     if (themePreference !== value) {
       setThemePreference(value);
-    }
-  };
-
-  const handleLineSpacing = (value: LineSpacing) => {
-    if (lineSpacing !== value) {
-      setLineSpacing(value);
-    }
-  };
-
-  const toggleReading = () => {
-    if (isReading) {
-      stopReading();
-    } else {
-      startReading();
     }
   };
 
@@ -218,9 +202,22 @@ export default function AccessibilitySettings() {
                 </div>
 
                 <div className="flex gap-2 pt-2 items-center">
-                  <button type="button" onClick={isReading ? stopReading : startReading} className="a11y-control px-3 py-1 rounded">{isReading ? 'Detener narrador' : 'Iniciar narrador'}</button>
+                  <button 
+                    type="button" 
+                    onClick={isReading ? stopReading : startReading} 
+                    className="a11y-control px-3 py-1 rounded"
+                    disabled={!readingSupported}
+                  >
+                    {isReading ? 'Detener narrador' : 'Iniciar narrador'}
+                  </button>
                   <button type="button" onClick={clearReadingMessage} className="px-2 py-1 rounded border text-sm">Limpiar mensajes</button>
                 </div>
+
+                {!readingSupported && (
+                  <div className="text-xs text-[color:var(--text-muted)] italic pt-1">
+                    Narrador no disponible en este navegador
+                  </div>
+                )}
 
                 {readingMessage ? <div className="a11y-muted text-sm pt-2">{readingMessage}</div> : null}
               </div>
@@ -250,6 +247,36 @@ export default function AccessibilitySettings() {
                 <div>
                   <label className="block text-sm mb-1">Escala de texto (barra): {textScale.toFixed(1)}x</label>
                   <input aria-label="Escala de texto" type="range" min={0.8} max={2} step={0.1} value={String(textScale)} onChange={(e) => setTextScale(Number(e.target.value))} className="w-full" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-36 text-sm">Escala de fuente</span>
+                  <div className="flex gap-2">
+                    {FONT_SCALE_OPTIONS.map((opt) => (
+                      <button 
+                        key={opt.value}
+                        type="button" 
+                        onClick={() => setFontScale(opt.value)}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold ${fontScale === opt.value ? 'a11y-critical' : 'a11y-control'}`}
+                        aria-pressed={fontScale === opt.value}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={highContrast} onChange={(e) => toggleHighContrast()} className="w-4 h-4" />
+                  <span>Alto contraste</span>
+                  {usesSystemContrast && (
+                    <span className="text-xs text-[color:var(--text-muted)]">(Sistema)</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={dyslexicFont} onChange={(e) => setDyslexicFont(e.target.checked)} className="w-4 h-4" />
+                  <span>Fuente amigable para dislexia</span>
                 </div>
 
                 <div className="flex items-center gap-3">

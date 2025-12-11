@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { MessageCircleQuestion, UserCog, Layers } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
+import AccessibleVideo from './AccessibleVideo';
 
 const sectionIcons = {
   generales: MessageCircleQuestion,
@@ -66,6 +67,36 @@ export default function FAQClient() {
                   </div>
                 ))}
               </dl>
+
+              {/* Videos para la sección de cuenta */}
+              {section.id === 'cuenta' && section.videos && (
+                <div className="mt-8 space-y-6 pt-6 border-t border-[color:var(--border-default)]">
+                  {section.videos.register && (
+                    <AccessibleVideo
+                      videoSrc="/videos/register-tutorial.mp4"
+                      subtitleSrcEs="/videos/register-tutorial-subtitles-es.vtt"
+                      subtitleSrcEn="/videos/register-tutorial-subtitles-en.vtt"
+                      captionSrcEs="/videos/register-tutorial-captions-es.vtt"
+                      title={section.videos.register.title}
+                      description={section.videos.register.description}
+                      transcript={section.videos.register.transcript}
+                      maxHeight="400px"
+                    />
+                  )}
+                  {section.videos.login && (
+                    <AccessibleVideo
+                      videoSrc="/videos/login-tutorial.mp4"
+                      subtitleSrcEs="/videos/login-tutorial-subtitles-es.vtt"
+                      subtitleSrcEn="/videos/login-tutorial-subtitles-en.vtt"
+                      captionSrcEs="/videos/login-tutorial-captions-es.vtt"
+                      title={section.videos.login.title}
+                      description={section.videos.login.description}
+                      transcript={section.videos.login.transcript}
+                      maxHeight="400px"
+                    />
+                  )}
+                </div>
+              )}
             </section>
           );
         })}

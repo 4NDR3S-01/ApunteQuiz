@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import FloatingHeader from '@/components/FloatingHeader';
 import SiteFooter from '@/components/SiteFooter';
+import AccessibleVideo from '@/components/AccessibleVideo';
 import useTranslation from '@/hooks/useTranslation';
 
 export default function Home() {
@@ -61,7 +62,7 @@ export default function Home() {
 
           <div className="relative flex w-full justify-center lg:max-w-md">
             <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-blue-400 via-sky-300 to-teal-300 opacity-40 blur-2xl dark:from-blue-500 dark:via-sky-400 dark:to-teal-400" />
-            <div className="relative w-full rounded-3xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)]/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur">
+            <div className="relative w-full rounded-3xl border border-[color:var(--border-default)] bg-white/95 dark:bg-slate-900/95 p-6 shadow-xl shadow-slate-200/60 dark:shadow-slate-900/60 backdrop-blur-sm">
               <div className="space-y-4">
                 <p className="text-sm font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-200">
                   {home.hero.flowPreview.title}
@@ -70,7 +71,7 @@ export default function Home() {
                   {home.hero.flowPreview.steps.map((item) => (
                     <li
                       key={item.title}
-                      className="rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] p-4 shadow-sm"
+                      className="rounded-2xl border border-[color:var(--border-default)] bg-slate-50/80 dark:bg-slate-800/80 p-4 shadow-sm backdrop-blur-sm"
                     >
                       <p className="font-semibold text-[color:var(--foreground)]">{item.title}</p>
                       <p className="text-[color:var(--text-muted)]">{item.description}</p>
@@ -147,6 +148,20 @@ export default function Home() {
                 <div className="mt-auto h-1 w-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 dark:from-blue-400 dark:to-cyan-300" />
               </div>
             ))}
+          </div>
+
+          {/* Video Tutorial: Cómo generar un quiz */}
+          <div className="mt-12 rounded-3xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] p-6 shadow-lg shadow-slate-200/60 transition-colors lg:p-8">
+            <AccessibleVideo
+              videoSrc="/videos/quiz-tutorial.mp4"
+              subtitleSrcEs="/videos/quiz-tutorial-subtitles-es.vtt"
+              subtitleSrcEn="/videos/quiz-tutorial-subtitles-en.vtt"
+              captionSrcEs="/videos/quiz-tutorial-captions-es.vtt"
+              title={home.videoTutorial?.title || 'Video tutorial: Cómo generar un quiz'}
+              description={home.videoTutorial?.description || 'Aprende paso a paso cómo crear un quiz desde tus apuntes. Este video incluye subtítulos y transcripciones para accesibilidad.'}
+              transcript={home.videoTutorial?.transcript || 'Este es un video tutorial que muestra cómo generar un quiz en ApunteQuiz. Primero, sube tu documento PDF o pega tus apuntes. Luego, selecciona el idioma, el nivel educativo y el número de preguntas que deseas. Finalmente, haz clic en generar y obtendrás tu quiz personalizado listo para practicar.'}
+              maxHeight="500px"
+            />
           </div>
         </div>
       </section>

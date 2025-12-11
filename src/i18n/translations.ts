@@ -245,6 +245,11 @@ const translations = {
           },
         ],
       },
+      videoTutorial: {
+        title: 'Video tutorial: Cómo generar un quiz',
+        description: 'Aprende paso a paso cómo crear un quiz desde tus apuntes. Este video incluye subtítulos y transcripciones para accesibilidad.',
+        transcript: 'Este es un video tutorial que muestra cómo generar un quiz en ApunteQuiz. Primero, sube tu documento PDF o pega tus apuntes. Luego, selecciona el idioma, el nivel educativo y el número de preguntas que deseas. Finalmente, haz clic en generar y obtendrás tu quiz personalizado listo para practicar.',
+      },
     },
     contact: {
       hero: {
@@ -410,6 +415,18 @@ const translations = {
                 'Utiliza la opción “Recuperar acceso” en la pantalla de inicio de sesión para generar un enlace temporal de restablecimiento.',
             },
           ],
+          videos: {
+            register: {
+              title: 'Video tutorial: Cómo crear una cuenta',
+              description: 'Aprende paso a paso cómo crear tu cuenta en ApunteQuiz. Este video incluye subtítulos y transcripciones para accesibilidad.',
+              transcript: 'Este video muestra cómo crear una cuenta en ApunteQuiz. Primero, ve a la página de registro. Luego, completa el formulario con tu nombre completo, correo electrónico y contraseña. Asegúrate de que tu contraseña sea segura. Finalmente, haz clic en "Crear cuenta" y verifica tu correo electrónico para activar tu cuenta.',
+            },
+            login: {
+              title: 'Video tutorial: Cómo iniciar sesión',
+              description: 'Aprende paso a paso cómo iniciar sesión en ApunteQuiz. Este video incluye subtítulos y transcripciones para accesibilidad.',
+              transcript: 'Este video muestra cómo iniciar sesión en ApunteQuiz. Primero, ve a la página de inicio de sesión. Luego, ingresa tu correo electrónico y contraseña. Si lo deseas, puedes marcar la opción "Recordarme" para mantener tu sesión activa. Finalmente, haz clic en "Iniciar sesión" y serás redirigido a tu dashboard.',
+            },
+          },
         },
         {
           id: 'colaboracion',
@@ -528,6 +545,20 @@ const translations = {
         },
       },
       qrAlt: 'Código QR para descargar ApunteQuiz APK',
+    },
+    accessibility: {
+      videoTutorial: {
+        title: 'Video tutorial: Cómo generar un quiz',
+        description: 'Aprende paso a paso cómo crear un quiz desde tus apuntes. Este video incluye subtítulos y transcripciones para accesibilidad.',
+        playButton: 'Reproducir video',
+        pauseButton: 'Pausar video',
+        loading: 'Cargando video...',
+        error: 'Error al cargar el video',
+        transcriptButton: 'Ver transcripción',
+        hideTranscript: 'Ocultar transcripción',
+        transcriptTitle: 'Transcripción del video',
+        ariaLabel: 'Video tutorial sobre cómo generar un quiz en ApunteQuiz',
+      },
     },
   },
   en: {
@@ -776,6 +807,11 @@ const translations = {
           },
         ],
       },
+      videoTutorial: {
+        title: 'Video tutorial: How to generate a quiz',
+        description: 'Learn step by step how to create a quiz from your notes. This video includes subtitles and transcripts for accessibility.',
+        transcript: 'This is a video tutorial showing how to generate a quiz in ApunteQuiz. First, upload your PDF document or paste your notes. Then, select the language, education level, and number of questions you want. Finally, click generate and you will get your personalized quiz ready to practice.',
+      },
     },
     contact: {
       hero: {
@@ -941,6 +977,18 @@ const translations = {
                 'Use the “Recover access” option on the sign-in screen to generate a temporary reset link.',
             },
           ],
+          videos: {
+            register: {
+              title: 'Video tutorial: How to create an account',
+              description: 'Learn step by step how to create your account in ApunteQuiz. This video includes subtitles and transcripts for accessibility.',
+              transcript: 'This video shows how to create an account in ApunteQuiz. First, go to the registration page. Then, complete the form with your full name, email address, and password. Make sure your password is secure. Finally, click "Create account" and verify your email to activate your account.',
+            },
+            login: {
+              title: 'Video tutorial: How to sign in',
+              description: 'Learn step by step how to sign in to ApunteQuiz. This video includes subtitles and transcripts for accessibility.',
+              transcript: 'This video shows how to sign in to ApunteQuiz. First, go to the sign-in page. Then, enter your email address and password. If you want, you can check the "Remember me" option to keep your session active. Finally, click "Sign in" and you will be redirected to your dashboard.',
+            },
+          },
         },
         {
           id: 'colaboracion',
@@ -1059,6 +1107,20 @@ const translations = {
         },
       },
       qrAlt: 'QR code to download the ApunteQuiz APK',
+    },
+    accessibility: {
+      videoTutorial: {
+        title: 'Video tutorial: How to generate a quiz',
+        description: 'Learn step by step how to create a quiz from your notes. This video includes subtitles and transcripts for accessibility.',
+        playButton: 'Play video',
+        pauseButton: 'Pause video',
+        loading: 'Loading video...',
+        error: 'Error loading video',
+        transcriptButton: 'View transcript',
+        hideTranscript: 'Hide transcript',
+        transcriptTitle: 'Video transcript',
+        ariaLabel: 'Video tutorial on how to generate a quiz in ApunteQuiz',
+      },
     },
   },
 } as const;

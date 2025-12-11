@@ -70,13 +70,13 @@ export default function LanguageSwitcher({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] px-4 py-2 text-sm font-semibold text-[color:var(--foreground)] shadow-sm shadow-slate-200/40 transition hover:bg-[color:var(--surface-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-[color:var(--foreground)] shadow-sm transition hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={ariaLabel ?? (t('languageSwitcher.ariaLabel') as string)}
       >
         <span className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
             <Globe className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="flex flex-col text-left leading-tight">
@@ -89,13 +89,13 @@ export default function LanguageSwitcher({
           </span>
         </span>
         <ChevronDown
-          className={`h-4 w-4 text-[color:var(--text-muted)] transition-transform ${isOpen ? 'rotate-180 text-blue-600' : ''}`}
+          className={`h-4 w-4 text-[color:var(--text-muted)] transition-transform ${isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`}
           aria-hidden="true"
         />
       </button>
       {isOpen ? (
         <div
-          className={`absolute ${dropdownPositionClass} z-50 mt-2 ${dropdownWidthClass} overflow-hidden rounded-2xl border border-[color:var(--border-default)] bg-[color:var(--surface-elevated)] shadow-xl shadow-slate-200/30`}
+          className={`absolute ${dropdownPositionClass} z-50 mt-2 ${dropdownWidthClass} overflow-hidden rounded-2xl border border-[color:var(--border-default)] bg-white dark:bg-slate-900 shadow-xl`}
           role="listbox"
           aria-label={ariaLabel ?? (t('languageSwitcher.ariaLabel') as string)}
         >
@@ -119,7 +119,7 @@ export default function LanguageSwitcher({
                     }}
                     className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition ${
                       isActive
-                        ? 'bg-blue-500/10 text-blue-700'
+                        ? 'bg-blue-500/10 text-blue-700 dark:text-blue-200'
                         : 'text-[color:var(--text-muted)] hover:bg-blue-500/5 hover:text-[color:var(--foreground)]'
                     }`}
                   >
@@ -131,7 +131,7 @@ export default function LanguageSwitcher({
                         {t(option.descriptionKey)}
                       </span>
                     </span>
-                    {isActive ? <Check className="h-4 w-4 text-blue-600" aria-hidden="true" /> : null}
+                    {isActive ? <Check className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" /> : null}
                   </button>
                 </li>
               );

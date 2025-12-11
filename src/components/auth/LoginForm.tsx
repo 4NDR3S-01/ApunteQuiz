@@ -187,16 +187,16 @@ export default function LoginForm() {
 
         {/* Lock / Error Message */}
         {lockedUntil && lockedUntil > Date.now() && (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900/50 dark:bg-yellow-950/20">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">{t('auth.login.locked', { minutes: Math.ceil((lockedUntil - Date.now()) / 1000 / 60) })}</p>
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-[color:var(--border-default)] bg-[color:var(--color-warning-light)] p-4">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 text-[color:var(--color-warning-text)]" aria-hidden="true" />
+              <p className="text-sm text-[color:var(--color-warning-text)]">{t('auth.login.locked', { minutes: Math.ceil((lockedUntil - Date.now()) / 1000 / 60) })}</p>
             </div>
         )}
 
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
-            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-[color:var(--border-default)] bg-[color:var(--color-error-light)] p-4">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-[color:var(--color-error-text)]" aria-hidden="true" />
+            <p className="text-sm text-[color:var(--color-error-text)]">{error}</p>
           </div>
         )}
 

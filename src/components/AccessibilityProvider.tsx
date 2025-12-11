@@ -184,112 +184,97 @@ function applyDyslexicFont(enabled: boolean) {
 }
 
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(
-    () => resolvePreferredTheme(),
-  );
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    const preference = resolvePreferredTheme();
-    return resolveThemeFromPreference(preference);
-  });
-  const [fontScale, setFontScaleState] = useState<FontScale>(() =>
-    resolvePreferredFontScale(),
-  );
-  const [lineSpacing, setLineSpacingState] = useState<LineSpacing>(() =>
-    resolvePreferredLineSpacing(),
-  );
-  const [highContrast, setHighContrastState] = useState<boolean>(() =>
-    resolvePreferredContrast(),
-  );
-  const [hasContrastOverride, setHasContrastOverride] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(CONTRAST_KEY) !== null;
-  });
-  const [dyslexicFont, setDyslexicFontState] = useState<boolean>(() =>
-    resolvePreferredDyslexic(),
-  );
-  const [keyboardNavigationEnabled, setKeyboardNavigationEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    const raw = window.localStorage.getItem(KB_NAV_KEY);
-    return raw === null ? true : raw === '1';
-  });
-  const [visualAlerts, setVisualAlertsState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(VISUAL_ALERTS_KEY) === '1';
-  });
-  const [largeButtonsScale, setLargeButtonsScaleState] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1;
-    const raw = window.localStorage.getItem(LARGE_BUTTONS_KEY);
-    return raw ? Number(raw) : 1;
-  });
-  const [linkHighlight, setLinkHighlightState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem(LINK_HIGHLIGHT_KEY) !== '0';
-  });
-  const [focusVisible, setFocusVisibleState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem(FOCUS_VISIBLE_KEY) !== '0';
-  });
+  // Initialize with safe defaults to avoid hydration mismatch
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [fontScale, setFontScaleState] = useState<FontScale>('base');
+  const [lineSpacing, setLineSpacingState] = useState<LineSpacing>('normal');
+  const [highContrast, setHighContrastState] = useState<boolean>(false);
+  const [hasContrastOverride, setHasContrastOverride] = useState<boolean>(false);
+  const [dyslexicFont, setDyslexicFontState] = useState<boolean>(false);
+  const [keyboardNavigationEnabled, setKeyboardNavigationEnabledState] = useState<boolean>(true);
+  const [visualAlerts, setVisualAlertsState] = useState<boolean>(false);
+  const [largeButtonsScale, setLargeButtonsScaleState] = useState<number>(1);
+  const [linkHighlight, setLinkHighlightState] = useState<boolean>(true);
+  const [focusVisible, setFocusVisibleState] = useState<boolean>(true);
   const [isReading, setIsReading] = useState<boolean>(false);
-  const [readingSupported, setReadingSupported] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return (
-      'speechSynthesis' in window &&
-      typeof window.SpeechSynthesisUtterance !== 'undefined'
-    );
-  });
+  const [readingSupported, setReadingSupported] = useState<boolean>(false);
   const [readingMessage, setReadingMessage] = useState<string | null>(null);
-  const [subtitlesEnabled, setSubtitlesEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(SUBTITLES_KEY) === '1';
-  });
-  const [autoTranscripts, setAutoTranscriptsState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(TRANSCRIPTS_KEY) === '1';
-  });
-  const [videoInterpreterEnabled, setVideoInterpreterEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(VIDEO_INTERPRETER_KEY) === '1';
-  });
-  const [customFont, setCustomFontState] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    return window.localStorage.getItem(CUSTOM_FONT_KEY) ?? '';
-  });
-  const [customColor, setCustomColorState] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    return window.localStorage.getItem(CUSTOM_COLOR_KEY) ?? '';
-  });
-  const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(VOICE_CONTROL_KEY) === '1';
-  });
-  const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(BLOCK_AUTOPLAY_KEY) === '1';
-  });
-  const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(CUSTOM_SHORTCUTS_KEY) === '1';
-  });
-  const [textScale, setTextScaleState] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1;
-    const raw = window.localStorage.getItem(TEXT_SCALE_KEY);
-    return raw ? Number(raw) : 1;
-  });
+  const [subtitlesEnabled, setSubtitlesEnabledState] = useState<boolean>(false);
+  const [autoTranscripts, setAutoTranscriptsState] = useState<boolean>(false);
+  const [videoInterpreterEnabled, setVideoInterpreterEnabledState] = useState<boolean>(false);
+  const [customFont, setCustomFontState] = useState<string>('');
+  const [customColor, setCustomColorState] = useState<string>('');
+  const [voiceControlEnabled, setVoiceControlEnabledState] = useState<boolean>(false);
+  const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(false);
+  const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(false);
+  const [textScale, setTextScaleState] = useState<number>(1);
   const clearReadingMessage = useCallback(() => setReadingMessage(null), []);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voicesLoadedRef = useRef(false);
 
+  // Load preferences from localStorage after hydration to avoid mismatch
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return;
+    
+    setIsHydrated(true);
+    
+    // Load theme
+    const storedTheme = resolvePreferredTheme();
+    setThemePreferenceState(storedTheme);
+    setResolvedTheme(resolveThemeFromPreference(storedTheme));
+    
+    // Load other preferences
+    setFontScaleState(resolvePreferredFontScale());
+    setLineSpacingState(resolvePreferredLineSpacing());
+    setHighContrastState(resolvePreferredContrast());
+    setHasContrastOverride(globalThis.window.localStorage.getItem(CONTRAST_KEY) !== null);
+    setDyslexicFontState(resolvePreferredDyslexic());
+    
+    const kbNavRaw = globalThis.window.localStorage.getItem(KB_NAV_KEY);
+    setKeyboardNavigationEnabledState(kbNavRaw === null ? true : kbNavRaw === '1');
+    
+    setVisualAlertsState(globalThis.window.localStorage.getItem(VISUAL_ALERTS_KEY) === '1');
+    
+    const largeButtonsRaw = globalThis.window.localStorage.getItem(LARGE_BUTTONS_KEY);
+    setLargeButtonsScaleState(largeButtonsRaw ? Number(largeButtonsRaw) : 1);
+    
+    const linkHighlightRaw = globalThis.window.localStorage.getItem(LINK_HIGHLIGHT_KEY);
+    setLinkHighlightState(linkHighlightRaw !== '0');
+    
+    const focusVisibleRaw = globalThis.window.localStorage.getItem(FOCUS_VISIBLE_KEY);
+    setFocusVisibleState(focusVisibleRaw !== '0');
+    
+    setReadingSupported(
+      'speechSynthesis' in globalThis.window &&
+      typeof globalThis.window.SpeechSynthesisUtterance !== 'undefined'
+    );
+    
+    setSubtitlesEnabledState(globalThis.window.localStorage.getItem(SUBTITLES_KEY) === '1');
+    setAutoTranscriptsState(globalThis.window.localStorage.getItem(TRANSCRIPTS_KEY) === '1');
+    setVideoInterpreterEnabledState(globalThis.window.localStorage.getItem(VIDEO_INTERPRETER_KEY) === '1');
+    setCustomFontState(globalThis.window.localStorage.getItem(CUSTOM_FONT_KEY) ?? '');
+    setCustomColorState(globalThis.window.localStorage.getItem(CUSTOM_COLOR_KEY) ?? '');
+    setVoiceControlEnabledState(globalThis.window.localStorage.getItem(VOICE_CONTROL_KEY) === '1');
+    setBlockAutoplayState(globalThis.window.localStorage.getItem(BLOCK_AUTOPLAY_KEY) === '1');
+    setCustomShortcutsEnabledState(globalThis.window.localStorage.getItem(CUSTOM_SHORTCUTS_KEY) === '1');
+    
+    const textScaleRaw = globalThis.window.localStorage.getItem(TEXT_SCALE_KEY);
+    setTextScaleState(textScaleRaw ? Number(textScaleRaw) : 1);
+  }, []);
+
   useLayoutEffect(() => {
     return () => {
-      if (typeof window === 'undefined') return;
+      if (typeof globalThis.window === 'undefined') return;
       cleanupVoiceListener();
-      window.speechSynthesis?.cancel();
+      globalThis.window.speechSynthesis?.cancel();
     };
   }, []);
 
 useEffect(() => {
-  if (typeof window === 'undefined') return;
-  const synth = window.speechSynthesis;
+  if (typeof globalThis.window === 'undefined') return;
+  const synth = globalThis.window.speechSynthesis;
   if (!synth) return;
 
     const ensureVoices = () => {
@@ -307,8 +292,8 @@ useEffect(() => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const supported =
-      'speechSynthesis' in window &&
-      typeof window.SpeechSynthesisUtterance !== 'undefined';
+      'speechSynthesis' in globalThis.window &&
+      typeof globalThis.window.SpeechSynthesisUtterance !== 'undefined';
     setReadingSupported(supported);
     if (!supported) {
       setReadingMessage(
@@ -373,8 +358,8 @@ useEffect(() => {
   }, [resolvedTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const synth = window.speechSynthesis;
+    if (typeof globalThis.window === 'undefined') return;
+    const synth = globalThis.window.speechSynthesis;
     if (!synth) return;
 
     const ensureVoices = () => {
@@ -393,9 +378,9 @@ useEffect(() => {
   }, []);
 
   useLayoutEffect(() => {
-    if (themePreference !== 'system' || typeof window === 'undefined') return;
+    if (themePreference !== 'system' || typeof globalThis.window === 'undefined') return;
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaQuery = globalThis.window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
       const systemTheme = mediaQuery.matches ? 'dark' : 'light';
       setResolvedTheme(systemTheme);
@@ -413,8 +398,8 @@ useEffect(() => {
     setThemePreferenceState(value);
     const next = resolveThemeFromPreference(value);
     setResolvedTheme(next);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(THEME_KEY, value);
+    if (typeof globalThis.window !== 'undefined') {
+      globalThis.window.localStorage.setItem(THEME_KEY, value);
     }
   };
 
@@ -432,8 +417,8 @@ useEffect(() => {
 
   const setFontScale = (value: FontScale) => {
     setFontScaleState(value);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(FONT_KEY, value);
+    if (typeof globalThis.window !== 'undefined') {
+      globalThis.window.localStorage.setItem(FONT_KEY, value);
     }
   };
 
@@ -461,47 +446,47 @@ useEffect(() => {
 
   const setKeyboardNavigationEnabled = (value: boolean) => {
     setKeyboardNavigationEnabledState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(KB_NAV_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(KB_NAV_KEY, value ? '1' : '0');
   };
 
   const setVisualAlerts = (value: boolean) => {
     setVisualAlertsState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(VISUAL_ALERTS_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VISUAL_ALERTS_KEY, value ? '1' : '0');
   };
 
   const setLargeButtonsScale = (value: number) => {
     setLargeButtonsScaleState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(LARGE_BUTTONS_KEY, String(value));
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(LARGE_BUTTONS_KEY, String(value));
   };
 
   const setLinkHighlight = (value: boolean) => {
     setLinkHighlightState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(LINK_HIGHLIGHT_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(LINK_HIGHLIGHT_KEY, value ? '1' : '0');
   };
 
   const setFocusVisible = (value: boolean) => {
     setFocusVisibleState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(FOCUS_VISIBLE_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(FOCUS_VISIBLE_KEY, value ? '1' : '0');
   };
 
   const setSubtitlesEnabled = (value: boolean) => {
     setSubtitlesEnabledState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(SUBTITLES_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(SUBTITLES_KEY, value ? '1' : '0');
   };
 
   const setAutoTranscripts = (value: boolean) => {
     setAutoTranscriptsState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(TRANSCRIPTS_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(TRANSCRIPTS_KEY, value ? '1' : '0');
   };
 
   const setVideoInterpreterEnabled = (value: boolean) => {
     setVideoInterpreterEnabledState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(VIDEO_INTERPRETER_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VIDEO_INTERPRETER_KEY, value ? '1' : '0');
   };
 
   const setCustomFont = (value: string) => {
     setCustomFontState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(CUSTOM_FONT_KEY, value);
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(CUSTOM_FONT_KEY, value);
   };
 
   const setCustomColor = (value: string) => {
@@ -566,22 +551,22 @@ useEffect(() => {
 
   const setVoiceControlEnabled = (value: boolean) => {
     setVoiceControlEnabledState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
   };
 
   const setBlockAutoplay = (value: boolean) => {
     setBlockAutoplayState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(BLOCK_AUTOPLAY_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(BLOCK_AUTOPLAY_KEY, value ? '1' : '0');
   };
 
   const setCustomShortcutsEnabled = (value: boolean) => {
     setCustomShortcutsEnabledState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(CUSTOM_SHORTCUTS_KEY, value ? '1' : '0');
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(CUSTOM_SHORTCUTS_KEY, value ? '1' : '0');
   };
 
   const setTextScale = (value: number) => {
     setTextScaleState(value);
-    if (typeof window !== 'undefined') window.localStorage.setItem(TEXT_SCALE_KEY, String(value));
+    if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(TEXT_SCALE_KEY, String(value));
   };
 
   // media control helpers
@@ -621,8 +606,8 @@ useEffect(() => {
   const voiceListenerRef = useRef<(() => void) | null>(null);
 
   const cleanupVoiceListener = () => {
-    if (typeof window === 'undefined') return;
-    const synth = window.speechSynthesis;
+    if (typeof globalThis.window === 'undefined') return;
+    const synth = globalThis.window.speechSynthesis;
     if (!synth) return;
     if (voiceListenerRef.current) {
       synth.removeEventListener('voiceschanged', voiceListenerRef.current);
@@ -631,8 +616,8 @@ useEffect(() => {
   };
 
   const stopReading = () => {
-    if (typeof window === 'undefined') return;
-    const synth = window.speechSynthesis;
+    if (typeof globalThis.window === 'undefined') return;
+    const synth = globalThis.window.speechSynthesis;
     if (!synth) return;
     cleanupVoiceListener();
     setIsReading(false);
@@ -641,8 +626,8 @@ useEffect(() => {
   };
 
   const startReading = () => {
-    if (typeof window === 'undefined') return;
-    const synth = window.speechSynthesis;
+    if (typeof globalThis.window === 'undefined') return;
+    const synth = globalThis.window.speechSynthesis;
     if (!synth) return;
     if (!readingSupported) {
       setReadingMessage(
@@ -728,8 +713,8 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined' || hasContrastOverride) return;
-    const mediaQuery = window.matchMedia('(prefers-contrast: more)');
+    if (typeof globalThis.window === 'undefined' || hasContrastOverride) return;
+    const mediaQuery = globalThis.window.matchMedia('(prefers-contrast: more)');
     const handleChange = () => {
       setHighContrastState(mediaQuery.matches);
     };

@@ -18,6 +18,30 @@
   --accent: #2563eb;
   --accent-contrast: #ffffff;
   --line-height-base: 1.6;
+  /* Semantic colors */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: rgba(37, 99, 235, 0.1);
+  --color-primary-text: #1e40af;
+  --color-success: #10b981;
+  --color-success-light: rgba(16, 185, 129, 0.1);
+  --color-success-text: #059669;
+  --color-warning: #f59e0b;
+  --color-warning-light: rgba(245, 158, 11, 0.1);
+  --color-warning-text: #d97706;
+  --color-error: #ef4444;
+  --color-error-light: rgba(239, 68, 68, 0.1);
+  --color-error-text: #dc2626;
+  --color-info: #3b82f6;
+  --color-info-light: rgba(59, 130, 246, 0.1);
+  --color-info-text: #2563eb;
+  --color-emerald: #10b981;
+  --color-emerald-light: rgba(16, 185, 129, 0.1);
+  --color-emerald-text: #059669;
+  --color-sky: #0ea5e9;
+  --color-teal: #14b8a6;
+  --gradient-primary: linear-gradient(to right, #3b82f6, #0ea5e9, #14b8a6);
+  --gradient-primary-dark: linear-gradient(to right, #2563eb, #0284c7, #0d9488);
 }
 
 html.dark {
@@ -32,6 +56,30 @@ html.dark {
   --focus-ring: rgba(96, 165, 250, 0.7);
   --accent: #3b82f6;
   --accent-contrast: #0f172a;
+  /* Semantic colors - dark mode */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-light: rgba(59, 130, 246, 0.2);
+  --color-primary-text: #93c5fd;
+  --color-success: #10b981;
+  --color-success-light: rgba(16, 185, 129, 0.2);
+  --color-success-text: #6ee7b7;
+  --color-warning: #f59e0b;
+  --color-warning-light: rgba(245, 158, 11, 0.2);
+  --color-warning-text: #fcd34d;
+  --color-error: #ef4444;
+  --color-error-light: rgba(239, 68, 68, 0.2);
+  --color-error-text: #fca5a5;
+  --color-info: #3b82f6;
+  --color-info-light: rgba(59, 130, 246, 0.2);
+  --color-info-text: #93c5fd;
+  --color-emerald: #10b981;
+  --color-emerald-light: rgba(16, 185, 129, 0.2);
+  --color-emerald-text: #6ee7b7;
+  --color-sky: #0ea5e9;
+  --color-teal: #14b8a6;
+  --gradient-primary: linear-gradient(to right, #2563eb, #0284c7, #0d9488);
+  --gradient-primary-dark: linear-gradient(to right, #1d4ed8, #0369a1, #0f766e);
 }
 
 @theme inline {
@@ -150,6 +198,30 @@ html.high-contrast {
   --accent: #facc15;
   --accent-contrast: #000000;
   color-scheme: dark;
+  /* Semantic colors - high contrast */
+  --color-primary: #facc15;
+  --color-primary-hover: #ffe066;
+  --color-primary-light: #262626;
+  --color-primary-text: #ffe066;
+  --color-success: #4ade80;
+  --color-success-light: #262626;
+  --color-success-text: #4ade80;
+  --color-warning: #facc15;
+  --color-warning-light: #262626;
+  --color-warning-text: #facc15;
+  --color-error: #f87171;
+  --color-error-light: #262626;
+  --color-error-text: #f87171;
+  --color-info: #facc15;
+  --color-info-light: #262626;
+  --color-info-text: #ffe066;
+  --color-emerald: #4ade80;
+  --color-emerald-light: #262626;
+  --color-emerald-text: #4ade80;
+  --color-sky: #facc15;
+  --color-teal: #4ade80;
+  --gradient-primary: none;
+  --gradient-primary-dark: none;
 }
 
 html.high-contrast body {
@@ -203,24 +275,145 @@ html.high-contrast .bg-white\/90 {
   background-color: rgba(0, 0, 0, 0.9) !important;
 }
 
+html.high-contrast .bg-blue-50,
+html.high-contrast .bg-blue-100,
+html.high-contrast .bg-blue-200,
+html.high-contrast .bg-blue-300,
+html.high-contrast .bg-blue-400,
 html.high-contrast .bg-blue-500\/10,
 html.high-contrast .bg-blue-500\/25,
 html.high-contrast .bg-blue-500,
+html.high-contrast .bg-blue-600,
+html.high-contrast .bg-blue-700,
+html.high-contrast .bg-blue-800,
+html.high-contrast .bg-blue-900,
+html.high-contrast .bg-blue-950,
+html.high-contrast .bg-indigo-50,
+html.high-contrast .bg-indigo-100,
+html.high-contrast .bg-indigo-200,
+html.high-contrast .bg-indigo-300,
+html.high-contrast .bg-indigo-400,
+html.high-contrast .bg-indigo-500,
+html.high-contrast .bg-indigo-600,
+html.high-contrast .bg-emerald-50,
+html.high-contrast .bg-emerald-100,
 html.high-contrast .bg-emerald-500\/10,
 html.high-contrast .bg-emerald-500\/40,
+html.high-contrast .bg-yellow-50,
+html.high-contrast .bg-yellow-100,
 html.high-contrast .bg-yellow-500\/10,
 html.high-contrast .bg-yellow-500\/20,
-html.high-contrast .bg-emerald-50,
-html.high-contrast .bg-yellow-50,
-html.high-contrast .bg-emerald-100,
-html.high-contrast .bg-yellow-100,
 html.high-contrast .bg-red-50,
 html.high-contrast .bg-red-100,
 html.high-contrast .bg-slate-200,
 html.high-contrast .bg-slate-600,
 html.high-contrast .bg-slate-900,
+html.high-contrast .bg-slate-900\/30,
+html.high-contrast .bg-slate-900\/50,
 html.high-contrast .bg-slate-900\/60 {
   background-color: rgba(17, 17, 17, 0.95) !important;
+}
+
+/* Protect specific content containers from high contrast overrides */
+html.high-contrast section[id='hero'] div[class*='bg-white'],
+html.high-contrast section[id='hero'] div[class*='bg-white\/95'],
+html.high-contrast section[id='hero'] div[class*='bg-slate'],
+html.high-contrast section[id='hero'] div[class*='bg-slate-50'],
+html.high-contrast section[id='hero'] div[class*='bg-slate-800'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html.high-contrast section[id='hero'] div[class*='bg-white'] *,
+html.high-contrast section[id='hero'] div[class*='bg-white\/95'] *,
+html.high-contrast section[id='hero'] div[class*='bg-slate'] *,
+html.high-contrast section[id='hero'] div[class*='bg-slate-50'] *,
+html.high-contrast section[id='hero'] div[class*='bg-slate-800'] * {
+  color: #ffffff !important;
+}
+
+html.high-contrast section[id='hero'] div[class*='bg-white'] p,
+html.high-contrast section[id='hero'] div[class*='bg-white\/95'] p,
+html.high-contrast section[id='hero'] div[class*='bg-slate'] p,
+html.high-contrast section[id='hero'] div[class*='bg-slate-50'] p,
+html.high-contrast section[id='hero'] div[class*='bg-slate-800'] p,
+html.high-contrast section[id='hero'] div[class*='bg-white'] li,
+html.high-contrast section[id='hero'] div[class*='bg-white\/95'] li,
+html.high-contrast section[id='hero'] div[class*='bg-slate'] li,
+html.high-contrast section[id='hero'] div[class*='bg-slate-50'] li,
+html.high-contrast section[id='hero'] div[class*='bg-slate-800'] li,
+html.high-contrast section[id='hero'] div[class*='bg-white'] span,
+html.high-contrast section[id='hero'] div[class*='bg-white\/95'] span,
+html.high-contrast section[id='hero'] div[class*='bg-slate'] span,
+html.high-contrast section[id='hero'] div[class*='bg-slate-50'] span,
+html.high-contrast section[id='hero'] div[class*='bg-slate-800'] span {
+  color: #ffffff !important;
+}
+
+html.high-contrast section[id='como-funciona'] div[class*='bg-white'],
+html.high-contrast section[id='como-funciona'] div[class*='bg-slate'],
+html.high-contrast section[id='como-funciona'] div[class*='bg-\[color\:var'],
+html.high-contrast section[id='como-funciona'] div[class*='rounded-3xl'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html.high-contrast section[id='como-funciona'] div[class*='bg-white'] *,
+html.high-contrast section[id='como-funciona'] div[class*='bg-slate'] *,
+html.high-contrast section[id='como-funciona'] div[class*='bg-\[color\:var'] *,
+html.high-contrast section[id='como-funciona'] div[class*='rounded-3xl'] * {
+  color: #ffffff !important;
+}
+
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-white'],
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-slate'],
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-\[color\:var'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-white'] *,
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-slate'] *,
+html.high-contrast section div[class*='rounded-3xl'][class*='bg-\[color\:var'] * {
+  color: #ffffff !important;
+}
+
+html.high-contrast section div[class*='bg-slate-50'],
+html.high-contrast section div[class*='bg-slate-50\/80'],
+html.high-contrast section div[class*='bg-slate-800'],
+html.high-contrast section div[class*='bg-slate-800\/80'] {
+  background-color: #000000 !important;
+  border: 1px solid #ffffff !important;
+}
+
+html.high-contrast section div[class*='bg-slate-50'] *,
+html.high-contrast section div[class*='bg-slate-50\/80'] *,
+html.high-contrast section div[class*='bg-slate-800'] *,
+html.high-contrast section div[class*='bg-slate-800\/80'] * {
+  color: #ffffff !important;
+}
+
+html.high-contrast section div[class*='bg-slate-50'] p,
+html.high-contrast section div[class*='bg-slate-50\/80'] p,
+html.high-contrast section div[class*='bg-slate-800'] p,
+html.high-contrast section div[class*='bg-slate-800\/80'] p,
+html.high-contrast section div[class*='bg-slate-50'] li,
+html.high-contrast section div[class*='bg-slate-50\/80'] li,
+html.high-contrast section div[class*='bg-slate-800'] li,
+html.high-contrast section div[class*='bg-slate-800\/80'] li,
+html.high-contrast section div[class*='bg-slate-50'] span,
+html.high-contrast section div[class*='bg-slate-50\/80'] span,
+html.high-contrast section div[class*='bg-slate-800'] span,
+html.high-contrast section div[class*='bg-slate-800\/80'] span {
+  color: #ffffff !important;
+}
+
+/* Protect section backgrounds for better readability */
+html.high-contrast section[class*='bg-slate-200'],
+html.high-contrast section[class*='bg-slate-200\/60'],
+html.high-contrast section[class*='bg-slate-900'],
+html.high-contrast section[class*='bg-slate-900\/30'] {
+  background-color: #0a0a0a !important;
 }
 
 html.high-contrast .text-slate-500,
@@ -231,10 +424,33 @@ html.high-contrast .text-slate-900 {
   color: #ffffff !important;
 }
 
+html.high-contrast .text-blue-50,
+html.high-contrast .text-blue-100,
+html.high-contrast .text-blue-200,
+html.high-contrast .text-blue-300,
+html.high-contrast .text-blue-400,
+html.high-contrast .text-blue-500,
+html.high-contrast .text-blue-600,
 html.high-contrast .text-blue-700,
 html.high-contrast .text-blue-800,
+html.high-contrast .text-blue-900,
+html.high-contrast .text-indigo-400,
+html.high-contrast .text-indigo-500,
+html.high-contrast .text-indigo-600,
+html.high-contrast .text-yellow-400,
+html.high-contrast .text-yellow-500,
+html.high-contrast .text-yellow-600,
+html.high-contrast .text-yellow-700,
 html.high-contrast .text-yellow-800,
+html.high-contrast .text-emerald-400,
+html.high-contrast .text-emerald-500,
+html.high-contrast .text-emerald-600,
+html.high-contrast .text-emerald-700,
 html.high-contrast .text-emerald-800,
+html.high-contrast .text-red-400,
+html.high-contrast .text-red-500,
+html.high-contrast .text-red-600,
+html.high-contrast .text-red-700,
 html.high-contrast .text-red-800 {
   color: #ffe066 !important;
 }
@@ -254,6 +470,480 @@ html.high-contrast [style*='gradient'] {
 
 html.high-contrast [class*='shadow'] {
   box-shadow: none !important;
+}
+
+/* Additional high contrast rules for common color classes */
+html.high-contrast .text-blue-200,
+html.high-contrast .text-blue-300,
+html.high-contrast .text-blue-400,
+html.high-contrast .text-blue-500,
+html.high-contrast .text-blue-600,
+html.high-contrast .text-green-400,
+html.high-contrast .text-green-500,
+html.high-contrast .text-green-600,
+html.high-contrast .text-yellow-400,
+html.high-contrast .text-yellow-500,
+html.high-contrast .text-red-400,
+html.high-contrast .text-red-500,
+html.high-contrast .text-red-600,
+html.high-contrast .text-emerald-200,
+html.high-contrast .text-emerald-300,
+html.high-contrast .text-emerald-400,
+html.high-contrast .text-emerald-500,
+html.high-contrast .text-emerald-600,
+html.high-contrast .text-sky-300,
+html.high-contrast .text-sky-400,
+html.high-contrast .text-teal-300,
+html.high-contrast .text-teal-400 {
+  color: #ffe066 !important;
+}
+
+html.high-contrast .bg-blue-400,
+html.high-contrast .bg-blue-500,
+html.high-contrast .bg-blue-600,
+html.high-contrast .bg-indigo-400,
+html.high-contrast .bg-indigo-500,
+html.high-contrast .bg-green-400,
+html.high-contrast .bg-green-500,
+html.high-contrast .bg-yellow-400,
+html.high-contrast .bg-yellow-500,
+html.high-contrast .bg-red-400,
+html.high-contrast .bg-red-500,
+html.high-contrast .bg-emerald-400,
+html.high-contrast .bg-emerald-500,
+html.high-contrast .bg-sky-300,
+html.high-contrast .bg-sky-400,
+html.high-contrast .bg-teal-300,
+html.high-contrast .bg-teal-400,
+html.high-contrast .bg-cyan-300,
+html.high-contrast .bg-cyan-400 {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+}
+
+html.high-contrast .border-blue-200,
+html.high-contrast .border-blue-300,
+html.high-contrast .border-blue-400,
+html.high-contrast .border-blue-500,
+html.high-contrast .border-blue-600,
+html.high-contrast .border-blue-700,
+html.high-contrast .border-blue-800,
+html.high-contrast .border-indigo-400,
+html.high-contrast .border-indigo-500,
+html.high-contrast .border-emerald-200,
+html.high-contrast .border-emerald-400,
+html.high-contrast .border-emerald-500,
+html.high-contrast .border-emerald-800,
+html.high-contrast .border-yellow-200,
+html.high-contrast .border-yellow-400,
+html.high-contrast .border-yellow-500,
+html.high-contrast .border-yellow-800,
+html.high-contrast .border-red-200,
+html.high-contrast .border-red-400,
+html.high-contrast .border-red-500,
+html.high-contrast .border-red-800,
+html.high-contrast .border-cyan-300,
+html.high-contrast .border-cyan-400 {
+  border-color: #f5f5f5 !important;
+}
+
+html.high-contrast .hover\:bg-blue-400:hover,
+html.high-contrast .hover\:bg-blue-500:hover,
+html.high-contrast .hover\:bg-blue-600:hover,
+html.high-contrast .hover\:bg-blue-50:hover,
+html.high-contrast .hover\:bg-blue-100:hover,
+html.high-contrast .hover\:bg-slate-800:hover {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+}
+
+/* High contrast rules for semantic color classes */
+html.high-contrast [class*='bg-green'],
+html.high-contrast [class*='bg-emerald'] {
+  background-color: rgba(17, 17, 17, 0.95) !important;
+  border-color: #4ade80 !important;
+}
+
+html.high-contrast [class*='text-green'],
+html.high-contrast [class*='text-emerald'] {
+  color: #4ade80 !important;
+}
+
+html.high-contrast [class*='bg-yellow'] {
+  background-color: rgba(17, 17, 17, 0.95) !important;
+  border-color: #facc15 !important;
+}
+
+html.high-contrast [class*='text-yellow'] {
+  color: #facc15 !important;
+}
+
+html.high-contrast [class*='bg-red'] {
+  background-color: rgba(17, 17, 17, 0.95) !important;
+  border-color: #f87171 !important;
+}
+
+html.high-contrast [class*='text-red'] {
+  color: #f87171 !important;
+}
+
+/* Ensure all links are visible in high contrast */
+html.high-contrast a:not([class*='text-']) {
+  color: #ffe066 !important;
+  text-decoration: underline;
+}
+
+/* Ensure buttons with accent colors work in high contrast */
+html.high-contrast button[class*='bg-blue'],
+html.high-contrast a[class*='bg-blue'],
+html.high-contrast button.bg-blue-500,
+html.high-contrast button.bg-blue-600,
+html.high-contrast a.bg-blue-500,
+html.high-contrast a.bg-blue-600 {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Ensure text colors in buttons work in high contrast */
+html.high-contrast button[class*='text-blue'],
+html.high-contrast a[class*='text-blue'] {
+  color: #ffe066 !important;
+}
+
+/* Ensure hover states work in high contrast */
+html.high-contrast button:hover[class*='bg-blue'],
+html.high-contrast a:hover[class*='bg-blue'] {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+}
+
+/* Ensure borders are visible */
+html.high-contrast [class*='border-blue'],
+html.high-contrast [class*='border-green'],
+html.high-contrast [class*='border-emerald'],
+html.high-contrast [class*='border-yellow'],
+html.high-contrast [class*='border-red'],
+html.high-contrast [class*='border-indigo'],
+html.high-contrast [class*='border-cyan'],
+html.high-contrast [class*='border-sky'],
+html.high-contrast [class*='border-teal'] {
+  border-color: #f5f5f5 !important;
+}
+
+/* Ensure shadow colors work in high contrast */
+html.high-contrast [class*='shadow-blue'],
+html.high-contrast [class*='shadow-indigo'] {
+  box-shadow: 0 4px 6px -1px rgba(250, 204, 21, 0.3), 0 2px 4px -1px rgba(250, 204, 21, 0.2) !important;
+}
+
+/* Ensure gradients are replaced in high contrast */
+html.high-contrast [class*='from-blue'],
+html.high-contrast [class*='via-blue'],
+html.high-contrast [class*='to-blue'],
+html.high-contrast [class*='from-indigo'],
+html.high-contrast [class*='via-indigo'],
+html.high-contrast [class*='to-indigo'],
+html.high-contrast [class*='from-sky'],
+html.high-contrast [class*='via-sky'],
+html.high-contrast [class*='to-sky'],
+html.high-contrast [class*='from-teal'],
+html.high-contrast [class*='via-teal'],
+html.high-contrast [class*='to-teal'],
+html.high-contrast [class*='from-cyan'],
+html.high-contrast [class*='via-cyan'],
+html.high-contrast [class*='to-cyan'] {
+  background-image: none !important;
+  background-color: #000000 !important;
+}
+
+/* Ensure white text on blue backgrounds is visible in high contrast */
+html.high-contrast .text-white {
+  color: #000000 !important;
+}
+
+html.high-contrast .bg-blue-500 .text-white,
+html.high-contrast .bg-blue-600 .text-white,
+html.high-contrast button.bg-blue-500 .text-white,
+html.high-contrast a.bg-blue-500 .text-white {
+  color: #000000 !important;
+}
+
+/* High contrast rules for header */
+html.high-contrast header {
+  background-color: #000000 !important;
+  border-bottom: 2px solid #ffffff !important;
+}
+
+html.high-contrast header nav {
+  background-color: transparent !important;
+}
+
+html.high-contrast header a,
+html.high-contrast header button {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+html.high-contrast header a:hover,
+html.high-contrast header button:hover {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffe066 !important;
+}
+
+html.high-contrast header [class*='bg-gradient'] {
+  background-image: none !important;
+  background-color: #ffe066 !important;
+}
+
+html.high-contrast header [class*='bg-clip-text'] {
+  background-image: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #ffe066 !important;
+}
+
+/* Ensure header navigation links are visible */
+html.high-contrast header nav a,
+html.high-contrast header nav button {
+  color: #ffffff !important;
+  background-color: #000000 !important;
+  border: 1px solid #ffffff !important;
+}
+
+html.high-contrast header nav a:hover,
+html.high-contrast header nav button:hover,
+html.high-contrast header nav a:focus,
+html.high-contrast header nav button:focus {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+}
+
+html.high-contrast header nav a[aria-current='page'],
+html.high-contrast header nav button[aria-current='page'] {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+/* Ensure header submenus are visible in high contrast */
+html.high-contrast header [role='menu'],
+html.high-contrast header [aria-expanded='true'] + div,
+html.high-contrast header div[class*='absolute'][class*='top-full'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.3) !important;
+}
+
+html.high-contrast header [role='menuitem'],
+html.high-contrast header [role='menuitem']:hover,
+html.high-contrast header div[class*='absolute'] a,
+html.high-contrast header div[class*='absolute'] a:hover {
+  background-color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast header [role='menuitem'][aria-current='page'],
+html.high-contrast header div[class*='absolute'] a[aria-current='page'] {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+html.high-contrast header div[class*='absolute'] a:hover,
+html.high-contrast header div[class*='absolute'] a:focus {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+}
+
+/* High contrast rules for navigation icons and text */
+html.high-contrast header svg,
+html.high-contrast header [class*='lucide'] {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.high-contrast header a:hover svg,
+html.high-contrast header button:hover svg,
+html.high-contrast header a[aria-current='page'] svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+html.high-contrast header div[class*='absolute'] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.high-contrast header div[class*='absolute'] a:hover svg,
+html.high-contrast header div[class*='absolute'] a[aria-current='page'] svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* High contrast rules for navigation text */
+html.high-contrast header span[class*='text-blue'],
+html.high-contrast header span[class*='text-slate'] {
+  color: #ffffff !important;
+}
+
+html.high-contrast header a:hover span,
+html.high-contrast header button:hover span,
+html.high-contrast header a[aria-current='page'] span {
+  color: #000000 !important;
+}
+
+/* High contrast rules for mobile menu */
+html.high-contrast div[class*='fixed'][class*='right-0'][class*='z-50'] {
+  background-color: #000000 !important;
+  border-left: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast div[class*='fixed'][class*='right-0'] a,
+html.high-contrast div[class*='fixed'][class*='right-0'] button {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+html.high-contrast div[class*='fixed'][class*='right-0'] a:hover,
+html.high-contrast div[class*='fixed'][class*='right-0'] button:hover,
+html.high-contrast div[class*='fixed'][class*='right-0'] a:focus,
+html.high-contrast div[class*='fixed'][class*='right-0'] button:focus {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+}
+
+html.high-contrast div[class*='fixed'][class*='right-0'] a[aria-current='page'],
+html.high-contrast div[class*='fixed'][class*='right-0'] button[aria-current='page'] {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+/* High contrast rules for LanguageSwitcher */
+html.high-contrast [role='listbox'],
+html.high-contrast [aria-haspopup='listbox'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast [aria-haspopup='listbox']:hover,
+html.high-contrast [aria-haspopup='listbox']:focus {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+}
+
+html.high-contrast [role='listbox'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.3) !important;
+}
+
+html.high-contrast [role='listbox'] [role='option'] {
+  background-color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast [role='listbox'] [role='option'][aria-selected='true'] {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+html.high-contrast [role='listbox'] [role='option']:hover,
+html.high-contrast [role='listbox'] [role='option']:focus {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+}
+
+/* High contrast rules for search inputs */
+html.high-contrast input[type='search'],
+html.high-contrast input[type='text'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast input[type='search']:focus,
+html.high-contrast input[type='text']:focus {
+  border-color: #ffe066 !important;
+  outline: 2px solid #ffe066 !important;
+  outline-offset: 2px !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast input[type='search']::placeholder,
+html.high-contrast input[type='text']::placeholder {
+  color: #d1d5db !important;
+}
+
+/* High contrast rules for dropdowns and menus */
+html.high-contrast [aria-expanded='true'] + div,
+html.high-contrast [aria-haspopup='listbox'][aria-expanded='true'] + div,
+html.high-contrast div[class*='absolute'][class*='z-50'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* High contrast rules for navigation dropdowns specifically */
+html.high-contrast header div[class*='absolute'][class*='left-0'],
+html.high-contrast header div[class*='absolute'][class*='right-0'],
+html.high-contrast header div[class*='absolute'][class*='top-full'] {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.3) !important;
+}
+
+html.high-contrast header div[class*='absolute'] span,
+html.high-contrast header div[class*='absolute'] svg,
+html.high-contrast header div[class*='absolute'] p {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+html.high-contrast header div[class*='absolute'] a span[class*='bg-blue'],
+html.high-contrast header div[class*='absolute'] a span[class*='bg-slate'],
+html.high-contrast header div[class*='absolute'] span[class*='bg-blue'],
+html.high-contrast header div[class*='absolute'] span[class*='bg-slate'] {
+  background-color: #000000 !important;
+  border: 1px solid #ffffff !important;
+}
+
+html.high-contrast header div[class*='absolute'] a[aria-current='page'] span[class*='bg-blue'],
+html.high-contrast header div[class*='absolute'] a[aria-current='page'] span[class*='bg-slate'],
+html.high-contrast header div[class*='absolute'] a:hover span[class*='bg-blue'],
+html.high-contrast header div[class*='absolute'] a:hover span[class*='bg-slate'] {
+  background-color: #ffe066 !important;
+  border: 1px solid #ffffff !important;
 }
 
 @keyframes slideInRight {
