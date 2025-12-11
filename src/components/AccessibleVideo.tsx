@@ -29,6 +29,7 @@ export default function AccessibleVideo({
   const videoTutorial = dictionary.accessibility?.videoTutorial;
   const { 
     subtitlesEnabled, 
+    setSubtitlesEnabled,
     autoTranscripts, 
     blockAutoplay 
   } = useAccessibility();
@@ -82,6 +83,59 @@ export default function AccessibleVideo({
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [subtitlesEnabled]);
+
+  // Sincronizar estado cuando el usuario cambia los subtítulos desde el reproductor
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const checkTracksState = () => {
+      const tracks = video.textTracks;
+      let hasVisibleTracks = false;
+      
+      for (const track of tracks) {
+        if (track.mode === 'showing') {
+          hasVisibleTracks = true;
+          break;
+        }
+      }
+      
+      // Sincronizar el estado del checkbox con el estado real de los tracks
+      // Solo actualizar si hay una diferencia para evitar loops infinitos
+      if (hasVisibleTracks !== subtitlesEnabled) {
+        setSubtitlesEnabled(hasVisibleTracks);
+      }
+    };
+
+    // Escuchar cambios en los tracks individuales
+    const tracks = video.textTracks;
+    const trackChangeHandlers: Array<() => void> = [];
+    
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      const handler = () => {
+        // Usar setTimeout para evitar actualizaciones durante el render
+        setTimeout(checkTracksState, 0);
+      };
+      track.addEventListener('change', handler);
+      trackChangeHandlers.push(handler);
+    }
+
+    // También escuchar cuando se cargan los tracks
+    const handleLoadedMetadata = () => {
+      setTimeout(checkTracksState, 100);
+    };
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    return () => {
+      for (let i = 0; i < tracks.length; i++) {
+        if (trackChangeHandlers[i]) {
+          tracks[i].removeEventListener('change', trackChangeHandlers[i]);
+        }
+      }
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [subtitlesEnabled, setSubtitlesEnabled]);
 
   // Prevenir autoplay si está bloqueado
   useEffect(() => {

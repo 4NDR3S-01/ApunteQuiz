@@ -959,12 +959,20 @@ useEffect(() => {
   const errorCountRef = useRef<number>(0);
   const lastErrorTimeRef = useRef<number>(0);
   const errorToastCooldownRef = useRef<number>(0);
+  const isReconnectingRef = useRef<boolean>(false);
+  const hasNetworkErrorRef = useRef<boolean>(false);
+  const networkRetryCountRef = useRef<number>(0);
+  const MAX_NETWORK_RETRIES = 3;
   
   useEffect(() => {
     if (typeof globalThis.window === 'undefined' || !voiceControlEnabled) {
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
+      // Limpiar todos los refs cuando se desactiva
       errorCountRef.current = 0;
+      isReconnectingRef.current = false;
+      hasNetworkErrorRef.current = false;
+      networkRetryCountRef.current = 0;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -990,7 +998,6 @@ useEffect(() => {
     // Verificar permisos del micrófono
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
-        console.log('Estado de permisos del micrófono:', result.state);
         if (result.state === 'denied') {
           const errorMsg = 'Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.';
           setVoiceControlMessage(errorMsg);
@@ -1000,7 +1007,7 @@ useEffect(() => {
         }
       }).catch((err) => {
         // Algunos navegadores no soportan la API de permisos
-        console.log('No se pudo verificar permisos (normal en algunos navegadores):', err);
+        // No es necesario loguear esto, es normal en algunos navegadores
       });
     }
 
@@ -1014,7 +1021,10 @@ useEffect(() => {
       setVoiceControlMessage('Escuchando... Di un comando.');
       // Resetear contador de errores cuando inicia correctamente
       errorCountRef.current = 0;
-      console.log('Reconocimiento de voz iniciado correctamente');
+      // Limpiar flags de error de red cuando inicia correctamente
+      hasNetworkErrorRef.current = false;
+      networkRetryCountRef.current = 0;
+      isReconnectingRef.current = false;
     };
 
     recognition.onresult = (event: any) => {
@@ -1108,30 +1118,69 @@ useEffect(() => {
         }
       } else if (error === 'network') {
         setVoiceControlActive(false);
-        setVoiceControlMessage('Error de red. El reconocimiento de voz requiere conexión a internet.');
-        // Solo mostrar toast si no se ha mostrado recientemente
-        if (canShowErrorToast) {
-          showToast('Error de red. El reconocimiento de voz requiere conexión a internet. Se intentará reconectar automáticamente.', 'warning');
-          errorToastCooldownRef.current = now;
+        networkRetryCountRef.current += 1;
+        
+        // Verificar si realmente hay conexión a internet
+        // El error "network" puede ser un falso positivo (problemas temporales del servicio)
+        const hasConnection = navigator.onLine;
+        
+        if (!hasConnection) {
+          // Realmente no hay conexión
+          hasNetworkErrorRef.current = true;
+          
+          if (networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
+            setVoiceControlEnabledState(false);
+            setAutoVoiceControlActive(false);
+            const finalMsg = 'Control por voz desactivado. No hay conexión a internet. El reconocimiento de voz requiere conexión a internet.';
+            setVoiceControlMessage(finalMsg);
+            showToast(finalMsg, 'error');
+            return;
+          }
+          
+          setVoiceControlMessage(`Error de red. El reconocimiento de voz requiere conexión a internet. Intento ${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES}.`);
+          if (canShowErrorToast) {
+            showToast(`Error de red. Intentando reconectar (${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES})...`, 'warning');
+            errorToastCooldownRef.current = now;
+          }
+        } else {
+          // Hay conexión, probablemente es un error temporal del servicio de reconocimiento
+          // No marcar como error crítico, solo reintentar
+          hasNetworkErrorRef.current = false;
+          setVoiceControlMessage('Error temporal del servicio. Reintentando...');
+          
+          // Resetear contador después de algunos intentos si hay conexión
+          if (networkRetryCountRef.current > 3) {
+            networkRetryCountRef.current = 0;
+          }
         }
-        // Intentar reconectar después de un delay
-        if (voiceControlEnabled) {
+        
+        // Intentar reconectar después de un delay (más corto si hay conexión)
+        if (voiceControlEnabled && !isReconnectingRef.current) {
+          isReconnectingRef.current = true;
+          // Delay más corto si hay conexión (error temporal) vs sin conexión (error real)
+          const delay = hasNetworkErrorRef.current ? 5000 : 2000;
+          
           setTimeout(() => {
+            isReconnectingRef.current = false;
             if (voiceControlEnabled && recognitionRef.current === recognition) {
-              try {
-                recognition.start();
-              } catch (e) {
-                console.warn('No se pudo reconectar después de error de red:', e);
+              // Solo intentar si no excedimos el máximo o si hay conexión (error temporal)
+              if (!hasNetworkErrorRef.current || networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  console.warn('No se pudo reconectar después de error de red:', e);
+                  isReconnectingRef.current = false;
+                }
               }
             }
-          }, 3000);
+          }, delay);
         }
       } else if (error === 'aborted') {
-        // Reconocimiento abortado, intentar reiniciar
+        // Reconocimiento abortado, intentar reiniciar solo si no hay errores de red activos
         setVoiceControlActive(false);
-        if (voiceControlEnabled) {
+        if (voiceControlEnabled && !hasNetworkErrorRef.current && !isReconnectingRef.current && networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
           setTimeout(() => {
-            if (voiceControlEnabled && recognitionRef.current === recognition) {
+            if (voiceControlEnabled && recognitionRef.current === recognition && !hasNetworkErrorRef.current) {
               try {
                 recognition.start();
               } catch (e) {
@@ -1151,28 +1200,27 @@ useEffect(() => {
     };
 
     recognition.onend = () => {
-      console.log('Reconocimiento de voz finalizado');
+      // NO reiniciar si hay errores de red activos o si ya se está reconectando
+      if (hasNetworkErrorRef.current || isReconnectingRef.current || networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
+        setVoiceControlActive(false);
+        return;
+      }
+      
       if (voiceControlEnabled) {
         setVoiceControlActive(false);
-        // Reintentar después de un breve delay
+        // Reintentar después de un breve delay solo si no hay errores activos
         setTimeout(() => {
-          if (voiceControlEnabled && recognitionRef.current === recognition) {
+          if (
+            voiceControlEnabled && 
+            recognitionRef.current === recognition &&
+            !hasNetworkErrorRef.current &&
+            !isReconnectingRef.current &&
+            networkRetryCountRef.current <= MAX_NETWORK_RETRIES
+          ) {
             try {
-              console.log('Reiniciando reconocimiento de voz...');
               recognition.start();
             } catch (e: any) {
               console.warn('No se pudo reiniciar reconocimiento:', e);
-              setVoiceControlMessage('Reiniciando reconocimiento de voz...');
-              // Si falla, intentar de nuevo después de más tiempo
-              setTimeout(() => {
-                if (voiceControlEnabled && recognitionRef.current === recognition) {
-                  try {
-                    recognition.start();
-                  } catch (e2) {
-                    console.error('Error al reintentar reconocimiento:', e2);
-                  }
-                }
-              }, 2000);
             }
           }
         }, 1000);
@@ -1184,7 +1232,6 @@ useEffect(() => {
     try {
       recognition.start();
       recognitionRef.current = recognition;
-      console.log('Reconocimiento de voz iniciado correctamente');
     } catch (e: any) {
       const errorMsg = e?.message || 'Error desconocido';
       setVoiceControlMessage(`No se pudo iniciar el reconocimiento de voz: ${errorMsg}. Asegúrate de dar permisos al micrófono.`);
@@ -1200,6 +1247,11 @@ useEffect(() => {
         } catch {}
         recognitionRef.current = null;
       }
+      // Limpiar todos los refs al desmontar
+      isReconnectingRef.current = false;
+      hasNetworkErrorRef.current = false;
+      networkRetryCountRef.current = 0;
+      errorCountRef.current = 0;
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
     };
