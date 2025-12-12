@@ -11,6 +11,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
+import { ToastContainer } from './Toast';
 
 // Tipos para reconocimiento de voz
 interface SpeechRecognition extends EventTarget {
@@ -234,6 +236,11 @@ function applyDyslexicFont(enabled: boolean) {
 
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
   // Initialize with safe defaults to avoid hydration mismatch
+  const pathname = usePathname();
+  // Páginas principales donde el control por voz está habilitado
+  const MAIN_PAGES = ['/', '/faq', '/contacto', '/dashboard'];
+  const isMainPage = MAIN_PAGES.includes(pathname || '/');
+  
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
   const [isHydrated, setIsHydrated] = useState(false);
@@ -265,6 +272,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [textScale, setTextScaleState] = useState<number>(1);
   const clearReadingMessage = useCallback(() => setReadingMessage(null), []);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const browserNotSupportedShownRef = useRef<boolean>(false);
   const voicesLoadedRef = useRef(false);
   const inactivityTimerRef = useRef<number | null>(null);
   const lastInteractionTimeRef = useRef<number>(Date.now());
@@ -328,15 +336,15 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         }
 
         // NO reiniciar timer si el control por voz automático está activo
-        // Solo reiniciar si está desactivado
-        if (!autoVoiceControlActive && !voiceControlEnabled) {
+        // Solo reiniciar si está desactivado y estamos en una página principal
+        if (isMainPage && !autoVoiceControlActive && !voiceControlEnabled) {
           inactivityTimerRef.current = window.setTimeout(() => {
-            if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
+            if (isMainPage && !voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
               setVoiceControlEnabledState(true);
               setAutoVoiceControlActive(true);
               showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
             }
-          }, 10000);
+          }, 600000); // 10 minutos = 600000 ms
         }
       }, 300); // Debounce de 300ms
     };
@@ -347,14 +355,16 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       window.addEventListener(event, handleInteraction, { passive: true });
     });
 
-    // Iniciar timer de inactividad inicial solo si no hay interacción previa
-    inactivityTimerRef.current = window.setTimeout(() => {
-      if (!voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
-        setVoiceControlEnabledState(true);
-        setAutoVoiceControlActive(true);
-        showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
-      }
-    }, 10000);
+    // Iniciar timer de inactividad inicial solo si no hay interacción previa y estamos en una página principal
+    if (isMainPage) {
+      inactivityTimerRef.current = window.setTimeout(() => {
+        if (isMainPage && !voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
+          setVoiceControlEnabledState(true);
+          setAutoVoiceControlActive(true);
+          showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+        }
+      }, 600000); // 10 minutos = 600000 ms
+    }
 
     return () => {
       events.forEach((event) => {
@@ -367,7 +377,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         clearTimeout(interactionDebounce);
       }
     };
-  }, [voiceControlEnabled, userHasInteracted, autoVoiceControlActive, showToast]);
+  }, [voiceControlEnabled, userHasInteracted, autoVoiceControlActive, showToast, isMainPage]);
 
   // Load preferences from localStorage after hydration to avoid mismatch
   useEffect(() => {
@@ -965,7 +975,8 @@ useEffect(() => {
   const MAX_NETWORK_RETRIES = 3;
   
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined' || !voiceControlEnabled) {
+    // Solo activar reconocimiento de voz en páginas principales
+    if (typeof globalThis.window === 'undefined' || !voiceControlEnabled || !isMainPage) {
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
       // Limpiar todos los refs cuando se desactiva
@@ -988,12 +999,19 @@ useEffect(() => {
       (globalThis.window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      const errorMsg = 'Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.';
-      setVoiceControlMessage(errorMsg);
-      setVoiceControlActive(false);
-      showToast(errorMsg, 'error');
+      // Solo mostrar el mensaje una vez, no en bucle
+      if (!browserNotSupportedShownRef.current) {
+        const errorMsg = 'Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.';
+        setVoiceControlMessage(errorMsg);
+        setVoiceControlActive(false);
+        showToast(errorMsg, 'error');
+        browserNotSupportedShownRef.current = true;
+      }
       return;
     }
+    
+    // Resetear el flag si el reconocimiento está disponible
+    browserNotSupportedShownRef.current = false;
 
     // Verificar permisos del micrófono
     if (navigator.permissions) {
@@ -1254,8 +1272,9 @@ useEffect(() => {
       errorCountRef.current = 0;
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
+      browserNotSupportedShownRef.current = false;
     };
-  }, [voiceControlEnabled, pauseAllMedia, playAllMedia]);
+  }, [voiceControlEnabled, pauseAllMedia, playAllMedia, isMainPage]);
 
   // Mejorar navegación por teclado cuando está habilitada
   useEffect(() => {
@@ -1404,34 +1423,7 @@ useEffect(() => {
   return (
     <AccessibilityContext.Provider value={value}>
       {children}
-      {toasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all duration-300 ${
-                toast.type === 'success' ? 'bg-green-500 text-white border-green-600' :
-                toast.type === 'warning' ? 'bg-orange-500 text-white border-orange-600' :
-                toast.type === 'error' ? 'bg-red-500 text-white border-red-600' :
-                'bg-blue-500 text-white border-blue-600'
-              }`}
-              role="alert"
-              aria-live="polite"
-            >
-              <p className="text-sm font-medium">{toast.message}</p>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="ml-2 rounded p-1 hover:bg-white/20 transition-colors"
-                aria-label="Cerrar notificación"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </AccessibilityContext.Provider>
   );
 }

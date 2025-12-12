@@ -84,15 +84,40 @@ export default function DocumentUpload({
       formData.append('useOCR', 'false'); // Por defecto no usar OCR
       formData.append('language', 'spa'); // Idioma español por defecto
 
-      const response = await fetch('/api/process-document', {
-        method: 'POST',
-        body: formData,
-      });
+      let response: Response;
+      try {
+        response = await fetch('/api/process-document', {
+          method: 'POST',
+          body: formData,
+        });
+      } catch (fetchError) {
+        // Manejar errores de red específicamente
+        if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
+          throw new Error('Error de conexión. Verifica tu conexión a internet y que el servidor esté funcionando.');
+        }
+        throw fetchError;
+      }
 
-      const result = await response.json();
+      // Verificar si la respuesta es JSON válido
+      let result;
+      try {
+        const text = await response.text();
+        if (!text) {
+          throw new Error('El servidor no respondió. Verifica que el servidor esté funcionando.');
+        }
+        result = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error('Error al procesar la respuesta del servidor. Intenta nuevamente.');
+      }
 
       if (!response.ok || result.error) {
-        throw new Error(result.error?.message || 'Error procesando archivo');
+        const errorMessage = result.error?.message || result.message || `Error del servidor (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      // Verificar que el resultado tenga la estructura esperada
+      if (!result.data || !result.data.document) {
+        throw new Error('Respuesta inválida del servidor. Intenta nuevamente.');
       }
 
       // Actualizar estado
@@ -104,13 +129,21 @@ export default function DocumentUpload({
 
     } catch (error) {
       console.error('Error procesando archivo:', error);
-      const fallbackError = t('documentUpload.errors.unknown') as string;
-      const message = error instanceof Error ? error.message : fallbackError;
+      let errorMessage: string;
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Error de conexión. Verifica tu conexión a internet y que el servidor esté funcionando.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = t('documentUpload.errors.unknown') as string;
+      }
+      
       setStatus({ 
         status: 'error', 
-        message 
+        message: errorMessage
       });
-      onError(error instanceof Error ? error.message : (t('documentUpload.errors.default') as string));
+      onError(errorMessage);
     }
   };
 
@@ -254,7 +287,7 @@ export default function DocumentUpload({
                       {document.source_name}
                     </div>
                     <div className="text-sm text-[color:var(--text-muted)]">
-                      {t('documentUpload.processedStatus', { pages: document.pages?.length ?? 0 })}
+                      {t('documentUpload.processedStatus', { pages: document.originalPageCount ?? document.pages?.length ?? 0 })}
                     </div>
                   </div>
                 </div>

@@ -44,6 +44,18 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
     setQuizCompleted(false);
   };
 
+  // Función para normalizar texto (eliminar acentos, espacios extra, etc.)
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+      .replace(/\s+/g, ' ') // Normalizar espacios múltiples
+      .replace(/[.,;:!?]/g, '') // Eliminar puntuación
+      .trim();
+  };
+
   // Función para verificar si una respuesta es correcta
   const isAnswerCorrect = (question: Question, userAnswer: string): boolean | null => {
     if (!userAnswer) return null; // No ha respondido
@@ -55,10 +67,32 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
       const normalizedCorrect = question.correct_answer?.toLowerCase().trim();
       return normalizedUser === normalizedCorrect;
     } else {
-      // Para respuesta corta, comparación básica (puedes mejorar esto)
-      const normalizedUser = userAnswer.toLowerCase().trim();
-      const normalizedCorrect = question.correct_answer?.toLowerCase().trim();
-      return normalizedUser === normalizedCorrect;
+      // Para respuesta corta, comparación más flexible
+      const normalizedUser = normalizeText(userAnswer);
+      const normalizedCorrect = normalizeText(question.correct_answer || '');
+      
+      // Comparación exacta normalizada
+      if (normalizedUser === normalizedCorrect) {
+        return true;
+      }
+      
+      // Comparación parcial: verificar si la respuesta del usuario contiene las palabras clave
+      // o si la respuesta correcta contiene la respuesta del usuario
+      const userWords = normalizedUser.split(/\s+/).filter(w => w.length > 2);
+      const correctWords = normalizedCorrect.split(/\s+/).filter(w => w.length > 2);
+      
+      // Si hay al menos 70% de palabras coincidentes, considerar correcto
+      if (userWords.length > 0 && correctWords.length > 0) {
+        const matchingWords = userWords.filter(word => 
+          correctWords.some(correctWord => 
+            correctWord.includes(word) || word.includes(correctWord)
+          )
+        );
+        const matchPercentage = matchingWords.length / Math.max(userWords.length, correctWords.length);
+        return matchPercentage >= 0.7;
+      }
+      
+      return false;
     }
   };
 
@@ -274,25 +308,84 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
                   </div>
                 )}
 
-                {/* Input para otros tipos */}
-                {question.question_type !== 'multiple_choice' && (
+                {/* Opciones para verdadero/falso */}
+                {question.question_type === 'true_false' && (
+                  <div className="space-y-2">
+                    {['true', 'false'].map((option) => {
+                      const optionValue = option === 'true';
+                      const optionLabel = option === 'true' ? 'Verdadero' : 'Falso';
+                      const userAnswer = userAnswers[question.id];
+                      const isSelected = userAnswer?.toLowerCase().trim() === option.toLowerCase().trim();
+                      const correctAnswer = question.correct_answer?.toLowerCase().trim();
+                      const isCorrect = correctAnswer === option.toLowerCase().trim();
+                      const hasAnswered = !!userAnswer;
+                      
+                      let buttonClass = 'flex items-center space-x-3 rounded-lg border p-4 cursor-pointer transition w-full ';
+                      
+                      if (hasAnswered) {
+                        if (isSelected) {
+                          buttonClass += isCorrect
+                            ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
+                            : 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-900/20';
+                        } else if (isCorrect) {
+                          buttonClass += 'border-green-300 bg-green-50/50 dark:border-green-600 dark:bg-green-900/10';
+                        } else {
+                          buttonClass += 'border-slate-200 dark:border-slate-700 opacity-50';
+                        }
+                      } else {
+                        buttonClass += isSelected
+                          ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+                          : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800';
+                      }
+                      
+                      return (
+                        <label key={option} className={buttonClass}>
+                          <input
+                            type="radio"
+                            name={`question-${question.id}`}
+                            value={option}
+                            checked={isSelected}
+                            onChange={() => setUserAnswers(prev => ({
+                              ...prev,
+                              [question.id]: option
+                            }))}
+                            disabled={quizCompleted}
+                            className="h-4 w-4"
+                          />
+                          <span className="flex-1 font-medium">{optionLabel}</span>
+                          {hasAnswered && isSelected && (
+                            isCorrect ? (
+                              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            )
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Input para respuesta corta */}
+                {question.question_type === 'open_ended' && (
                   <div className="space-y-2">
                     <div className="relative">
                       <input
                         type="text"
-                        placeholder={question.question_type === 'true_false' ? 'Verdadero o Falso' : 'Escribe tu respuesta'}
+                        placeholder="Escribe tu respuesta"
                         value={userAnswers[question.id] || ''}
                         onChange={(e) => setUserAnswers(prev => ({
                           ...prev,
                           [question.id]: e.target.value
                         }))}
+                        disabled={quizCompleted}
                         className={`w-full rounded-lg border p-3 dark:bg-slate-800 ${
                           userAnswers[question.id] 
                             ? (isAnswerCorrect(question, userAnswers[question.id])
                                 ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
                                 : 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-900/20')
                             : 'border-slate-300 dark:border-slate-600'
-                        }`}
+                        } ${quizCompleted ? 'opacity-75 cursor-not-allowed' : ''}`}
                       />
                       {userAnswers[question.id] && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -304,10 +397,25 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
                         </div>
                       )}
                     </div>
-                    {userAnswers[question.id] && !isAnswerCorrect(question, userAnswers[question.id]) && (
+                    {userAnswers[question.id] && !isAnswerCorrect(question, userAnswers[question.id]) && !quizCompleted && (
                       <p className="text-sm text-red-600 dark:text-red-400">
                         Respuesta incorrecta. Intenta de nuevo.
                       </p>
+                    )}
+                    {/* Mostrar respuesta correcta cuando el quiz está completado */}
+                    {quizCompleted && (
+                      <div className="rounded-lg border border-green-500 bg-green-50 p-3 dark:border-green-400 dark:bg-green-900/20">
+                        <div className="text-sm font-medium text-green-900 dark:text-green-100">
+                          <span className="font-semibold">Respuesta correcta:</span>{' '}
+                          <span className="font-bold">{question.correct_answer || 'No disponible'}</span>
+                        </div>
+                        {userAnswers[question.id] && !isAnswerCorrect(question, userAnswers[question.id]) && (
+                          <div className="mt-2 text-sm text-green-800 dark:text-green-200">
+                            <span className="font-medium">Tu respuesta:</span>{' '}
+                            <span className="italic">{userAnswers[question.id]}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

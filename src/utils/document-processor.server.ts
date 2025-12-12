@@ -23,30 +23,39 @@ export async function extractTextFromPDF(file: File): Promise<PDFExtractionResul
     const textContent = new TextDecoder('utf-8', { ignoreBOM: true }).decode(uint8Array);
     
     // Filtrar solo texto legible (eliminar caracteres de control binarios)
-    const cleanText = textContent.replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, ' ')
-                                .replace(/\s+/g, ' ')
+    const cleanText = textContent.replaceAll(/[^\x20-\x7E\u00A0-\uFFFF]/g, ' ')
+                                .replaceAll(/\s+/g, ' ')
                                 .trim();
     
     if (cleanText.length > 0) {
-      // Dividir el texto en páginas aproximadas
-      const wordsPerPage = 300; // Aproximadamente 300 palabras por página
-      const words = cleanText.split(' ').filter(word => word.length > 0);
-      const actualPageCount = Math.max(1, Math.min(pageCount, Math.ceil(words.length / wordsPerPage)));
+      // Usar el número real de páginas del PDF, no una estimación
+      // Dividir el texto proporcionalmente entre las páginas reales
+      const totalChars = cleanText.length;
+      const charsPerPage = Math.ceil(totalChars / pageCount);
       
-      const wordsPerActualPage = Math.ceil(words.length / actualPageCount);
-      
-      for (let i = 0; i < actualPageCount; i++) {
-        const startWord = i * wordsPerActualPage;
-        const endWord = Math.min((i + 1) * wordsPerActualPage, words.length);
-        const pageWords = words.slice(startWord, endWord);
+      // Crear exactamente el número de páginas que tiene el PDF
+      for (let i = 0; i < pageCount; i++) {
+        const startChar = i * charsPerPage;
+        const endChar = Math.min((i + 1) * charsPerPage, totalChars);
+        const pageText = cleanText.slice(startChar, endChar).trim();
         
-        if (pageWords.length > 0) {
+        // Solo crear páginas con contenido, pero mantener el número de página correcto
+        if (pageText.length > 0) {
           pages.push({
             pageNumber: i + 1,
-            text: pageWords.join(' '),
+            text: pageText,
             confidence: 0.7 // Confianza menor porque es extracción básica
           });
         }
+      }
+      
+      // Si no se creó ninguna página con contenido, crear una página informativa
+      if (pages.length === 0) {
+        pages.push({
+          pageNumber: 1,
+          text: `PDF procesado con ${pageCount} página(s). El texto no pudo ser extraído automáticamente. Es posible que el PDF contenga imágenes o esté protegido.`,
+          confidence: 0.1
+        });
       }
     }
     
@@ -64,7 +73,8 @@ export async function extractTextFromPDF(file: File): Promise<PDFExtractionResul
       metadata: {
         title: file.name,
         creationDate: new Date(),
-        modificationDate: new Date()
+        modificationDate: new Date(),
+        pageCount: pageCount // Almacenar el número real de páginas del PDF
       }
     };
     
@@ -108,30 +118,41 @@ export async function extractTextFromPDFWithOCR(file: File, language: string = '
       }
     });
     
-    // Dividir el texto extraído en páginas aproximadas
-    const textLines = text.split('\n').filter((line: string) => line.trim());
-    const approximatePagesCount = Math.max(1, Math.ceil(textLines.length / 40)); // ~40 líneas por página para OCR
+    // Para OCR, intentar obtener el número real de páginas del PDF si es posible
+    // Si no es posible, usar una estimación conservadora basada en el tamaño del texto
+    let estimatedPageCount = 1;
+    try {
+      // Intentar obtener el número real de páginas del PDF
+      const { PDFDocument } = require('pdf-lib');
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      estimatedPageCount = pdfDoc.getPageCount();
+    } catch {
+      // Si falla, usar estimación conservadora: ~2000 caracteres por página
+      estimatedPageCount = Math.max(1, Math.ceil(text.length / 2000));
+    }
     
     const pages: Array<{ pageNumber: number; text: string; confidence?: number }> = [];
     
-    if (approximatePagesCount === 1) {
+    if (estimatedPageCount === 1) {
       pages.push({
         pageNumber: 1,
         text: text.trim(),
         confidence: confidence / 100 // Tesseract devuelve confidence 0-100
       });
     } else {
-      const linesPerPage = Math.ceil(textLines.length / approximatePagesCount);
+      // Dividir el texto proporcionalmente entre las páginas reales
+      const charsPerPage = Math.ceil(text.length / estimatedPageCount);
       
-      for (let i = 0; i < approximatePagesCount; i++) {
-        const startLine = i * linesPerPage;
-        const endLine = Math.min((i + 1) * linesPerPage, textLines.length);
-        const pageText = textLines.slice(startLine, endLine).join('\n');
+      for (let i = 0; i < estimatedPageCount; i++) {
+        const startChar = i * charsPerPage;
+        const endChar = Math.min((i + 1) * charsPerPage, text.length);
+        const pageText = text.slice(startChar, endChar).trim();
         
-        if (pageText.trim()) {
+        if (pageText.length > 0) {
           pages.push({
             pageNumber: i + 1,
-            text: pageText.trim(),
+            text: pageText,
             confidence: confidence / 100
           });
         }
@@ -143,7 +164,8 @@ export async function extractTextFromPDFWithOCR(file: File, language: string = '
       metadata: {
         title: file.name,
         creationDate: new Date(),
-        modificationDate: new Date()
+        modificationDate: new Date(),
+        pageCount: estimatedPageCount // Almacenar el número real de páginas del PDF
       }
     };
     
@@ -172,7 +194,8 @@ export function convertPDFToDocument(
     doc_id: docId || `pdf_${Date.now()}`,
     source_name: fileName,
     type: 'pdf',
-    pages
+    pages,
+    originalPageCount: extractionResult.metadata?.pageCount || pages.length // Usar el número real del PDF
   };
 }
 
@@ -300,5 +323,177 @@ export function getDocumentStats(document: DocumentInput) {
     wordCount: totalText.split(/\s+/).filter(word => word.length > 0).length,
     estimatedTokens: estimateTokens(totalText),
     hasContent: totalText.length > 0
+  };
+}
+
+/**
+ * Calcula la densidad de información de una página (palabras únicas / total palabras)
+ */
+function calculatePageDensity(text: string): number {
+  if (!text || text.trim().length === 0) return 0;
+  
+  const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  if (words.length === 0) return 0;
+  
+  const uniqueWords = new Set(words);
+  return uniqueWords.size / words.length;
+}
+
+/**
+ * Reduce el contenido de un documento para que quepa en el límite de contexto
+ * Estrategias:
+ * 1. Limitar texto por página (máximo caracteres)
+ * 2. Mantener primeras y últimas páginas, eliminar del medio
+ * 3. Priorizar páginas con mayor densidad de información
+ * 4. Eliminar texto duplicado
+ */
+export function reduceDocumentContent(
+  document: DocumentInput,
+  maxCharsPerPage: number = 1500,
+  maxPages?: number
+): {
+  document: DocumentInput;
+  reductionApplied: boolean;
+  originalStats: { pages: number; chars: number };
+  reducedStats: { pages: number; chars: number };
+  strategy: string[];
+} {
+  const strategy: string[] = [];
+  const originalStats = {
+    pages: document.type === 'pdf' ? (document.pages?.length || 0) : 1,
+    chars: document.type === 'pdf' 
+      ? (document.pages?.reduce((sum, p) => sum + p.text.length, 0) || 0)
+      : (document.text?.length || 0)
+  };
+
+  // Si no hay contenido, retornar sin cambios
+  if (document.type === 'pdf' && (!document.pages || document.pages.length === 0)) {
+    return {
+      document,
+      reductionApplied: false,
+      originalStats,
+      reducedStats: originalStats,
+      strategy: []
+    };
+  }
+
+  if (document.type === 'notes' && (!document.text || document.text.length === 0)) {
+    return {
+      document,
+      reductionApplied: false,
+      originalStats,
+      reducedStats: originalStats,
+      strategy: []
+    };
+  }
+
+  let reducedDocument: DocumentInput;
+
+  if (document.type === 'pdf' && document.pages) {
+    let pages = [...document.pages];
+
+    // Estrategia 1: Limitar texto por página
+    pages = pages.map(page => {
+      if (page.text.length > maxCharsPerPage) {
+        strategy.push(`Página ${page.page} truncada de ${page.text.length} a ${maxCharsPerPage} caracteres`);
+        // Truncar manteniendo el inicio (más importante generalmente)
+        return {
+          ...page,
+          text: page.text.substring(0, maxCharsPerPage) + '... [contenido truncado]'
+        };
+      }
+      return page;
+    });
+
+    // Estrategia 2: Si hay demasiadas páginas, mantener primeras y últimas
+    if (maxPages && pages.length > maxPages) {
+      const keepFirst = Math.ceil(maxPages * 0.4); // 40% primeras
+      const keepLast = Math.floor(maxPages * 0.3); // 30% últimas
+      const keepMiddle = maxPages - keepFirst - keepLast; // 30% del medio (más densas)
+
+      // Calcular densidad de páginas del medio
+      const middlePages = pages.slice(keepFirst, pages.length - keepLast);
+      const pagesWithDensity = middlePages.map((page, idx) => ({
+        page,
+        index: keepFirst + idx,
+        density: calculatePageDensity(page.text)
+      }));
+
+      // Ordenar por densidad y tomar las mejores
+      pagesWithDensity.sort((a, b) => b.density - a.density);
+      const bestMiddlePages = pagesWithDensity.slice(0, keepMiddle).sort((a, b) => a.index - b.index);
+
+      const firstPages = pages.slice(0, keepFirst);
+      const lastPages = pages.slice(pages.length - keepLast);
+      const selectedMiddlePages = bestMiddlePages.map(p => p.page);
+
+      pages = [...firstPages, ...selectedMiddlePages, ...lastPages];
+      
+      strategy.push(`Reducido de ${originalStats.pages} a ${pages.length} páginas (manteniendo primeras ${keepFirst}, mejores ${keepMiddle} del medio, últimas ${keepLast})`);
+    }
+
+    // Estrategia 3: Eliminar páginas con muy poco contenido o duplicadas
+    const seenTexts = new Set<string>();
+    pages = pages.filter(page => {
+      const normalizedText = page.text.toLowerCase().trim().replaceAll(/\s+/g, ' ');
+      
+      // Eliminar páginas muy cortas (menos de 50 caracteres)
+      if (page.text.length < 50) {
+        strategy.push(`Página ${page.page} eliminada (muy corta: ${page.text.length} caracteres)`);
+        return false;
+      }
+
+      // Eliminar páginas duplicadas
+      if (seenTexts.has(normalizedText)) {
+        strategy.push(`Página ${page.page} eliminada (duplicada)`);
+        return false;
+      }
+
+      seenTexts.add(normalizedText);
+      return true;
+    });
+
+    reducedDocument = {
+      ...document,
+      pages
+    };
+  } else if (document.type === 'notes' && document.text) {
+    // Para texto plano, simplemente truncar
+    let text = document.text;
+    
+    if (text.length > maxCharsPerPage * 10) { // Si es muy largo (más de 10 páginas equivalentes)
+      const maxLength = maxCharsPerPage * 5; // Limitar a ~5 páginas equivalentes
+      text = text.substring(0, maxLength) + '\n\n... [contenido truncado]';
+      strategy.push(`Texto truncado de ${document.text.length} a ${text.length} caracteres`);
+    }
+
+    reducedDocument = {
+      ...document,
+      text
+    };
+  } else {
+    // No se puede reducir, retornar original
+    return {
+      document,
+      reductionApplied: false,
+      originalStats,
+      reducedStats: originalStats,
+      strategy: []
+    };
+  }
+
+  const reducedStats = {
+    pages: reducedDocument.type === 'pdf' ? (reducedDocument.pages?.length || 0) : 1,
+    chars: reducedDocument.type === 'pdf'
+      ? (reducedDocument.pages?.reduce((sum, p) => sum + p.text.length, 0) || 0)
+      : (reducedDocument.text?.length || 0)
+  };
+
+  return {
+    document: reducedDocument,
+    reductionApplied: strategy.length > 0,
+    originalStats,
+    reducedStats,
+    strategy
   };
 }

@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const [quizzesResult, documentsResult, questionsResult, recentQuizzes] = await Promise.all([
+  const [quizzesResult, documentsResult, questionsResult, recentQuizzes, userDocuments] = await Promise.all([
     supabase.from('quizzes').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('documents').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('questions')
@@ -30,7 +30,12 @@ export default async function DashboardPage() {
       .select('id, title, education_level, created_at, total_questions')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(5)
+      .limit(5),
+    supabase
+      .from('documents')
+      .select('id, file_name, file_type, file_size, created_at, processed')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
   ]);
 
   return (
@@ -42,6 +47,7 @@ export default async function DashboardPage() {
         questions: questionsResult.count || 0
       }}
       recentQuizzes={recentQuizzes.data || []}
+      documents={userDocuments.data || []}
     />
   );
 }

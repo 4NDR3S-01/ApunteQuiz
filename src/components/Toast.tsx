@@ -31,7 +31,7 @@ export default function Toast({ message, type = 'info', duration = 5000, onClose
 
   return (
     <div
-      className={`fixed top-4 right-4 z-[100] flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all duration-300 ${
+      className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all duration-300 ${
         typeStyles[type]
       } ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
       role="alert"
@@ -58,6 +58,21 @@ interface ToastContainerProps {
 }
 
 export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
+  // Duración según el tipo de toast
+  const getDuration = (type?: 'info' | 'success' | 'warning' | 'error') => {
+    switch (type) {
+      case 'error':
+        return 7000; // 7 segundos para errores
+      case 'warning':
+        return 6000; // 6 segundos para advertencias
+      case 'success':
+        return 4000; // 4 segundos para éxito
+      case 'info':
+      default:
+        return 5000; // 5 segundos para información
+    }
+  };
+
   return (
     <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
       {toasts.map((toast) => (
@@ -65,6 +80,7 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
           key={toast.id}
           message={toast.message}
           type={toast.type}
+          duration={getDuration(toast.type)}
           onClose={() => onRemove(toast.id)}
         />
       ))}

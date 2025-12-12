@@ -5,6 +5,7 @@ export interface DocumentInput {
   type: 'pdf' | 'notes';
   pages?: PageInput[];
   text?: string;
+  originalPageCount?: number; // Número real de páginas del PDF original
 }
 
 export interface PageInput {

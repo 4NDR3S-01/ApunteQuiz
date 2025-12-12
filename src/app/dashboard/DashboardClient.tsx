@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import QuizGenerator from '@/components/QuizGenerator';
 import AppDownloadSection from '@/components/AppDownloadSection';
-import { LogOut, BarChart3, FileText, HelpCircle, Sparkles, Clock, BookOpen } from 'lucide-react';
+import { LogOut, BarChart3, FileText, HelpCircle, Sparkles, Clock, BookOpen, Trash2 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 type Quiz = Database['public']['Tables']['quizzes']['Row'];
+
+type Document = Database['public']['Tables']['documents']['Row'];
 
 interface DashboardClientProps {
   user: User;
@@ -19,13 +21,16 @@ interface DashboardClientProps {
     questions: number;
   };
   recentQuizzes: Quiz[];
+  documents: Document[];
 }
 
 type ViewMode = 'dashboard' | 'generator';
 
-export default function DashboardClient({ user, statsData, recentQuizzes }: Readonly<DashboardClientProps>) {
+export default function DashboardClient({ user, statsData, recentQuizzes, documents: initialDocuments }: Readonly<DashboardClientProps>) {
   const [view, setView] = useState<ViewMode>('dashboard');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -38,6 +43,35 @@ export default function DashboardClient({ user, statsData, recentQuizzes }: Read
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    setDeletingDocId(documentId);
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar el documento');
+      }
+
+      // Actualizar la lista de documentos localmente
+      setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+      
+      // Refrescar la página para actualizar las estadísticas
+      router.refresh();
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar el documento');
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -274,6 +308,78 @@ export default function DashboardClient({ user, statsData, recentQuizzes }: Read
                 )}
               </div>
             )}
+
+            {/* Sección de Documentos */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-[color:var(--foreground)]">
+                  Mis Documentos
+                </h3>
+              </div>
+
+              {documents.length > 0 ? (
+                <div className="space-y-3">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
+                              <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-[color:var(--foreground)]">
+                                {doc.file_name}
+                              </h4>
+                              <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
+                                <span className="flex items-center space-x-1">
+                                  <span>{doc.file_type || 'Desconocido'}</span>
+                                </span>
+                                {doc.file_size && (
+                                  <span className="flex items-center space-x-1">
+                                    <span>{(doc.file_size / 1024).toFixed(2)} KB</span>
+                                  </span>
+                                )}
+                                <span className="flex items-center space-x-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{new Date(doc.created_at || '').toLocaleDateString('es-ES', { 
+                                    day: 'numeric', 
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}</span>
+                                </span>
+                                {doc.processed && (
+                                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                    Procesado
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteDocument(doc.id)}
+                          disabled={deletingDocId === doc.id}
+                          className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          {deletingDocId === doc.id ? 'Eliminando...' : 'Eliminar'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="a11y-card rounded-xl p-8 text-center">
+                  <FileText className="mx-auto h-10 w-10 text-slate-400" />
+                  <p className="mt-3 text-sm text-[color:var(--text-muted)]">
+                    No hay documentos guardados
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

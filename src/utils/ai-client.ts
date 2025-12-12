@@ -9,7 +9,107 @@ export interface AIProvider {
 }
 
 /**
+ * Límites de contexto por proveedor y modelo (en tokens)
+ * Dejamos margen para la respuesta (max_tokens)
+ */
+const CONTEXT_LIMITS: Record<string, Record<string, number>> = {
+  groq: {
+    'llama-3.1-8b-instant': 6000, // ~8K total, dejamos 2K para respuesta
+    'llama-3.1-70b-versatile': 120000,
+    'mixtral-8x7b-32768': 28000,
+    default: 6000
+  },
+  openai: {
+    'gpt-4o-mini': 100000,
+    'gpt-4o': 100000,
+    'gpt-4-turbo': 100000,
+    default: 100000
+  },
+  anthropic: {
+    'claude-3-5-sonnet-20241022': 180000,
+    'claude-3-opus-20240229': 180000,
+    default: 180000
+  }
+};
+
+/**
+ * Estima el número de tokens en un texto
+ * Aproximación: ~4 caracteres por token en español/inglés
+ */
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  // Estimación más precisa: contar palabras y caracteres
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const chars = text.length;
+  // Promedio: ~1.3 tokens por palabra, o ~4 caracteres por token
+  return Math.ceil(Math.max(words * 1.3, chars / 4));
+}
+
+/**
+ * Calcula el tamaño del prompt completo (system + user) en tokens
+ */
+export function calculatePromptSize(params: UserPromptParams): {
+  systemTokens: number;
+  userTokens: number;
+  totalTokens: number;
+  systemChars: number;
+  userChars: number;
+  totalChars: number;
+} {
+  const systemPrompt = SYSTEM_PROMPT;
+  const userPrompt = createUserPrompt(params);
+  
+  const systemTokens = estimateTokens(systemPrompt);
+  const userTokens = estimateTokens(userPrompt);
+  const totalTokens = systemTokens + userTokens;
+  
+  return {
+    systemTokens,
+    userTokens,
+    totalTokens,
+    systemChars: systemPrompt.length,
+    userChars: userPrompt.length,
+    totalChars: systemPrompt.length + userPrompt.length
+  };
+}
+
+/**
+ * Obtiene el límite de contexto para un proveedor y modelo específicos
+ */
+export function getContextLimit(provider: AIProvider): number {
+  const providerLimits = CONTEXT_LIMITS[provider.name];
+  if (!providerLimits) {
+    // Default conservador
+    return 6000;
+  }
+  
+  return providerLimits[provider.model] || providerLimits.default || 6000;
+}
+
+/**
+ * Verifica si el prompt excede el límite de contexto del proveedor
+ */
+export function exceedsContextLimit(params: UserPromptParams, provider: AIProvider): {
+  exceeds: boolean;
+  promptSize: number;
+  limit: number;
+  excess: number;
+} {
+  const promptSize = calculatePromptSize(params);
+  const limit = getContextLimit(provider);
+  const exceeds = promptSize.totalTokens > limit;
+  
+  return {
+    exceeds,
+    promptSize: promptSize.totalTokens,
+    limit,
+    excess: exceeds ? promptSize.totalTokens - limit : 0
+  };
+}
+
+/**
  * Maneja errores de respuesta HTTP de APIs
+ * Detecta específicamente errores de contexto excedido
  */
 async function handleAPIError(response: Response, providerName: string): Promise<never> {
   try {
@@ -19,13 +119,36 @@ async function handleAPIError(response: Response, providerName: string): Promise
       : (() => {
           try {
             const errorJson = JSON.parse(errorData);
-            return errorJson.error?.message || errorData;
-          } catch {
+            const message = errorJson.error?.message || errorData;
+            const errorType = errorJson.error?.type || '';
+            const errorCode = errorJson.error?.code || '';
+            
+            // Detectar específicamente context_length_exceeded
+            if (
+              errorCode === 'context_length_exceeded' ||
+              errorType === 'invalid_request_error' ||
+              message.toLowerCase().includes('context_length') ||
+              message.toLowerCase().includes('reduce the length') ||
+              message.toLowerCase().includes('maximum context length')
+            ) {
+              throw new Error(`CONTEXT_LENGTH_EXCEEDED: ${message}`);
+            }
+            
+            return message;
+          } catch (parseError) {
+            // Si ya lanzamos CONTEXT_LENGTH_EXCEEDED, propagarlo
+            if (parseError instanceof Error && parseError.message.includes('CONTEXT_LENGTH_EXCEEDED')) {
+              throw parseError;
+            }
             return errorData;
           }
         })();
     throw new Error(`Error de ${providerName}: ${errorMessage}`);
   } catch (error) {
+    // Propagar errores de contexto excedido
+    if (error instanceof Error && error.message.includes('CONTEXT_LENGTH_EXCEEDED')) {
+      throw error;
+    }
     if (error instanceof Error && error.message.includes(`Error de ${providerName}:`)) {
       throw error;
     }
@@ -97,10 +220,24 @@ export async function generateQuizWithOpenAI(
 
     return parseAIResponse(content);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    // Mejorar mensaje de error para context_length_exceeded
+    if (errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
+        errorMessage.includes('reduce the length') ||
+        errorMessage.includes('context_length_exceeded')) {
+      return {
+        error: {
+          message: 'CONTEXT_LENGTH_EXCEEDED: El documento es demasiado extenso. Se necesita reducir el contenido.',
+          where: 'generateQuizWithOpenAI'
+        }
+      };
+    }
+    
     console.error('Error generando quiz con OpenAI:', error);
     return {
       error: {
-        message: error instanceof Error ? error.message : 'Error desconocido',
+        message: errorMessage,
         where: 'generateQuizWithOpenAI'
       }
     };
@@ -155,10 +292,24 @@ export async function generateQuizWithGroq(
 
     return parseAIResponse(content);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    // Mejorar mensaje de error para context_length_exceeded
+    if (errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
+        errorMessage.includes('reduce the length') ||
+        errorMessage.includes('context_length_exceeded')) {
+      return {
+        error: {
+          message: 'CONTEXT_LENGTH_EXCEEDED: El documento es demasiado extenso. Se necesita reducir el contenido.',
+          where: 'generateQuizWithGroq'
+        }
+      };
+    }
+    
     console.error('Error generando quiz con Groq:', error);
     return {
       error: {
-        message: error instanceof Error ? error.message : 'Error desconocido',
+        message: errorMessage,
         where: 'generateQuizWithGroq'
       }
     };
@@ -213,10 +364,24 @@ export async function generateQuizWithClaude(
 
     return parseAIResponse(content);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    // Mejorar mensaje de error para context_length_exceeded
+    if (errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
+        errorMessage.includes('reduce the length') ||
+        errorMessage.includes('context_length_exceeded')) {
+      return {
+        error: {
+          message: 'CONTEXT_LENGTH_EXCEEDED: El documento es demasiado extenso. Se necesita reducir el contenido.',
+          where: 'generateQuizWithClaude'
+        }
+      };
+    }
+    
     console.error('Error generando quiz con Claude:', error);
     return {
       error: {
-        message: error instanceof Error ? error.message : 'Error desconocido',
+        message: errorMessage,
         where: 'generateQuizWithClaude'
       }
     };
@@ -448,7 +613,7 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     
     fixedQuestions.forEach(pregunta => {
       // Normalizar el enunciado para comparación
-      const normalizedEnunciado = pregunta.enunciado.toLowerCase().trim().replace(/\s+/g, ' ');
+      const normalizedEnunciado = pregunta.enunciado.toLowerCase().trim().replaceAll(/\s+/g, ' ');
       
       if (!seenQuestions.has(normalizedEnunciado)) {
         seenQuestions.add(normalizedEnunciado);

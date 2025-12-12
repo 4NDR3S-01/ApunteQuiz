@@ -29,5 +29,6 @@ export interface PDFExtractionResult {
     producer?: string;
     creationDate?: Date;
     modificationDate?: Date;
+    pageCount?: number; // Número real de páginas del PDF
   };
 }

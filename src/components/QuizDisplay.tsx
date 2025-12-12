@@ -241,12 +241,21 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
             <div className="mt-3">
               <h4 className="mb-1 font-medium text-[color:var(--foreground)]">Puntos clave:</h4>
               <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
-                {(quizResult.summary.key_points || []).map((point) => (
-                  <li key={point.substring(0, 50)} className="flex items-start space-x-2">
-                    <span className="mt-1 text-blue-500 dark:text-blue-300">•</span>
-                    <span>{point}</span>
-                  </li>
-                ))}
+                {(quizResult.summary.key_points || []).map((point, index) => {
+                  // Manejar tanto strings como objetos con concepto y descripcion
+                  const isObject = typeof point === 'object' && point !== null;
+                  const key = isObject ? (point as any).concepto || `point-${index}` : point.substring(0, 50);
+                  const content = isObject 
+                    ? `${(point as any).concepto}: ${(point as any).descripcion || ''}`
+                    : point;
+                  
+                  return (
+                    <li key={key} className="flex items-start space-x-2">
+                      <span className="mt-1 text-blue-500 dark:text-blue-300">•</span>
+                      <span>{content}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateGenerateQuizRequest } from '@/lib/validation';
-import { generateQuiz, validateAndFixQuizResponse, calculateQuizQuality, AIProvider } from '@/utils/ai-client';
+import { 
+  generateQuiz, 
+  validateAndFixQuizResponse, 
+  calculateQuizQuality, 
+  AIProvider,
+  calculatePromptSize,
+  exceedsContextLimit,
+  getContextLimit
+} from '@/utils/ai-client';
 import { UserPromptParams } from '@/prompts/user';
 import { logger, startTimer } from '@/utils/logger';
+import { reduceDocumentContent } from '@/utils/document-processor.server';
 import { 
   formatErrorResponse, 
   ValidationError, 
@@ -75,23 +84,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar proporción de preguntas vs contenido
-    const wordsCount = totalTextLength / 5; // Aproximadamente 5 caracteres por palabra
-    const maxQuestionsForContent = Math.floor(wordsCount / 50); // 1 pregunta por cada ~50 palabras
+    // Calcular palabras reales (no estimación)
+    const fullText = requestData.documents.reduce((text, doc) => {
+      if (doc.text) return text + doc.text;
+      if (doc.pages) return text + doc.pages.map(p => p.text).join(' ');
+      return text;
+    }, '');
+    const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
+    // Escala progresiva basada en el contenido:
+    // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
+    // - Máximo generoso: 1 pregunta por cada 50 palabras (extensivo)
+    const recommendedBalanced = Math.floor(wordsCount / 100);
+    const maxGenerous = Math.floor(wordsCount / 50);
+    const maxQuestionsForContent = Math.min(maxGenerous, 100);
+    const recommendedMax = Math.min(recommendedBalanced, 100);
     
-    if (requestData.n_preguntas > maxQuestionsForContent) {
+    if (requestData.n_preguntas > maxQuestionsForContent && maxQuestionsForContent > 0) {
       logger.warn('Too many questions requested for content length', {
         requestId,
         textLength: totalTextLength,
         wordsCount,
         nPreguntas: requestData.n_preguntas,
-        maxRecommended: maxQuestionsForContent
+        maxRecommended: maxQuestionsForContent,
+        recommendedBalanced: recommendedMax
       }, 'GENERATE_QUIZ_API');
       
-      throw new ValidationError(`El documento es demasiado corto para generar ${requestData.n_preguntas} preguntas. Se recomienda máximo ${maxQuestionsForContent} preguntas para este contenido.`);
+      if (requestData.n_preguntas <= recommendedMax * 1.2) {
+        // Si está cerca del recomendado equilibrado, sugerir ese rango
+        throw new ValidationError(`Se recomienda máximo ${recommendedMax} preguntas para un quiz equilibrado. Puedes usar hasta ${maxQuestionsForContent} preguntas para un quiz más extensivo.`);
+      } else {
+        throw new ValidationError(`El documento es demasiado corto para generar ${requestData.n_preguntas} preguntas. Máximo recomendado: ${maxQuestionsForContent} preguntas.`);
+      }
     }
 
     // Preparar parámetros para el prompt
-    const promptParams: UserPromptParams = {
+    let promptParams: UserPromptParams = {
       idioma: requestData.idioma,
       nivel: requestData.nivel,
       n_preguntas: requestData.n_preguntas,
@@ -103,10 +130,196 @@ export async function POST(request: NextRequest) {
       titulo_quiz_o_tema: requestData.titulo_quiz_o_tema
     };
 
+    // Validar tamaño del prompt y reducir contenido si es necesario
+    const contextCheck = exceedsContextLimit(promptParams, aiProvider);
+    const promptSize = calculatePromptSize(promptParams);
+    
+    logger.info('Prompt size validation', {
+      requestId,
+      provider: aiProvider.name,
+      model: aiProvider.model,
+      promptTokens: promptSize.totalTokens,
+      promptChars: promptSize.totalChars,
+      systemTokens: promptSize.systemTokens,
+      userTokens: promptSize.userTokens,
+      contextLimit: contextCheck.limit,
+      exceeds: contextCheck.exceeds,
+      excess: contextCheck.excess
+    }, 'GENERATE_QUIZ_API');
+
+    let contentReductionApplied = false;
+    let reductionStrategies: string[] = [];
+
+    // Si excede el límite, reducir contenido automáticamente
+    if (contextCheck.exceeds) {
+      logger.warn('Prompt exceeds context limit, applying content reduction', {
+        requestId,
+        provider: aiProvider.name,
+        excessTokens: contextCheck.excess,
+        excessPercent: ((contextCheck.excess / contextCheck.limit) * 100).toFixed(1) + '%'
+      }, 'GENERATE_QUIZ_API');
+
+      // Calcular cuántas páginas mantener basado en el límite
+      // Estimación: ~1500 caracteres por página = ~375 tokens por página
+      const tokensPerPage = 375;
+      const maxPagesNeeded = Math.floor((contextCheck.limit - promptSize.systemTokens - 1000) / tokensPerPage);
+      const maxCharsPerPage = 1500;
+
+      // Reducir cada documento
+      const reducedDocuments = requestData.documents.map(doc => {
+        const reduction = reduceDocumentContent(
+          doc,
+          maxCharsPerPage,
+          maxPagesNeeded > 0 ? maxPagesNeeded : undefined
+        );
+
+        if (reduction.reductionApplied) {
+          contentReductionApplied = true;
+          reductionStrategies.push(...reduction.strategy);
+          
+          logger.info('Document content reduced', {
+            requestId,
+            docId: doc.doc_id,
+            originalPages: reduction.originalStats.pages,
+            reducedPages: reduction.reducedStats.pages,
+            originalChars: reduction.originalStats.chars,
+            reducedChars: reduction.reducedStats.chars,
+            reductionPercent: ((1 - reduction.reducedStats.chars / reduction.originalStats.chars) * 100).toFixed(1) + '%',
+            strategies: reduction.strategy
+          }, 'GENERATE_QUIZ_API');
+        }
+
+        return reduction.document;
+      });
+
+      // Actualizar promptParams con documentos reducidos
+      promptParams = {
+        ...promptParams,
+        documents: reducedDocuments
+      };
+
+      // Revalidar después de la reducción
+      const newContextCheck = exceedsContextLimit(promptParams, aiProvider);
+      const newPromptSize = calculatePromptSize(promptParams);
+
+      logger.info('Prompt size after reduction', {
+        requestId,
+        newPromptTokens: newPromptSize.totalTokens,
+        newPromptChars: newPromptSize.totalChars,
+        stillExceeds: newContextCheck.exceeds,
+        remainingExcess: newContextCheck.excess
+      }, 'GENERATE_QUIZ_API');
+
+      // Si aún excede después de la reducción, lanzar error con sugerencias
+      if (newContextCheck.exceeds) {
+        const limitPages = Math.floor(contextCheck.limit / 375); // Aproximación de páginas
+        const currentPages = Math.ceil(newPromptSize.totalTokens / 375);
+        
+        throw new ValidationError(
+          `El documento es demasiado extenso para generar el quiz. ` +
+          `El modelo puede procesar aproximadamente ${limitPages} páginas de texto, pero tu documento tiene el equivalente a ${currentPages} páginas. ` +
+          `\n\nSugerencias para resolver esto:\n` +
+          `• Divide el documento en partes más pequeñas y genera quizzes separados\n` +
+          `• Reduce el número de preguntas solicitadas (actualmente: ${requestData.n_preguntas})\n` +
+          `• Elimina páginas con tablas o imágenes muy extensas del documento\n` +
+          `• Si el documento tiene muchas páginas, selecciona solo las secciones más importantes`,
+          {
+            requestId,
+            provider: aiProvider.name,
+            model: aiProvider.model,
+            limit: contextCheck.limit,
+            currentSize: newPromptSize.totalTokens,
+            excess: newContextCheck.excess,
+            reductionApplied: contentReductionApplied,
+            limitPages,
+            currentPages
+          }
+        );
+      }
+    }
+
+    // Función helper para generar quiz con manejo de context_length_exceeded
+    const generateQuizWithContextRetry = async (
+      params: UserPromptParams,
+      provider: AIProvider,
+      attempt: number = 1
+    ): Promise<GenerateQuizResponse> => {
+      try {
+        return await generateQuiz(params, provider);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Detectar error de contexto excedido
+        if (
+          errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') ||
+          errorMessage.includes('context_length_exceeded') ||
+          errorMessage.includes('reduce the length') ||
+          errorMessage.includes('maximum context length')
+        ) {
+          logger.warn('Context length exceeded during generation, applying aggressive reduction', {
+            requestId,
+            provider: provider.name,
+            attempt,
+            errorMessage
+          }, 'GENERATE_QUIZ_API');
+
+          // Si es el primer intento y no se aplicó reducción antes, aplicar reducción agresiva
+          if (attempt === 1 && !contentReductionApplied) {
+            const tokensPerPage = 300; // Reducción más agresiva
+            const maxPagesNeeded = Math.floor((getContextLimit(provider) - promptSize.systemTokens - 2000) / tokensPerPage);
+            const maxCharsPerPage = 1000; // Más restrictivo
+
+            const reducedDocuments = params.documents.map(doc => {
+              const reduction = reduceDocumentContent(doc, maxCharsPerPage, maxPagesNeeded);
+              if (reduction.reductionApplied) {
+                reductionStrategies.push(...reduction.strategy);
+              }
+              return reduction.document;
+            });
+
+            const newParams = { ...params, documents: reducedDocuments };
+            contentReductionApplied = true;
+
+            logger.info('Applied aggressive content reduction for context retry', {
+              requestId,
+              maxPages: maxPagesNeeded,
+              maxCharsPerPage
+            }, 'GENERATE_QUIZ_API');
+
+            // Retry con contenido reducido
+            return generateQuizWithContextRetry(newParams, provider, attempt + 1);
+          } else {
+            // Ya se intentó reducir, lanzar error descriptivo
+            const limitPages = Math.floor(getContextLimit(provider) / 375);
+            throw new ValidationError(
+              `El documento es demasiado extenso para procesar. ` +
+              `Aunque se intentó reducir automáticamente el contenido, aún excede el límite del modelo. ` +
+              `\n\nPor favor, intenta una de estas opciones:\n` +
+              `• Divide tu documento en 2-3 partes más pequeñas y genera quizzes separados\n` +
+              `• Reduce el número de preguntas a ${Math.max(1, Math.floor(requestData.n_preguntas / 2))} o menos\n` +
+              `• Selecciona solo las páginas más importantes del documento (máximo ~${limitPages} páginas)\n` +
+              `• Si el documento tiene muchas tablas o imágenes, considera extraer solo el texto principal`,
+              {
+                requestId,
+                provider: provider.name,
+                model: provider.model,
+                limit: getContextLimit(provider),
+                attempt,
+                limitPages
+              }
+            );
+          }
+        }
+        
+        // Si no es error de contexto, propagar el error
+        throw error;
+      }
+    };
+
     // Generar el quiz con retry, timeout y fallback automático
     let aiResponse = await withTimeout(
       retryWithBackoff(
-        () => generateQuiz(promptParams, aiProvider),
+        () => generateQuizWithContextRetry(promptParams, aiProvider),
         3,
         1000,
         { operation: 'generate_quiz' }
@@ -282,7 +495,11 @@ export async function POST(request: NextRequest) {
         requestId,
         provider: aiProvider.name,
         generatedAt: new Date().toISOString(),
-        quality_metrics: qualityMetrics
+        quality_metrics: qualityMetrics,
+        content_reduction: contentReductionApplied ? {
+          applied: true,
+          strategies: reductionStrategies
+        } : undefined
       }
     });
 

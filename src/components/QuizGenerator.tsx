@@ -74,16 +74,47 @@ function validateQuizConfig(config: QuizConfig, documents: DocumentInput[]): str
 
   // Validar contenido suficiente vs número de preguntas solicitadas
   const totalTextLength = documents.reduce((acc, doc) => {
-    if (doc.text) return acc + doc.text.length;
+    if (doc.text) return acc + (doc.text?.length ?? 0);
     if (doc.pages) return acc + doc.pages.reduce((pAcc, p) => pAcc + (p.text?.length ?? 0), 0);
     return acc;
   }, 0);
 
-  const wordsCount = totalTextLength / 5;
-  const maxRecommendedQuestions = Math.floor(wordsCount / 50);
+  // Calcular palabras reales (no estimación)
+  const fullText = documents.reduce((text, doc) => {
+    if (doc.text) return text + (doc.text ?? '');
+    if (doc.pages) return text + doc.pages.map(p => p.text ?? '').join(' ');
+    return text;
+  }, '');
+  const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
+  // Escala progresiva basada en el contenido:
+  // - Mínimo conservador: 1 pregunta por cada 300 palabras (calidad)
+  // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
+  // - Máximo generoso: 1 pregunta por cada 50 palabras (extensivo)
+  const minConservative = Math.max(1, Math.floor(wordsCount / 300));
+  const recommendedBalanced = Math.floor(wordsCount / 100);
+  const maxGenerous = Math.floor(wordsCount / 50);
+  
+  // Usar el rango equilibrado como recomendación principal
+  const minRecommendedQuestions = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
+  const maxRecommendedQuestions = Math.min(Math.max(recommendedBalanced, minRecommendedQuestions), 100);
+  
+  // Calcular también el máximo generoso para validación
+  const maxGenerousLimited = Math.min(maxGenerous, 100);
 
-  if (config.n_preguntas > maxRecommendedQuestions && maxRecommendedQuestions > 0) {
-    errors.push(`Para el contenido disponible se recomiendan máximo ${maxRecommendedQuestions} preguntas`);
+  // Validar contra el máximo generoso (1 por 50)
+  // Solo mostrar error si excede el máximo absoluto, no si está en el rango extensivo
+  if (maxGenerousLimited > 0 && config.n_preguntas > maxGenerousLimited) {
+    errors.push(`El contenido no es suficiente para ${config.n_preguntas} preguntas. Máximo recomendado: ${maxGenerousLimited} preguntas`);
+  }
+  // No mostrar error si está entre el recomendado y el generoso, ya que la UI lo muestra
+  
+  if (config.n_preguntas < minRecommendedQuestions) {
+    errors.push(`Para el contenido disponible se recomiendan al menos ${minRecommendedQuestions} preguntas`);
+  }
+  
+  // Validar que haya contenido mínimo
+  if (totalTextLength < 500) {
+    errors.push('El documento contiene muy poco texto. Asegúrate de que el PDF tenga contenido textual suficiente.');
   }
 
   return errors;
@@ -439,15 +470,39 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
   // Calcular métricas del contenido
   const totalTextLength = useMemo(() => {
     return documents.reduce((total, doc) => {
-      if (doc.text) return total + doc.text.length;
+      if (doc.text) return total + (doc.text?.length ?? 0);
       if (doc.pages) return total + doc.pages.reduce((pageTotal, page) => pageTotal + (page.text?.length ?? 0), 0);
       return total;
     }, 0);
   }, [documents]);
 
-  const wordsCount = Math.floor(totalTextLength / 5);
-  const maxRecommendedQuestions = Math.floor(wordsCount / 50);
-  const isQuestionCountOptimal = config.n_preguntas <= maxRecommendedQuestions;
+  // Calcular palabras reales (no estimación)
+  const wordsCount = useMemo(() => {
+    const fullText = documents.reduce((text, doc) => {
+      if (doc.text) return text + (doc.text ?? '');
+      if (doc.pages) return text + doc.pages.map(p => p.text ?? '').join(' ');
+      return text;
+    }, '');
+    return fullText.split(/\s+/).filter(word => word.length > 0).length;
+  }, [documents]);
+
+  // Escala progresiva basada en el contenido:
+  // - Mínimo conservador: 1 pregunta por cada 300 palabras (calidad)
+  // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
+  // - Máximo generoso: 1 pregunta por cada 50 palabras (extensivo)
+  const minConservative = Math.max(1, Math.floor(wordsCount / 300));
+  const recommendedBalanced = Math.floor(wordsCount / 100);
+  const maxGenerous = Math.floor(wordsCount / 50);
+  
+  // Usar el rango equilibrado como recomendación principal
+  const minRecommendedQuestions = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
+  const maxRecommendedQuestions = Math.min(Math.max(recommendedBalanced, minRecommendedQuestions), 100);
+  
+  // Rango óptimo: entre el mínimo conservador y el recomendado equilibrado
+  const isQuestionCountOptimal = config.n_preguntas >= minRecommendedQuestions && config.n_preguntas <= maxRecommendedQuestions;
+  
+  // Calcular también el máximo generoso para mostrar como opción
+  const maxGenerousLimited = Math.min(maxGenerous, 100);
 
   const updateProporcion = (tipo: keyof QuizConfig['proporcion_tipos'], value: number) => {
     const newProporcion: QuizConfig['proporcion_tipos'] = { ...config.proporcion_tipos };
@@ -497,7 +552,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
               </svg>
               <span>{doc.source_name}</span>
               <span className="text-xs text-[color:var(--text-muted)]">
-                ({doc.type === 'pdf' ? `${doc.pages?.length ?? 0} páginas` : 'texto'})
+                ({doc.type === 'pdf' ? `${doc.originalPageCount ?? doc.pages?.length ?? 0} páginas` : 'texto'})
               </span>
             </li>
           ))}
@@ -546,7 +601,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                 id="numero-preguntas"
                 inputMode="numeric"
                 type="number"
-                min={5}
+                min={1}
                 max={50}
                 value={config.n_preguntas}
                 onChange={(e) => updateConfig({ n_preguntas: Number.isNaN(parseInt(e.target.value, 10)) ? 10 : parseInt(e.target.value, 10) })}
@@ -554,7 +609,7 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                   isQuestionCountOptimal ? 'focus-visible:ring-blue-500/60' : 'focus-visible:ring-amber-500/60 border-amber-300'
                 }`}
               />
-              {maxRecommendedQuestions > 0 && (
+              {(minRecommendedQuestions > 0 || maxRecommendedQuestions > 0) && (
                 <div
                   className={`text-xs p-2 rounded ${
                     isQuestionCountOptimal
@@ -580,9 +635,16 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                         />
                       </svg>
                     )}
-                    <span>{isQuestionCountOptimal ? `Óptimo para el contenido (máx. ${maxRecommendedQuestions})` : `Se recomienda máximo ${maxRecommendedQuestions} preguntas`}</span>
+                    <span>
+                      {isQuestionCountOptimal 
+                        ? `Óptimo para el contenido (${minRecommendedQuestions}-${maxRecommendedQuestions} preguntas)` 
+                        : config.n_preguntas < minRecommendedQuestions
+                        ? `Se recomienda al menos ${minRecommendedQuestions} preguntas para este contenido`
+                        : config.n_preguntas <= maxGenerousLimited
+                        ? `Rango extensivo: ${maxRecommendedQuestions + 1}-${maxGenerousLimited} preguntas. Recomendado: ${minRecommendedQuestions}-${maxRecommendedQuestions} preguntas`
+                        : `Se recomienda máximo ${maxGenerousLimited} preguntas para este contenido`}
+                    </span>
                   </p>
-                  <p className="text-xs mt-1">Contenido: ~{wordsCount.toLocaleString()} palabras</p>
                 </div>
               )}
             </div>
