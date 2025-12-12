@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useMemo, useState } from 'react';
+import { getEnhancedErrorMessage } from '@/utils/error-messages';
 import { DocumentInput, GenerateQuizRequest, QuizResult, NivelEstudio, TipoPregunta } from '@/types';
 import DocumentUpload from './DocumentUpload';
 import QuizDisplay from './QuizDisplay';
@@ -126,6 +127,7 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
   const [config, setConfig] = useState<QuizConfig>(defaultConfig);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [error, setError] = useState<string>('');
+  const [generationProgress, setGenerationProgress] = useState(0);
 
   // ✅ FIX: calcular isFormValid en el padre
   const isFormValid = useMemo(() => validateQuizConfig(config, documents).length === 0, [config, documents]);
@@ -185,6 +187,7 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
   const generateQuiz = async () => {
     setStep('generating');
     setError('');
+    setGenerationProgress(0);
 
     try {
       const request: GenerateQuizRequest = {
@@ -192,24 +195,44 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
         documents
       };
 
-      const response = await fetch('/api/generate-quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
-      });
+      // Simular progreso mientras se genera
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 1000);
 
-      const result = await response.json();
+      // Timeout de 90 segundos
+      const timeoutId = setTimeout(() => {
+        clearInterval(progressInterval);
+        throw new Error('La generación del quiz está tomando demasiado tiempo. Por favor, intenta de nuevo con un documento más corto.');
+      }, 90000);
 
-      if (!response.ok) {
-        throw new Error(result.error?.message || `Error HTTP ${response.status}: ${result.message || 'Error generando quiz'}`);
-      }
+      try {
+        const response = await fetch('/api/generate-quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+          signal: AbortSignal.timeout(85000) // 85 segundos para el fetch
+        });
 
-      if (!result.success || !result.data?.result) {
-        throw new Error(result.error?.message || 'Respuesta inválida del servidor');
-      }
+        const result = await response.json();
 
-      const quizResult = result.data.result as QuizResult;
-      setQuizResult(quizResult);
+        clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        setGenerationProgress(100);
+
+        if (!response.ok) {
+          throw new Error(result.error?.message || `Error HTTP ${response.status}: ${result.message || 'Error generando quiz'}`);
+        }
+
+        if (!result.success || !result.data?.result) {
+          throw new Error(result.error?.message || 'Respuesta inválida del servidor');
+        }
+
+        const quizResult = result.data.result as QuizResult;
+        setQuizResult(quizResult);
 
       const saveResponse = await fetch('/api/save-quiz', {
         method: 'POST',
@@ -237,11 +260,26 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
         }
       }
 
-      setStep('quiz');
+        setStep('quiz');
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        
+        if (fetchError instanceof Error) {
+          if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
+            throw new Error('La generación del quiz está tomando demasiado tiempo. Por favor, intenta de nuevo con un documento más corto o reduce el número de preguntas.');
+          }
+          throw fetchError;
+        }
+        throw fetchError;
+      }
     } catch (err) {
       console.error('Error generando quiz:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      const enhanced = getEnhancedErrorMessage(errorMessage, 'quiz_generation');
+      setError(enhanced.message + (enhanced.suggestions.length > 0 ? '\n\nSugerencias:\n' + enhanced.suggestions.map(s => `• ${s.message}`).join('\n') : ''));
       setStep('configure');
+      setGenerationProgress(0);
     }
   };
 
@@ -402,9 +440,29 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
 
         {step === 'generating' && (
           <div className="p-6 text-center">
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
               <h2 className="text-xl font-semibold text-[color:var(--foreground)]">Generando Quiz...</h2>
+              
+              {/* Progress Bar */}
+              <div className="w-full max-w-md mx-auto">
+                <div className="flex justify-between text-sm text-[color:var(--text-muted)] mb-2">
+                  <span>Progreso</span>
+                  <span>{Math.round(generationProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 dark:bg-blue-500 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${generationProgress}%` }}
+                    role="progressbar"
+                    aria-valuenow={Math.round(generationProgress)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Progreso de generación del quiz"
+                  />
+                </div>
+              </div>
+              
               <div className="space-y-2">
                 <p className="text-[color:var(--text-muted)]">
                   Procesando {documents.length} documento(s) y creando {config.n_preguntas} preguntas personalizadas.

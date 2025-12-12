@@ -3,6 +3,7 @@
 import { useState, useId, useCallback, useRef, useEffect } from 'react';
 import { DocumentInput, ProcessingStatus } from '@/types';
 import { formatFileSize } from '@/utils';
+import { validateFile } from '@/utils/file-validation';
 import useTranslation from '@/hooks/useTranslation';
 
 interface DocumentUploadProps {
@@ -49,30 +50,36 @@ export default function DocumentUpload({
     
     const files = Array.from(e.dataTransfer.files);
     processFiles(files);
-  }, []);
+  }, [processFiles]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     processFiles(files);
-  }, []);
+  }, [processFiles]);
 
-  const processFiles = async (files: File[]) => {
+  const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     const file = files[0]; // Por ahora, procesar solo el primer archivo
     
-    // Validar tipo de archivo
-    const allowedTypes = ['application/pdf', 'text/plain'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
-      const typeLabel = file.type || file.name.split('.').pop() || file.name;
-      onError(t('documentUpload.errors.unsupportedType', { type: typeLabel }) as string);
+    // Verificar si el documento ya existe en la lista de documentos procesados
+    const documentExists = existingDocuments.some(
+      doc => doc.source_name === file.name
+    );
+    
+    if (documentExists) {
+      onError(`El documento "${file.name}" ya ha sido cargado. Por favor, selecciona un documento diferente.`);
       return;
     }
-
-    // Validar tamaño (50MB máximo)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      onError(t('documentUpload.errors.tooLarge', { size: formatFileSize(file.size) }) as string);
+    
+    // Validar archivo (tipo MIME real y tamaño)
+    const validation = await validateFile(file, {
+      allowedTypes: ['application/pdf', 'text/plain'],
+      maxSizeBytes: 50 * 1024 * 1024 // 50MB
+    });
+    
+    if (!validation.valid) {
+      onError(validation.errors.join('. '));
       return;
     }
 
@@ -145,7 +152,7 @@ export default function DocumentUpload({
       });
       onError(errorMessage);
     }
-  };
+  }, [existingDocuments, onError, onDocumentProcessed]);
 
   const removeProcessedDocument = (index: number) => {
     const documentToRemove = processedDocuments[index];

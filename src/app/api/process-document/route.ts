@@ -9,6 +9,8 @@ import {
   getDocumentStats
 } from '@/utils/document-processor.server';
 import { validateFileUpload } from '@/lib/validation';
+import { validateFile } from '@/utils/file-validation';
+import { checkRateLimit, getRateLimitIdentifier } from '@/utils/rate-limit';
 import { logger, startTimer } from '@/utils/logger';
 import { 
   formatErrorResponse, 
@@ -28,9 +30,24 @@ async function validateRequestFile(formData: FormData): Promise<{ file: File; us
     throw new ValidationError('No se proporcionó archivo');
   }
 
-  const fileValidation = validateFileUpload(file);
-  if (!fileValidation.success) {
-    throw new ValidationError('Archivo inválido', { validationErrors: fileValidation.error });
+  // Validar tipo MIME real y tamaño
+  const fileValidation = await validateFile(file, {
+    allowedTypes: ['application/pdf', 'text/plain'],
+    maxSizeBytes: 50 * 1024 * 1024
+  });
+  
+  if (!fileValidation.valid) {
+    throw new ValidationError('Archivo inválido', { 
+      validationErrors: fileValidation.errors 
+    });
+  }
+
+  // Validación adicional con schema Zod
+  const schemaValidation = validateFileUpload(file);
+  if (!schemaValidation.success) {
+    throw new ValidationError('Archivo inválido', { 
+      validationErrors: schemaValidation.error 
+    });
   }
 
   return { file, useOCR, language };
@@ -75,6 +92,30 @@ async function processTextFile(file: File, fileName: string) {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 10 requests por minuto por IP
+  const identifier = getRateLimitIdentifier({ headers: request.headers });
+  const rateLimit = checkRateLimit(identifier, '/api/process-document', 10, 60000);
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          message: 'Demasiadas solicitudes. Por favor, espera un momento antes de procesar otro documento.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          statusCode: 429
+        }
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)),
+          'X-RateLimit-Limit': '10',
+          'X-RateLimit-Remaining': String(rateLimit.remaining)
+        }
+      }
+    );
+  }
+
   const requestId = crypto.randomUUID();
   const timer = startTimer('document_processing', { requestId });
   
@@ -101,16 +142,36 @@ export async function POST(request: NextRequest) {
     // Procesar según el tipo de archivo
     let result;
     
-    if (file.type === 'application/pdf') {
+    // Validar estructura antes de procesar
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt');
+    
+    if (!isPdf && !isText) {
+      throw new ValidationError(`Tipo de archivo no soportado: ${file.type}`);
+    }
+    
+    if (isPdf) {
       result = await withTimeout(
         processPDFFile(file, useOCR, language, file.name),
         120000, // 2 minutos timeout para PDFs
         'PDF processing timed out'
       );
-    } else if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-      result = await processTextFile(file, file.name);
     } else {
-      throw new ValidationError(`Tipo de archivo no soportado: ${file.type}`);
+      result = await processTextFile(file, file.name);
+    }
+    
+    // Validar estructura del documento procesado
+    if (!result.document || !validateDocument(result.document)) {
+      throw new DocumentProcessingError(
+        'El documento procesado no tiene una estructura válida. Por favor, intenta con otro archivo.'
+      );
+    }
+    
+    // Validar que el documento tenga contenido suficiente
+    if (result.stats.characterCount < 100) {
+      throw new DocumentProcessingError(
+        'El documento contiene muy poco texto. Asegúrate de que el archivo tenga contenido suficiente.'
+      );
     }
 
     // Log del éxito

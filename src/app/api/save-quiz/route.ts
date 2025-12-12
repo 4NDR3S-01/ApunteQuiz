@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { QuizResult, Pregunta } from '@/types/quiz';
+import { withAuth, requireAuth } from '@/lib/auth-helpers';
+import { ValidationError } from '@/utils/error-handling';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await requireAuth();
     
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!auth) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'No autorizado. Por favor, inicia sesión.' },
         { status: 401 }
       );
     }
+    
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const { quizData, documentIds, documents }: { 
@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
       documentIds: string[];
       documents: Array<{ source_name: string; type: string }>;
     } = body;
+
+    // Validar que los datos requeridos estén presentes
+    if (!quizData || !quizData.quiz || !quizData.quiz.preguntas) {
+      throw new ValidationError('Datos de quiz inválidos o incompletos');
+    }
 
     console.log('Guardando quiz para usuario:', user.id);
     console.log('Datos del quiz:', {
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
       .update({ total_questions: questions.length })
       .eq('id', quizId);
 
-    // Guardar información de los documentos procesados
+    // Guardar información de los documentos procesados (evitando duplicados)
     if (documentIds && documentIds.length > 0) {
       const documentRecords = documents.map((doc) => ({
         user_id: user.id,
@@ -104,15 +109,50 @@ export async function POST(request: NextRequest) {
         file_size: null, // No tenemos el tamaño original aquí
       }));
 
-      const { error: documentsError } = await supabase
-        .from('documents')
-        .insert(documentRecords as any);
+      // Verificar y guardar documentos evitando duplicados
+      const savedDocuments: string[] = [];
+      const skippedDocuments: string[] = [];
 
-      if (documentsError) {
-        console.error('Error guardando documentos:', documentsError);
-        // No fallar el guardado del quiz por esto
-      } else {
-        console.log(`${documentRecords.length} documentos registrados`);
+      for (const docRecord of documentRecords) {
+        // Verificar si el documento ya existe para este usuario
+        const { data: existingDoc } = await supabase
+          .from('documents')
+          .select('id, file_name')
+          .eq('user_id', user.id)
+          .eq('file_name', docRecord.file_name)
+          .maybeSingle();
+
+        if (existingDoc) {
+          // Documento ya existe, actualizar fecha de procesamiento
+          await supabase
+            .from('documents')
+            .update({ 
+              processed: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingDoc.id);
+          
+          skippedDocuments.push(docRecord.file_name);
+          console.log(`Documento ya existe, actualizado: ${docRecord.file_name}`);
+        } else {
+          // Documento no existe, insertarlo
+          const { data: newDoc, error: insertError } = await supabase
+            .from('documents')
+            .insert(docRecord as any)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error(`Error guardando documento ${docRecord.file_name}:`, insertError);
+          } else {
+            savedDocuments.push(docRecord.file_name);
+            console.log(`Documento guardado: ${docRecord.file_name}`);
+          }
+        }
+      }
+
+      if (savedDocuments.length > 0 || skippedDocuments.length > 0) {
+        console.log(`${savedDocuments.length} documentos nuevos registrados, ${skippedDocuments.length} documentos ya existían`);
       }
     }
 

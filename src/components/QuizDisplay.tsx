@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { QuizResult, Pregunta, isPreguntaOpcionMultiple, isPreguntaVerdaderoFalso } from '@/types';
 import { CheckCircle, AlertCircle, PlayCircle } from 'lucide-react';
 
@@ -906,7 +906,7 @@ interface QuestionCardProps {
   readonly showResult: boolean;
 }
 
-function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: Readonly<{
+const MultipleChoiceOptions = memo(function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: Readonly<{
   pregunta: Pregunta;
   userAnswer: any;
   onAnswer: (answer: any) => void;
@@ -948,6 +948,8 @@ function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: R
               onChange={() => onAnswer(opcion.id)}
               disabled={showResult}
               className="h-4 w-4"
+              aria-label={`Opción ${opcion.id}: ${opcion.texto}`}
+              aria-describedby={`pregunta-${pregunta.id}-desc`}
             />
             <span className="flex-1">{opcion.texto}</span>
             {userHasAnswered && !showResult && isSelected && (
@@ -962,9 +964,9 @@ function MultipleChoiceOptions({ pregunta, userAnswer, onAnswer, showResult }: R
       })}
     </div>
   );
-}
+});
 
-function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readonly<{
+const TrueFalseOptions = memo(function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readonly<{
   pregunta: Pregunta;
   userAnswer: any;
   onAnswer: (answer: any) => void;
@@ -1029,6 +1031,8 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
           onChange={() => onAnswer(false)}
           disabled={showResult}
           className="h-4 w-4"
+          aria-label="Falso"
+          aria-describedby={`pregunta-${pregunta.id}-desc`}
         />
         <span className="flex-1">Falso</span>
         {userHasAnswered && !showResult && userAnswer === false && (
@@ -1041,9 +1045,9 @@ function TrueFalseOptions({ pregunta, userAnswer, onAnswer, showResult }: Readon
       </label>
     </div>
   );
-}
+});
 
-function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: QuestionCardProps) {
+const QuestionCard = memo(function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: QuestionCardProps) {
   const isCorrect = showResult && userAnswer === pregunta.respuesta_correcta;
   const isWrong = showResult && userAnswer !== pregunta.respuesta_correcta;
 
@@ -1140,4 +1144,4 @@ function QuestionCard({ pregunta, numero, userAnswer, onAnswer, showResult }: Qu
       )}
     </div>
   );
-}
+});

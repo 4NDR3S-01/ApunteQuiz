@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, lazy, Suspense, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import QuizGenerator from '@/components/QuizGenerator';
 import AppDownloadSection from '@/components/AppDownloadSection';
-import { LogOut, BarChart3, FileText, HelpCircle, Sparkles, Clock, BookOpen, Trash2 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { SkeletonCard } from '@/components/SkeletonLoader';
+
+// Lazy load del generador de quiz (componente pesado)
+const QuizGenerator = lazy(() => import('@/components/QuizGenerator'));
+import { LogOut, BarChart3, FileText, HelpCircle, Sparkles, Clock, BookOpen, Trash2, Search, X } from 'lucide-react';
+import { debounce } from '@/utils/debounce';
+import Pagination from '@/components/Pagination';
 import type { User } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
@@ -31,8 +37,30 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
+  const [showDeleteDocConfirm, setShowDeleteDocConfirm] = useState<string | null>(null);
+  const [showDeleteQuizConfirm, setShowDeleteQuizConfirm] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [quizPage, setQuizPage] = useState(1);
+  const [docPage, setDocPage] = useState(1);
+  const itemsPerPage = 5;
   const router = useRouter();
   const supabase = createClient();
+
+  // Debounce para búsqueda
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSetSearch = useMemo(
+    () => debounce((value: string) => {
+      setSearchQuery(value);
+      setQuizPage(1);
+      setDocPage(1);
+    }, 300),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSetSearch(searchInput);
+  }, [searchInput, debouncedSetSearch]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -46,11 +74,44 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
     }
   };
 
-  const handleDeleteDocument = async (documentId: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
-      return;
-    }
+  // Filtrar quizzes y documentos según búsqueda
+  const filteredQuizzes = useMemo(() => {
+    if (!searchQuery.trim()) return recentQuizzes;
+    const query = searchQuery.toLowerCase();
+    return recentQuizzes.filter(quiz => 
+      quiz.title?.toLowerCase().includes(query) ||
+      quiz.education_level?.toLowerCase().includes(query) ||
+      quiz.language?.toLowerCase().includes(query)
+    );
+  }, [recentQuizzes, searchQuery]);
 
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery.trim()) return documents;
+    const query = searchQuery.toLowerCase();
+    return documents.filter(doc => 
+      doc.file_name?.toLowerCase().includes(query) ||
+      doc.file_type?.toLowerCase().includes(query)
+    );
+  }, [documents, searchQuery]);
+
+  // Paginación
+  const paginatedQuizzes = useMemo(() => {
+    const start = (quizPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredQuizzes.slice(start, end);
+  }, [filteredQuizzes, quizPage, itemsPerPage]);
+
+  const paginatedDocuments = useMemo(() => {
+    const start = (docPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredDocuments.slice(start, end);
+  }, [filteredDocuments, docPage, itemsPerPage]);
+
+  const totalQuizPages = Math.ceil(filteredQuizzes.length / itemsPerPage);
+  const totalDocPages = Math.ceil(filteredDocuments.length / itemsPerPage);
+
+
+  const handleDeleteDocument = async (documentId: string) => {
     setDeletingDocId(documentId);
     try {
       const response = await fetch(`/api/documents/${documentId}`, {
@@ -72,6 +133,29 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
       alert(error instanceof Error ? error.message : 'Error al eliminar el documento');
     } finally {
       setDeletingDocId(null);
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId: string) => {
+    setDeletingQuizId(quizId);
+    try {
+      const response = await fetch(`/api/quizzes/${quizId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar el quiz');
+      }
+
+      // Refrescar la página para actualizar las estadísticas
+      router.refresh();
+    } catch (error) {
+      console.error('Error eliminando quiz:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar el quiz');
+    } finally {
+      setDeletingQuizId(null);
+      setShowDeleteQuizConfirm(null);
     }
   };
 
@@ -234,70 +318,117 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <h3 className="text-xl font-semibold text-[color:var(--foreground)]">
                     Quizzes Recientes
                   </h3>
-                  <button
-                    onClick={() => setView('generator')}
-                    className="inline-flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    <span>Crear Nuevo</span>
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-initial">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar quizzes..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        aria-label="Buscar quizzes"
+                      />
+                      {searchInput && (
+                        <button
+                          onClick={() => {
+                            setSearchInput('');
+                            setSearchQuery('');
+                          }}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label="Limpiar búsqueda"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setView('generator')}
+                      className="inline-flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span>Crear Nuevo</span>
+                    </button>
+                  </div>
                 </div>
 
-                {recentQuizzes.length > 0 ? (
-                  <div className="space-y-3">
-                    {recentQuizzes.map((quiz) => (
-                      <div
-                        key={quiz.id}
-                        className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-[color:var(--foreground)]">
-                                  {quiz.title}
-                                </h4>
-                                <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
-                                  <span className="flex items-center space-x-1">
-                                    <HelpCircle className="h-3 w-3" />
-                                    <span>{quiz.total_questions || 0} preguntas</span>
-                                  </span>
-                                  <span className="flex items-center space-x-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>{new Date(quiz.created_at || '').toLocaleDateString('es-ES', { 
-                                      day: 'numeric', 
-                                      month: 'short' 
-                                    })}</span>
-                                  </span>
-                                  {quiz.education_level && (
-                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                      {quiz.education_level === 'secundaria' ? 'Secundaria' : 
-                                       quiz.education_level === 'universidad' ? 'Universidad' : 
-                                       quiz.education_level === 'profesional' ? 'Profesional' : 
-                                       quiz.education_level}
+                {filteredQuizzes.length > 0 ? (
+                  <>
+                    <div className="space-y-3">
+                      {paginatedQuizzes.map((quiz) => (
+                        <div
+                          key={quiz.id}
+                          className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
+                                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-[color:var(--foreground)]">
+                                    {quiz.title}
+                                  </h4>
+                                  <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
+                                    <span className="flex items-center space-x-1">
+                                      <HelpCircle className="h-3 w-3" />
+                                      <span>{quiz.total_questions || 0} preguntas</span>
                                     </span>
-                                  )}
+                                    <span className="flex items-center space-x-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{new Date(quiz.created_at || '').toLocaleDateString('es-ES', { 
+                                        day: 'numeric', 
+                                        month: 'short' 
+                                      })}</span>
+                                    </span>
+                                    {quiz.education_level && (
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        {quiz.education_level === 'secundaria' ? 'Secundaria' : 
+                                         quiz.education_level === 'universidad' ? 'Universidad' : 
+                                         quiz.education_level === 'profesional' ? 'Profesional' : 
+                                         quiz.education_level}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => router.push(`/dashboard/quiz/${quiz.id}`)}
+                                className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                              >
+                                Ver detalles
+                              </button>
+                              <button
+                                onClick={() => setShowDeleteQuizConfirm(quiz.id)}
+                                disabled={deletingQuizId === quiz.id}
+                                className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                aria-label="Eliminar quiz"
+                              >
+                                {deletingQuizId === quiz.id ? 'Eliminando...' : <Trash2 className="h-4 w-4" />}
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => router.push(`/dashboard/quiz/${quiz.id}`)}
-                            className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            Ver detalles
-                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    {totalQuizPages > 1 && (
+                      <Pagination
+                        currentPage={quizPage}
+                        totalPages={totalQuizPages}
+                        onPageChange={setQuizPage}
+                        itemsPerPage={itemsPerPage}
+                        totalItems={filteredQuizzes.length}
+                        className="mt-6"
+                      />
+                    )}
+                  </>
                 ) : (
                   <div className="a11y-card rounded-xl p-8 text-center">
                     <BookOpen className="mx-auto h-10 w-10 text-slate-400" />
@@ -317,65 +448,78 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                 </h3>
               </div>
 
-              {documents.length > 0 ? (
-                <div className="space-y-3">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
-                              <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-[color:var(--foreground)]">
-                                {doc.file_name}
-                              </h4>
-                              <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
-                                <span className="flex items-center space-x-1">
-                                  <span>{doc.file_type || 'Desconocido'}</span>
-                                </span>
-                                {doc.file_size && (
+              {filteredDocuments.length > 0 ? (
+                <>
+                  <div className="space-y-3">
+                    {paginatedDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
+                                <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[color:var(--foreground)]">
+                                  {doc.file_name}
+                                </h4>
+                                <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
                                   <span className="flex items-center space-x-1">
-                                    <span>{(doc.file_size / 1024).toFixed(2)} KB</span>
+                                    <span>{doc.file_type || 'Desconocido'}</span>
                                   </span>
-                                )}
-                                <span className="flex items-center space-x-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{new Date(doc.created_at || '').toLocaleDateString('es-ES', { 
-                                    day: 'numeric', 
-                                    month: 'short',
-                                    year: 'numeric'
-                                  })}</span>
-                                </span>
-                                {doc.processed && (
-                                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                    Procesado
+                                  {doc.file_size && (
+                                    <span className="flex items-center space-x-1">
+                                      <span>{(doc.file_size / 1024).toFixed(2)} KB</span>
+                                    </span>
+                                  )}
+                                  <span className="flex items-center space-x-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>{new Date(doc.created_at || '').toLocaleDateString('es-ES', { 
+                                      day: 'numeric', 
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}</span>
                                   </span>
-                                )}
+                                  {doc.processed && (
+                                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                      Procesado
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
+                          <button
+                            onClick={() => setShowDeleteDocConfirm(doc.id)}
+                            disabled={deletingDocId === doc.id}
+                            className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400 dark:hover:text-red-300"
+                            aria-label="Eliminar documento"
+                          >
+                            {deletingDocId === doc.id ? 'Eliminando...' : <Trash2 className="h-4 w-4" />}
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleDeleteDocument(doc.id)}
-                          disabled={deletingDocId === doc.id}
-                          className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          {deletingDocId === doc.id ? 'Eliminando...' : 'Eliminar'}
-                        </button>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  {totalDocPages > 1 && (
+                    <Pagination
+                      currentPage={docPage}
+                      totalPages={totalDocPages}
+                      onPageChange={setDocPage}
+                      itemsPerPage={itemsPerPage}
+                      totalItems={filteredDocuments.length}
+                      className="mt-6"
+                    />
+                  )}
+                </>
               ) : (
                 <div className="a11y-card rounded-xl p-8 text-center">
                   <FileText className="mx-auto h-10 w-10 text-slate-400" />
                   <p className="mt-3 text-sm text-[color:var(--text-muted)]">
-                    No hay documentos guardados
+                    {searchQuery ? 'No se encontraron documentos que coincidan con tu búsqueda' : 'No hay documentos guardados'}
                   </p>
                 </div>
               )}
@@ -384,7 +528,9 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
         )}
 
         {view === 'generator' && (
-          <QuizGenerator className="pb-8" />
+          <Suspense fallback={<SkeletonCard className="mb-8" />}>
+            <QuizGenerator className="pb-8" />
+          </Suspense>
         )}
       </main>
 
@@ -414,6 +560,37 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
           </div>
         </div>
       </footer>
+
+      {/* Modales de confirmación */}
+      <ConfirmDialog
+        isOpen={showDeleteDocConfirm !== null}
+        onClose={() => setShowDeleteDocConfirm(null)}
+        onConfirm={() => {
+          if (showDeleteDocConfirm) {
+            handleDeleteDocument(showDeleteDocConfirm);
+          }
+        }}
+        title="Eliminar documento"
+        message="¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteQuizConfirm !== null}
+        onClose={() => setShowDeleteQuizConfirm(null)}
+        onConfirm={() => {
+          if (showDeleteQuizConfirm) {
+            handleDeleteQuiz(showDeleteQuizConfirm);
+          }
+        }}
+        title="Eliminar quiz"
+        message="¿Estás seguro de que deseas eliminar este quiz? Esta acción no se puede deshacer y se eliminarán todas las preguntas asociadas."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }

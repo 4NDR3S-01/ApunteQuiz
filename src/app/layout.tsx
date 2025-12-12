@@ -4,6 +4,7 @@ import { AccessibilityProvider } from "@/components/AccessibilityProvider";
 import { LanguageProvider } from '@/components/LanguageProvider';
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import SkipToContentLink from '@/components/SkipToContentLink';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,13 +38,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LanguageProvider>
-          <AccessibilityProvider>
-            <SkipToContentLink />
-            {children}
-            <AccessibilitySettings />
-          </AccessibilityProvider>
-        </LanguageProvider>
+        <ErrorBoundary>
+          <LanguageProvider>
+            <AccessibilityProvider>
+              <SkipToContentLink />
+              {children}
+              <AccessibilitySettings />
+            </AccessibilityProvider>
+          </LanguageProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

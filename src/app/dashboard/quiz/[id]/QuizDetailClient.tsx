@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, BookOpen, HelpCircle, Trash2, PlayCircle, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, BookOpen, HelpCircle, Trash2, PlayCircle, Eye, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import type { Database } from '@/types/database';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { exportQuizToMarkdownFile, exportQuizToHTMLFile } from '@/utils/export-quiz';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 type Quiz = Database['public']['Tables']['quizzes']['Row'];
 type Question = Database['public']['Tables']['questions']['Row'];
@@ -20,6 +22,7 @@ type ViewMode = 'info' | 'practice' | 'answers';
 export default function QuizDetailClient({ quiz, questions, userId }: Readonly<QuizDetailClientProps>) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('info');
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [quizCompleted, setQuizCompleted] = useState(false);
@@ -97,10 +100,6 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este quiz? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
     setIsDeleting(true);
     try {
       const { error } = await supabase
@@ -152,14 +151,33 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
               <ArrowLeft className="h-5 w-5" />
               <span>Volver</span>
             </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="flex items-center space-x-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>{isDeleting ? 'Eliminando...' : 'Eliminar Quiz'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportMarkdown}
+                className="flex items-center space-x-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+                aria-label="Exportar a Markdown"
+              >
+                <Download className="h-4 w-4" />
+                <span>Exportar MD</span>
+              </button>
+              <button
+                onClick={handleExportHTML}
+                className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                aria-label="Exportar a HTML"
+              >
+                <Download className="h-4 w-4" />
+                <span>Exportar HTML</span>
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+                className="flex items-center space-x-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Eliminar quiz"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>{isDeleting ? 'Eliminando...' : 'Eliminar'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -625,6 +643,20 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setIsDeleting(false);
+        }}
+        onConfirm={handleDelete}
+        title="Eliminar quiz"
+        message="¿Estás seguro de que deseas eliminar este quiz? Esta acción no se puede deshacer y se eliminarán todas las preguntas asociadas."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }

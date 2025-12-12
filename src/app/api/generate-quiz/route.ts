@@ -21,8 +21,36 @@ import {
   retryWithBackoff,
   withTimeout
 } from '@/utils/error-handling';
+import { checkRateLimit, getRateLimitIdentifier } from '@/utils/rate-limit';
 
 export async function POST(request: NextRequest) {
+  // Aplicar rate limiting: 5 requests por minuto por IP
+  const identifier = getRateLimitIdentifier(request);
+  const rateLimit = await import('@/utils/rate-limit').then(m => 
+    m.checkRateLimit(identifier, '/api/generate-quiz', 5, 60000)
+  );
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          message: 'Demasiadas solicitudes. Por favor, espera un momento antes de generar otro quiz.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          statusCode: 429,
+          retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+        }
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)),
+          'X-RateLimit-Limit': '5',
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetTime)
+        }
+      }
+    );
+  }
   const requestId = crypto.randomUUID();
   const timer = startTimer('quiz_generation', { requestId });
   

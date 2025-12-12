@@ -1,45 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireAuth, verifyDocumentOwnership } from '@/lib/auth-helpers';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient();
+    const auth = await requireAuth();
     
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!auth) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'No autorizado. Por favor, inicia sesión.' },
         { status: 401 }
       );
     }
+    
+    const { user, supabase } = auth;
 
     const documentId = params.id;
 
-    if (!documentId) {
+    if (!documentId || typeof documentId !== 'string') {
       return NextResponse.json(
         { error: 'ID de documento requerido' },
         { status: 400 }
       );
     }
 
-    // Verificar que el documento pertenece al usuario antes de eliminarlo
-    const { data: document, error: fetchError } = await supabase
-      .from('documents')
-      .select('id, user_id')
-      .eq('id', documentId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (fetchError || !document) {
+    // Validar que el documento pertenece al usuario
+    const hasOwnership = await verifyDocumentOwnership(documentId, user.id);
+    
+    if (!hasOwnership) {
       return NextResponse.json(
         { error: 'Documento no encontrado o no tienes permisos para eliminarlo' },
-        { status: 404 }
+        { status: 403 }
       );
     }
 
