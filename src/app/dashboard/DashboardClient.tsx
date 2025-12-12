@@ -36,6 +36,8 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
   const [view, setView] = useState<ViewMode>('dashboard');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+  const [quizzes, setQuizzes] = useState<Quiz[]>(recentQuizzes);
+  const [stats, setStats] = useState(statsData);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
   const [showDeleteDocConfirm, setShowDeleteDocConfirm] = useState<string | null>(null);
@@ -46,6 +48,17 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
   const itemsPerPage = 5;
   const router = useRouter();
   const supabase = createClient();
+
+  // Sincronizar estado cuando cambian las props (después de router.refresh())
+  useEffect(() => {
+    setQuizzes(recentQuizzes);
+    setStats(statsData);
+  }, [recentQuizzes, statsData]);
+
+  // Sincronizar documentos cuando cambian las props
+  useEffect(() => {
+    setDocuments(initialDocuments);
+  }, [initialDocuments]);
 
   // Debounce para búsqueda
   const [searchInput, setSearchInput] = useState('');
@@ -76,14 +89,14 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
 
   // Filtrar quizzes y documentos según búsqueda
   const filteredQuizzes = useMemo(() => {
-    if (!searchQuery.trim()) return recentQuizzes;
+    if (!searchQuery.trim()) return quizzes;
     const query = searchQuery.toLowerCase();
-    return recentQuizzes.filter(quiz => 
+    return quizzes.filter(quiz => 
       quiz.title?.toLowerCase().includes(query) ||
       quiz.education_level?.toLowerCase().includes(query) ||
       quiz.language?.toLowerCase().includes(query)
     );
-  }, [recentQuizzes, searchQuery]);
+  }, [quizzes, searchQuery]);
 
   const filteredDocuments = useMemo(() => {
     if (!searchQuery.trim()) return documents;
@@ -126,7 +139,13 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
       // Actualizar la lista de documentos localmente
       setDocuments(prev => prev.filter(doc => doc.id !== documentId));
       
-      // Refrescar la página para actualizar las estadísticas
+      // Actualizar estadísticas localmente
+      setStats(prev => ({
+        ...prev,
+        documents: Math.max(0, prev.documents - 1)
+      }));
+      
+      // Refrescar la página para sincronizar datos del servidor
       router.refresh();
     } catch (error) {
       console.error('Error eliminando documento:', error);
@@ -148,7 +167,19 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
         throw new Error(error.error || 'Error al eliminar el quiz');
       }
 
-      // Refrescar la página para actualizar las estadísticas
+      // Actualizar la lista de quizzes localmente (actualización inmediata)
+      setQuizzes(prev => prev.filter(quiz => quiz.id !== quizId));
+      
+      // Actualizar estadísticas localmente
+      const deletedQuiz = quizzes.find(q => q.id === quizId);
+      const questionsCount = deletedQuiz?.total_questions || 0;
+      setStats(prev => ({
+        ...prev,
+        quizzes: Math.max(0, prev.quizzes - 1),
+        questions: Math.max(0, prev.questions - questionsCount)
+      }));
+      
+      // Refrescar la página para sincronizar datos del servidor (en segundo plano)
       router.refresh();
     } catch (error) {
       console.error('Error eliminando quiz:', error);
@@ -262,7 +293,7 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-[color:var(--text-muted)]">Mis Quizzes</h3>
-                    <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{statsData.quizzes}</p>
+                    <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.quizzes}</p>
                   </div>
                   <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-900/30">
                     <HelpCircle className="h-8 w-8 text-blue-600 dark:text-blue-400" />
@@ -275,7 +306,7 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-[color:var(--text-muted)]">Documentos</h3>
-                    <p className="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">{statsData.documents}</p>
+                    <p className="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats.documents}</p>
                   </div>
                   <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/30">
                     <FileText className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
@@ -288,7 +319,7 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-[color:var(--text-muted)]">Preguntas</h3>
-                    <p className="mt-2 text-3xl font-bold text-cyan-600 dark:text-cyan-400">{statsData.questions}</p>
+                    <p className="mt-2 text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.questions}</p>
                   </div>
                   <div className="rounded-full bg-cyan-100 p-3 dark:bg-cyan-900/30">
                     <Sparkles className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
@@ -299,7 +330,7 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
             </div>
 
             {/* Quick Action */}
-            {statsData.quizzes === 0 ? (
+            {stats.quizzes === 0 ? (
               <div className="a11y-card rounded-2xl p-8 text-center shadow-lg">
                 <Sparkles className="mx-auto h-12 w-12 text-blue-600 dark:text-blue-400" />
                 <h3 className="mt-4 text-xl font-semibold text-[color:var(--foreground)]">
@@ -529,7 +560,13 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
 
         {view === 'generator' && (
           <Suspense fallback={<SkeletonCard className="mb-8" />}>
-            <QuizGenerator className="pb-8" />
+            <QuizGenerator 
+              className="pb-8" 
+              onQuizSaved={() => {
+                // Refrescar datos del servidor cuando se guarda un nuevo quiz
+                router.refresh();
+              }}
+            />
           </Suspense>
         )}
       </main>
