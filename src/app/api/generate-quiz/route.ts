@@ -10,6 +10,7 @@ import {
   getContextLimit
 } from '@/utils/ai-client';
 import { UserPromptParams } from '@/prompts/user';
+import { GenerateQuizResponse } from '@/types';
 import { logger, startTimer } from '@/utils/logger';
 import { reduceDocumentContent } from '@/utils/document-processor.server';
 import { 
@@ -21,7 +22,7 @@ import {
   retryWithBackoff,
   withTimeout
 } from '@/utils/error-handling';
-import { checkRateLimit, getRateLimitIdentifier } from '@/utils/rate-limit';
+import { getRateLimitIdentifier } from '@/utils/rate-limit';
 
 export async function POST(request: NextRequest) {
   // Aplicar rate limiting: 5 requests por minuto por IP

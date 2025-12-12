@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
             .update({ 
               processed: true,
               updated_at: new Date().toISOString()
-            })
+            } as any)
             .eq('id', existingDoc.id);
           
           skippedDocuments.push(docRecord.file_name);
