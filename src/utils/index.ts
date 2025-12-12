@@ -1,7 +1,3 @@
-// Re-exportar todas las utilidades
-export * from './document-processor';
-export * from './ai-client';
-
 // Utilidades utilizadas
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';

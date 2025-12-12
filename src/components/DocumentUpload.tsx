@@ -44,19 +44,6 @@ export default function DocumentUpload({
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    processFiles(files);
-  }, [processFiles]);
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    processFiles(files);
-  }, [processFiles]);
-
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
@@ -152,7 +139,20 @@ export default function DocumentUpload({
       });
       onError(errorMessage);
     }
-  }, [existingDocuments, onError, onDocumentProcessed]);
+  }, [existingDocuments, onError, onDocumentProcessed, t]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    processFiles(files);
+  }, [processFiles]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    processFiles(files);
+  }, [processFiles]);
 
   const removeProcessedDocument = (index: number) => {
     const documentToRemove = processedDocuments[index];

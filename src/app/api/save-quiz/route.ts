@@ -115,22 +115,22 @@ export async function POST(request: NextRequest) {
 
       for (const docRecord of documentRecords) {
         // Verificar si el documento ya existe para este usuario
-        const { data: existingDoc } = await supabase
+        const { data: existingDoc } = await (supabase
           .from('documents')
           .select('id, file_name')
           .eq('user_id', user.id)
           .eq('file_name', docRecord.file_name)
-          .maybeSingle();
+          .maybeSingle() as any);
 
         if (existingDoc) {
           // Documento ya existe, actualizar fecha de procesamiento
-          await supabase
-            .from('documents')
+          const documentsTable = supabase.from('documents') as any;
+          await documentsTable
             .update({ 
               processed: true,
               updated_at: new Date().toISOString()
-            } as any)
-            .eq('id', existingDoc.id);
+            })
+            .eq('id', (existingDoc as any).id);
           
           skippedDocuments.push(docRecord.file_name);
           console.log(`Documento ya existe, actualizado: ${docRecord.file_name}`);

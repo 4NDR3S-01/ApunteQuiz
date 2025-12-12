@@ -138,6 +138,116 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
     return levels[level] || level;
   };
 
+  const handleExportMarkdown = () => {
+    // Convertir datos de BD al formato QuizResult
+    const quizResult: import('@/types/quiz').QuizResult = {
+      metadata: {
+        titulo: quiz.title || 'Quiz sin título',
+        idioma: quiz.language || 'Español',
+        nivel: quiz.education_level || 'universidad',
+        generado_en: quiz.created_at || new Date().toISOString()
+      },
+      summary: {
+        overview: '',
+        key_points: [],
+        sections: [],
+        glosario: [],
+        formulas_o_tablas: [],
+        ejemplos_clave: []
+      },
+      quiz: {
+        n_solicitadas: quiz.total_questions || 0,
+        n_generadas: questions.length,
+        preguntas: questions.map(q => {
+          // Mapear tipos de BD a tipos de QuizResult
+          let tipo: 'opcion_multiple' | 'respuesta_corta' | 'verdadero_falso';
+          if (q.question_type === 'multiple_choice') {
+            tipo = 'opcion_multiple';
+          } else if (q.question_type === 'true_false') {
+            tipo = 'verdadero_falso';
+          } else {
+            tipo = 'respuesta_corta';
+          }
+
+          return {
+            id: q.id,
+            tipo,
+            dificultad: 'media' as const,
+            etiquetas: [],
+            enunciado: q.question_text,
+            opciones: q.options ? (q.options as Array<{ id: string; texto: string }>) : undefined,
+            respuesta_correcta: tipo === 'verdadero_falso' 
+              ? (q.correct_answer?.toLowerCase() === 'true' || q.correct_answer === '1')
+              : q.correct_answer || '',
+            explicacion: q.explanation || '',
+            citas: []
+          };
+        })
+      },
+      notes: {
+        insuficiente_evidencia: false,
+        detalle: ''
+      }
+    };
+
+    exportQuizToMarkdownFile(quizResult);
+  };
+
+  const handleExportHTML = () => {
+    // Convertir datos de BD al formato QuizResult
+    const quizResult: import('@/types/quiz').QuizResult = {
+      metadata: {
+        titulo: quiz.title || 'Quiz sin título',
+        idioma: quiz.language || 'Español',
+        nivel: quiz.education_level || 'universidad',
+        generado_en: quiz.created_at || new Date().toISOString()
+      },
+      summary: {
+        overview: '',
+        key_points: [],
+        sections: [],
+        glosario: [],
+        formulas_o_tablas: [],
+        ejemplos_clave: []
+      },
+      quiz: {
+        n_solicitadas: quiz.total_questions || 0,
+        n_generadas: questions.length,
+        preguntas: questions.map(q => {
+          // Mapear tipos de BD a tipos de QuizResult
+          let tipo: 'opcion_multiple' | 'respuesta_corta' | 'verdadero_falso';
+          if (q.question_type === 'multiple_choice') {
+            tipo = 'opcion_multiple';
+          } else if (q.question_type === 'true_false') {
+            tipo = 'verdadero_falso';
+          } else {
+            tipo = 'respuesta_corta';
+          }
+
+          return {
+            id: q.id,
+            tipo,
+            dificultad: 'media' as const,
+            etiquetas: [],
+            enunciado: q.question_text,
+            opciones: q.options ? (q.options as Array<{ id: string; texto: string }>) : undefined,
+            respuesta_correcta: tipo === 'verdadero_falso' 
+              ? (q.correct_answer?.toLowerCase() === 'true' || q.correct_answer === '1')
+              : q.correct_answer || '',
+            explicacion: q.explanation || '',
+            citas: []
+          };
+        })
+      },
+      notes: {
+        insuficiente_evidencia: false,
+        detalle: ''
+      }
+    };
+
+    exportQuizToHTMLFile(quizResult);
+  };
+
   return (
     <div className="min-h-screen bg-[color:var(--background)]">
       {/* Header */}
