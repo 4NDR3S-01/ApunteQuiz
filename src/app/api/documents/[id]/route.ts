@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { requireAuth, verifyDocumentOwnership } from '@/lib/auth-helpers';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await requireAuth();
@@ -18,7 +17,7 @@ export async function DELETE(
     
     const { user, supabase } = auth;
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
 
     if (!documentId || typeof documentId !== 'string') {
       return NextResponse.json(

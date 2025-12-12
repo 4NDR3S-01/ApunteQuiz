@@ -3,7 +3,7 @@ import { requireAuth, verifyQuizOwnership } from '@/lib/auth-helpers';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await requireAuth();
@@ -16,7 +16,7 @@ export async function DELETE(
     }
     
     const { user, supabase } = auth;
-    const quizId = params.id;
+    const { id: quizId } = await params;
 
     if (!quizId || typeof quizId !== 'string') {
       return NextResponse.json(
