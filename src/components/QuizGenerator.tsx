@@ -190,9 +190,19 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
     setGenerationProgress(0);
 
     try {
+      // Calcular número recomendado de preguntas basado en el contenido
+      const fullText = documents.reduce((text, doc) => {
+        if (doc.text) return text + (doc.text ?? '');
+        if (doc.pages) return text + doc.pages.map(p => p.text ?? '').join(' ');
+        return text;
+      }, '');
+      const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
+      const recommendedBalanced = Math.max(1, Math.floor(wordsCount / 150)); // 1 pregunta cada 150 palabras
+      
       const request: GenerateQuizRequest = {
         ...config,
-        documents
+        documents,
+        n_preguntas_recomendadas: recommendedBalanced // Nuevo campo
       };
 
       // Simular progreso mientras se genera

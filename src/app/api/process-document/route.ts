@@ -59,6 +59,14 @@ async function processPDFFile(file: File, useOCR: boolean, language: string, fil
     ? await extractTextFromPDFWithOCR(file, language)
     : await extractTextFromPDF(file);
   
+  // Verificar si el documento contiene solo imágenes
+  if (extractionResult.metadata?.error === 'DOCUMENT_ONLY_IMAGES') {
+    throw new DocumentProcessingError(
+      'El documento contiene solo imágenes y no se puede procesar. ' +
+      'Por favor, sube un documento PDF que contenga texto.'
+    );
+  }
+  
   const document = convertPDFToDocument(extractionResult, fileName);
   const processedDocument = chunkPDFDocument(document, 2000);
   

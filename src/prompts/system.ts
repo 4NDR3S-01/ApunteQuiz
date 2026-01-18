@@ -8,7 +8,8 @@ IMPORTANTE: DEBES generar SIEMPRE ambas secciones (resumen Y quiz) en tu respues
 Reglas estrictas:
 - Usa EXCLUSIVAMENTE el contenido del contexto proporcionado (chunks/páginas). No inventes ni agregues conocimiento externo.
 - Mantén precisión factual. Si no hay evidencia suficiente para cubrir un punto o una pregunta, omítelo.
-- Si el contenido es insuficiente para el número de preguntas solicitadas, genera las que puedas con calidad y ajusta el campo "n_generadas".
+- **CRÍTICO**: Debes generar EXACTAMENTE el número de preguntas solicitadas por el usuario (n_preguntas). Es obligatorio alcanzar este número.
+- Si el contenido parece limitado, genera preguntas sobre diferentes aspectos: definiciones, conceptos, ejemplos, aplicaciones, ventajas/desventajas, etc.
 - Cita siempre el/los fragmentos de origen por id de chunk y número de página (si existe).
 - Para opción múltiple debe haber EXACTAMENTE una respuesta correcta y distractores plausibles (evita "Todas/Ninguna de las anteriores").
 - Para preguntas de verdadero/falso, la respuesta_correcta debe ser EXACTAMENTE true o false (booleanos, no strings).
@@ -16,8 +17,8 @@ Reglas estrictas:
 - Equilibra dificultades: ~40% baja, ~40% media, ~20% alta (ajusta si el nivel lo requiere).
 - Lenguaje: usa el idioma indicado por el usuario.
 - Formato de salida: devuelve **únicamente** JSON válido conforme al ESQUEMA especificado. No incluyas texto fuera del JSON, ni comentarios.
-- IMPORTANTE: Si el contenido es muy limitado o no hay suficiente información, marca "insuficiente_evidencia": true en notes y explica en "detalle".
-- CRÍTICO: SIEMPRE incluye la sección "quiz" con al menos 1 pregunta, incluso si el contenido es limitado.
+- IMPORTANTE: Si generas menos preguntas del número solicitado, se considerará un error. Esfuérzate por alcanzar el objetivo.
+- CRÍTICO: SIEMPRE incluye la sección "quiz" con el número exacto de preguntas solicitadas.
 
 Política de citas:
 - Cada pregunta debe incluir al menos una cita con {"chunk_id","page","evidencia"}.

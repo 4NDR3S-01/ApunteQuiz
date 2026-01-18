@@ -1,9 +1,12 @@
 import { SYSTEM_PROMPT } from '@/prompts/system';
 import { createUserPrompt, UserPromptParams } from '@/prompts/user';
 import { GenerateQuizResponse } from '@/types';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '@/utils/logger';
+import { jsonrepair } from 'jsonrepair';
 
 export interface AIProvider {
-  name: 'openai' | 'anthropic' | 'groq';
+  name: 'openai' | 'anthropic' | 'groq' | 'gemini';
   model: string;
   apiKey: string;
 }
@@ -16,7 +19,12 @@ const CONTEXT_LIMITS: Record<string, Record<string, number>> = {
   groq: {
     'llama-3.1-8b-instant': 6000, // ~8K total, dejamos 2K para respuesta
     'llama-3.1-70b-versatile': 120000,
+    'llama-3.3-70b-versatile': 120000, // 128K total, dejamos espacio para respuesta
     'mixtral-8x7b-32768': 28000,
+    'groq/compound': 60000, // 70K TPM - excelente
+    'groq/compound-mini': 60000, // 70K TPM - el mejor TPM disponible
+    'meta-llama/llama-4-scout-17b-16e-instruct': 25000, // 30K TPM
+    'meta-llama/llama-4-maverick-17b-128e-instruct': 5000,
     default: 6000
   },
   openai: {
@@ -29,6 +37,16 @@ const CONTEXT_LIMITS: Record<string, Record<string, number>> = {
     'claude-3-5-sonnet-20241022': 180000,
     'claude-3-opus-20240229': 180000,
     default: 180000
+  },
+  gemini: {
+    'gemini-pro': 30000, // Modelo estándar (siempre disponible)
+    'gemini-pro-vision': 30000, // Multimodal (siempre disponible)
+    'gemini-1.5-flash': 1000000, // 1M tokens - requiere acceso
+    'gemini-1.5-pro': 2000000, // 2M tokens - requiere acceso
+    'models/gemini-pro': 30000, // Formato alternativo
+    'models/gemini-1.5-flash': 1000000, // Formato con prefijo models/
+    'models/gemini-1.5-pro': 2000000,
+    default: 30000
   }
 };
 
@@ -160,15 +178,54 @@ async function handleAPIError(response: Response, providerName: string): Promise
  * Valida y parsea respuesta JSON de la IA
  */
 function parseAIResponse(content: string): GenerateQuizResponse {
+  // Limpiar contenido antes de validar
+  let trimmedContent = content.trim();
+  
+  // Log en desarrollo para debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEBUG] Raw response length:', trimmedContent.length);
+    console.log('[DEBUG] Response preview (first 500 chars):', trimmedContent.substring(0, 500));
+    console.log('[DEBUG] Response preview (last 500 chars):', trimmedContent.substring(Math.max(0, trimmedContent.length - 500)));
+  }
+  
+  // Remover posibles caracteres de markdown
+  trimmedContent = trimmedContent
+    .replace(/^```json?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+  
   // Verificar si la respuesta parece truncada
-  if (!content.trim().endsWith('}') && !content.trim().endsWith('}]')) {
-    throw new Error('La respuesta parece estar truncada (no termina con } o }])');
+  const endsWithValidChar = trimmedContent.endsWith('}') || 
+                           trimmedContent.endsWith('}]') || 
+                           trimmedContent.endsWith(']') ||
+                           trimmedContent.endsWith('"');
+  
+  if (!endsWithValidChar) {
+    console.warn('[WARN] Response appears truncated, will attempt to repair...');
   }
 
+  // Intentar parsear directamente
   try {
-    return JSON.parse(content) as GenerateQuizResponse;
-  } catch (parseError) {
-    throw new Error(`Error parseando JSON: ${parseError}`);
+    return JSON.parse(trimmedContent) as GenerateQuizResponse;
+  } catch (firstError) {
+    console.warn('[WARN] First parse attempt failed:', firstError instanceof Error ? firstError.message : String(firstError));
+    
+    // Intentar reparar el JSON usando jsonrepair
+    try {
+      console.log('[DEBUG] Attempting to repair JSON...');
+      const repaired = jsonrepair(trimmedContent);
+      console.log('[DEBUG] JSON repair successful, attempting to parse...');
+      return JSON.parse(repaired) as GenerateQuizResponse;
+    } catch (repairError) {
+      // Log del error en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[ERROR] Failed to parse even after repair');
+        console.error('[ERROR] Repair error:', repairError instanceof Error ? repairError.message : String(repairError));
+        console.error('[ERROR] Original error:', firstError instanceof Error ? firstError.message : String(firstError));
+      }
+      
+      throw new Error(`Error parseando JSON: ${firstError instanceof Error ? firstError.message : String(firstError)}`);
+    }
   }
 }
 
@@ -197,7 +254,7 @@ export async function generateQuizWithOpenAI(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3, // Baja temperatura para consistencia
-        max_tokens: 3000, // Reducido considerablemente para evitar rate limits
+        max_tokens: 8000, // Aumentado para permitir respuestas completas
         response_format: { type: 'json_object' } // Forzar respuesta JSON
       }),
     });
@@ -245,7 +302,7 @@ export async function generateQuizWithOpenAI(
 }
 
 /**
- * Genera un quiz usando la API de Groq (GRATIS)
+ * Genera un quiz usando la API
  */
 export async function generateQuizWithGroq(
   params: UserPromptParams,
@@ -269,7 +326,7 @@ export async function generateQuizWithGroq(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 3000,
+        max_tokens: 8000,
         response_format: { type: 'json_object' }
       }),
     });
@@ -285,9 +342,10 @@ export async function generateQuizWithGroq(
       throw new Error('Respuesta vacía de Groq');
     }
 
-    // Log condicional para debugging de desarrollo únicamente
-    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
-      console.log('Groq response length:', content.length);
+    // Log en desarrollo para debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[GROQ] Response length:', content.length);
+      console.log('[GROQ] Response finish_reason:', data.choices[0]?.finish_reason);
     }
 
     return parseAIResponse(content);
@@ -317,6 +375,135 @@ export async function generateQuizWithGroq(
 }
 
 /**
+ * Genera un quiz usando la API de Google Gemini
+ * Solo procesa contenido de texto (no imágenes)
+ */
+export async function generateQuizWithGemini(
+  params: UserPromptParams,
+  config: { apiKey: string; model?: string }
+): Promise<GenerateQuizResponse> {
+  const { apiKey, model = 'gemini-1.5-flash' } = config;
+  
+  try {
+    const userPrompt = createUserPrompt(params);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Intentar primero con el modelo especificado
+    let actualModel = model;
+    
+    // Si falla con el modelo especificado, hacer fallback a gemini-pro
+    let geminiModel;
+    try {
+      geminiModel = genAI.getGenerativeModel({ 
+        model: actualModel,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 8000,
+          responseMimeType: 'application/json',
+        },
+      });
+    } catch (modelError) {
+      logger.warn('Model not available, falling back to gemini-pro', { 
+        requestedModel: actualModel,
+        error: modelError instanceof Error ? modelError.message : 'Unknown'
+      }, 'AI_CLIENT');
+      
+      actualModel = 'gemini-pro';
+      geminiModel = genAI.getGenerativeModel({ 
+        model: actualModel,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 8000,
+          responseMimeType: 'application/json',
+        },
+      });
+    }
+
+    // Modo solo texto - no procesamos imágenes
+    logger.info('Generating quiz from text content only', { 
+      model: actualModel,
+      documentsCount: params.documents.length
+    }, 'AI_CLIENT');
+    
+    const prompt = `${SYSTEM_PROMPT}\n\n${userPrompt}`;
+    const result = await geminiModel.generateContent(prompt);
+    
+    const response = await result.response;
+    
+    // Verificar si hay problemas con la respuesta
+    if (!response || !response.text) {
+      const candidates = result.response?.candidates;
+      if (candidates && candidates[0]?.finishReason) {
+        const finishReason = candidates[0].finishReason;
+        if (finishReason === 'MAX_TOKENS' || finishReason === 'RECITATION') {
+          throw new Error('CONTEXT_LENGTH_EXCEEDED: El contenido es demasiado extenso para procesar');
+        }
+        if (finishReason === 'SAFETY') {
+          throw new Error('Gemini bloqueó la respuesta por razones de seguridad. Intenta con otro documento.');
+        }
+      }
+      throw new Error('Respuesta vacía o incompleta de Gemini');
+    }
+    
+    const content = response.text();
+    
+    if (!content) {
+      throw new Error('Respuesta vacía de Gemini');
+    }
+
+    // Log condicional para debugging de desarrollo únicamente
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
+      console.log('Gemini response length:', content.length);
+      console.log('Gemini model used:', actualModel);
+    }
+
+    return parseAIResponse(content);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    // Detectar errores específicos de Gemini
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+      return {
+        error: {
+          message: 'La API key de Gemini no es válida. Verifica tu configuración.',
+          where: 'generateQuizWithGemini'
+        }
+      };
+    }
+    
+    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
+      return {
+        error: {
+          message: 'Se ha excedido la cuota de la API de Gemini. Intenta más tarde o reduce el tamaño del documento.',
+          where: 'generateQuizWithGemini'
+        }
+      };
+    }
+    
+    // Mejorar mensaje de error para context_length_exceeded
+    if (errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
+        errorMessage.includes('reduce the length') ||
+        errorMessage.includes('context_length_exceeded') ||
+        errorMessage.includes('MAX_TOKENS')) {
+      return {
+        error: {
+          message: 'CONTEXT_LENGTH_EXCEEDED: El documento es demasiado extenso. Divide el documento en partes más pequeñas o reduce el número de preguntas.',
+          where: 'generateQuizWithGemini'
+        }
+      };
+    }
+    
+    console.error('Error generando quiz con Gemini:', error);
+    return {
+      error: {
+        message: errorMessage,
+        where: 'generateQuizWithGemini'
+      }
+    };
+  }
+}
+
+/**
  * Genera un quiz usando la API de Anthropic (Claude)
  */
 export async function generateQuizWithClaude(
@@ -337,7 +524,7 @@ export async function generateQuizWithClaude(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 3000, // Reducido considerablemente para evitar rate limits
+        max_tokens: 8000, // Aumentado para permitir respuestas completas
         system: SYSTEM_PROMPT,
         messages: [
           { role: 'user', content: userPrompt }
@@ -411,6 +598,11 @@ export async function generateQuiz(
         apiKey: provider.apiKey, 
         model: provider.model 
       });
+    case 'gemini':
+      return generateQuizWithGemini(params, { 
+        apiKey: provider.apiKey, 
+        model: provider.model 
+      });
     default:
       return {
         error: {
@@ -463,17 +655,46 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
   const validateMainStructure = (): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
     
+    // Intentar normalizar la respuesta si viene en formato incorrecto
+    if (!response.result && (response as any).quiz) {
+      // La respuesta tiene quiz directamente sin result
+      (response as any).result = {
+        quiz: (response as any).quiz,
+        metadata: (response as any).metadata || {
+          titulo: 'Quiz generado',
+          n_documentos: 1,
+          total_paginas: 1
+        },
+        summary: (response as any).summary || 'Resumen no disponible',
+        study_tips: (response as any).study_tips || []
+      };
+      delete (response as any).quiz;
+    }
+    
     if (!response.result) {
       errors.push('Respuesta sin result');
       return { valid: false, errors };
     }
     
     if (!response.result.metadata) {
-      errors.push('Metadata faltante');
+      // Crear metadata por defecto
+      response.result.metadata = {
+        titulo: 'Quiz generado',
+        idioma: 'es',
+        nivel: 'medio',
+        generado_en: new Date().toISOString()
+      };
     }
     
     if (!response.result.summary) {
-      errors.push('Summary faltante');
+      // Crear summary por defecto
+      response.result.summary = {
+        overview: 'Resumen generado automáticamente del contenido.',
+        sections: [],
+        glosario: [],
+        formulas_o_tablas: [],
+        ejemplos_clave: []
+      };
     }
     
     if (!response.result.quiz) {

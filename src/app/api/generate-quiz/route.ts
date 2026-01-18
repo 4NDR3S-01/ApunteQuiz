@@ -12,7 +12,7 @@ import {
 import { UserPromptParams } from '@/prompts/user';
 import { GenerateQuizResponse } from '@/types';
 import { logger, startTimer } from '@/utils/logger';
-import { reduceDocumentContent } from '@/utils/document-processor.server';
+import { reduceDocumentContent, splitDocumentIntoChunks } from '@/utils/document-processor.server';
 import { 
   formatErrorResponse, 
   ValidationError, 
@@ -74,6 +74,22 @@ export async function POST(request: NextRequest) {
     }
 
     const requestData = validation.data;
+    
+    // Validar que los documentos no sean solo imágenes
+    // Verificar si algún documento tiene el error DOCUMENT_ONLY_IMAGES
+    const hasOnlyImageDocuments = requestData.documents.some(doc => {
+      // Verificar si el documento tiene muy poco texto
+      const textLength = doc.text?.length || 
+        (doc.pages?.reduce((sum, page) => sum + (page.text?.length || 0), 0) || 0);
+      return textLength < 200;
+    });
+    
+    if (hasOnlyImageDocuments) {
+      throw new ValidationError(
+        'El documento contiene solo imágenes y no se puede procesar. ' +
+        'Por favor, sube un documento PDF que contenga texto.'
+      );
+    }
     
     // Obtener configuración del proveedor de AI desde headers o variables de entorno
     const aiProvider = getAIProviderFromRequest(request);
@@ -146,6 +162,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ESTRATEGIA PARA DOCUMENTOS GRANDES: División automática en chunks
+    // Si el documento es muy grande, dividirlo en chunks y procesar por separado
+    const totalPages = requestData.documents.reduce((sum, doc) => {
+      if (doc.type === 'pdf' && doc.pages) return sum + doc.pages.length;
+      return sum + 1;
+    }, 0);
+
+    // Ajustar umbrales según el modelo y proveedor
+    // Ahora con extracción PDF correcta (sin duplicación), chunks más grandes
+    // gemini-pro: 30K tokens -> chunks de 50 páginas, umbral 100
+    // gemini-1.5-flash: 1M tokens -> chunks de 300 páginas, umbral 600
+    // gemini-1.5-pro: 2M tokens -> chunks de 500 páginas, umbral 1000
+    // groq/compound-mini: 70K TPM -> chunks de 20 páginas, umbral 30
+    const modelConfig = {
+      'gemini-pro': { threshold: 100, chunkSize: 50 },
+      'gemini-1.5-flash': { threshold: 600, chunkSize: 300 },
+      'gemini-1.5-pro': { threshold: 1000, chunkSize: 500 },
+      'groq/compound': { threshold: 30, chunkSize: 20 },
+      'groq/compound-mini': { threshold: 30, chunkSize: 20 },
+      'meta-llama/llama-4-scout-17b-16e-instruct': { threshold: 25, chunkSize: 15 },
+      'mixtral-8x7b-32768': { threshold: 20, chunkSize: 15 },
+      'llama-3.3-70b-versatile': { threshold: 20, chunkSize: 15 },
+      'llama-3.1-70b-versatile': { threshold: 20, chunkSize: 15 },
+      'llama-3.1-8b-instant': { threshold: 15, chunkSize: 10 }
+    };
+    
+    const config = modelConfig[aiProvider.model as keyof typeof modelConfig] || { threshold: 30, chunkSize: 20 };
+
+    // Desactivar chunking por ahora - necesita reimplementación
+    let useChunkedProcessing = false;
+    let allChunks: string[] = [];
+    
+    // NOTA: Chunking desactivado temporalmente - necesita reimplementación completa
+    // El sistema de chunking requiere que splitDocumentIntoChunks devuelva DocumentInput[] en lugar de string[]
+
+    // Usar el número recomendado que calculó el frontend (que el usuario vio en la UI)
+    // Si no viene en el request, calcularlo aquí como fallback
+    let recommendedOptimal: number;
+    if (requestData.n_preguntas_recomendadas) {
+      recommendedOptimal = requestData.n_preguntas_recomendadas;
+    } else {
+      const fullText = requestData.documents.reduce((text, doc) => {
+        if (doc.text) return text + doc.text;
+        if (doc.pages) return text + doc.pages.map(p => p.text).join(' ');
+        return text;
+      }, '');
+      const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
+      recommendedOptimal = Math.max(Math.floor(wordsCount / 150), 1);
+    }
+    
     // Preparar parámetros para el prompt
     let promptParams: UserPromptParams = {
       idioma: requestData.idioma,
@@ -156,31 +222,45 @@ export async function POST(request: NextRequest) {
       p_tf: requestData.proporcion_tipos.verdadero_falso,
       temas_prioritarios: requestData.temas_prioritarios,
       documents: requestData.documents,
-      titulo_quiz_o_tema: requestData.titulo_quiz_o_tema
+      titulo_quiz_o_tema: requestData.titulo_quiz_o_tema,
+      // Pasar el número recomendado si el usuario pidió más de lo óptimo
+      recommended_questions: requestData.n_preguntas > recommendedOptimal ? recommendedOptimal : undefined
     };
-
-    // Validar tamaño del prompt y reducir contenido si es necesario
-    const contextCheck = exceedsContextLimit(promptParams, aiProvider);
-    const promptSize = calculatePromptSize(promptParams);
-    
-    logger.info('Prompt size validation', {
-      requestId,
-      provider: aiProvider.name,
-      model: aiProvider.model,
-      promptTokens: promptSize.totalTokens,
-      promptChars: promptSize.totalChars,
-      systemTokens: promptSize.systemTokens,
-      userTokens: promptSize.userTokens,
-      contextLimit: contextCheck.limit,
-      exceeds: contextCheck.exceeds,
-      excess: contextCheck.excess
-    }, 'GENERATE_QUIZ_API');
 
     let contentReductionApplied = false;
     let reductionStrategies: string[] = [];
 
-    // Si excede el límite, reducir contenido automáticamente
-    if (contextCheck.exceeds) {
+    // Calcular tamaño del prompt para uso posterior
+    const contextCheck = exceedsContextLimit(promptParams, aiProvider);
+    const promptSize = calculatePromptSize(promptParams);
+
+    // Si usamos chunking, saltamos la validación de contexto global
+    // porque cada chunk se validará individualmente
+    if (useChunkedProcessing && allChunks.length > 0) {
+      logger.info('Skipping global context validation (using chunked processing)', {
+        requestId,
+        totalChunks: allChunks.length,
+        provider: aiProvider.name,
+        model: aiProvider.model
+      }, 'GENERATE_QUIZ_API');
+    } else {
+      // Validar tamaño del prompt y reducir contenido si es necesario
+      
+      logger.info('Prompt size validation', {
+        requestId,
+        provider: aiProvider.name,
+        model: aiProvider.model,
+        promptTokens: promptSize.totalTokens,
+        promptChars: promptSize.totalChars,
+        systemTokens: promptSize.systemTokens,
+        userTokens: promptSize.userTokens,
+        contextLimit: contextCheck.limit,
+        exceeds: contextCheck.exceeds,
+        excess: contextCheck.excess
+      }, 'GENERATE_QUIZ_API');
+
+      // Si excede el límite, reducir contenido automáticamente
+      if (contextCheck.exceeds) {
       logger.warn('Prompt exceeds context limit, applying content reduction', {
         requestId,
         provider: aiProvider.name,
@@ -188,38 +268,33 @@ export async function POST(request: NextRequest) {
         excessPercent: ((contextCheck.excess / contextCheck.limit) * 100).toFixed(1) + '%'
       }, 'GENERATE_QUIZ_API');
 
-      // Calcular cuántas páginas mantener basado en el límite
-      // Estimación: ~1500 caracteres por página = ~375 tokens por página
-      const tokensPerPage = 375;
-      const maxPagesNeeded = Math.floor((contextCheck.limit - promptSize.systemTokens - 1000) / tokensPerPage);
-      const maxCharsPerPage = 1500;
+      // Calcular tokens objetivo para la reducción
+      const targetTokens = contextCheck.limit - promptSize.systemTokens - 1000;
 
-      // Reducir cada documento
-      const reducedDocuments = requestData.documents.map(doc => {
-        const reduction = reduceDocumentContent(
-          doc,
-          maxCharsPerPage,
-          maxPagesNeeded > 0 ? maxPagesNeeded : undefined
-        );
-
-        if (reduction.reductionApplied) {
-          contentReductionApplied = true;
-          reductionStrategies.push(...reduction.strategy);
-          
-          logger.info('Document content reduced', {
-            requestId,
-            docId: doc.doc_id,
-            originalPages: reduction.originalStats.pages,
-            reducedPages: reduction.reducedStats.pages,
-            originalChars: reduction.originalStats.chars,
-            reducedChars: reduction.reducedStats.chars,
-            reductionPercent: ((1 - reduction.reducedStats.chars / reduction.originalStats.chars) * 100).toFixed(1) + '%',
-            strategies: reduction.strategy
-          }, 'GENERATE_QUIZ_API');
-        }
-
-        return reduction.document;
-      });
+      // Reducir todos los documentos
+      const reducedDocuments = reduceDocumentContent(requestData.documents, targetTokens);
+      
+      // Calcular estadísticas de reducción
+      const originalChars = requestData.documents.reduce((sum, doc) => {
+        return sum + (doc.pages?.reduce((pageSum, page) => pageSum + (page.text?.length || 0), 0) || 0);
+      }, 0);
+      
+      const reducedChars = reducedDocuments.reduce((sum, doc) => {
+        return sum + (doc.pages?.reduce((pageSum, page) => pageSum + (page.text?.length || 0), 0) || 0);
+      }, 0);
+      
+      if (reducedChars < originalChars) {
+        contentReductionApplied = true;
+        reductionStrategies.push('token_limit_reduction');
+        
+        logger.info('Document content reduced', {
+          requestId,
+          originalChars,
+          reducedChars,
+          reductionPercent: ((1 - reducedChars / originalChars) * 100).toFixed(1) + '%',
+          targetTokens
+        }, 'GENERATE_QUIZ_API');
+      }
 
       // Actualizar promptParams con documentos reducidos
       promptParams = {
@@ -265,7 +340,8 @@ export async function POST(request: NextRequest) {
           }
         );
       }
-    }
+      }
+    } // Fin del else para validación sin chunking
 
     // Función helper para generar quiz con manejo de context_length_exceeded
     const generateQuizWithContextRetry = async (
@@ -295,24 +371,17 @@ export async function POST(request: NextRequest) {
           // Si es el primer intento y no se aplicó reducción antes, aplicar reducción agresiva
           if (attempt === 1 && !contentReductionApplied) {
             const tokensPerPage = 300; // Reducción más agresiva
-            const maxPagesNeeded = Math.floor((getContextLimit(provider) - promptSize.systemTokens - 2000) / tokensPerPage);
-            const maxCharsPerPage = 1000; // Más restrictivo
+            const targetTokens = Math.floor(getContextLimit(provider) - promptSize.systemTokens - 2000);
 
-            const reducedDocuments = params.documents.map(doc => {
-              const reduction = reduceDocumentContent(doc, maxCharsPerPage, maxPagesNeeded);
-              if (reduction.reductionApplied) {
-                reductionStrategies.push(...reduction.strategy);
-              }
-              return reduction.document;
-            });
-
+            const reducedDocuments = reduceDocumentContent(params.documents, targetTokens);
+            
             const newParams = { ...params, documents: reducedDocuments };
             contentReductionApplied = true;
+            reductionStrategies.push('aggressive_retry_reduction');
 
             logger.info('Applied aggressive content reduction for context retry', {
               requestId,
-              maxPages: maxPagesNeeded,
-              maxCharsPerPage
+              targetTokens
             }, 'GENERATE_QUIZ_API');
 
             // Retry con contenido reducido
@@ -346,7 +415,13 @@ export async function POST(request: NextRequest) {
     };
 
     // Generar el quiz con retry, timeout y fallback automático
-    let aiResponse = await withTimeout(
+    let aiResponse: GenerateQuizResponse;
+    
+    // CHUNKING DESACTIVADO TEMPORALMENTE
+    // El procesamiento por chunks está desactivado hasta reimplementar correctamente
+    
+    // Procesar documento completo normalmente
+    aiResponse = await withTimeout(
       retryWithBackoff(
         () => generateQuizWithContextRetry(promptParams, aiProvider),
         3,
@@ -501,6 +576,41 @@ export async function POST(request: NextRequest) {
 
     // Calcular métricas de calidad
     const qualityMetrics = calculateQuizQuality(validatedResponse);
+    
+    // Verificar si se generó un número razonable de preguntas
+    const generatedCount = validatedResponse.result?.quiz?.preguntas?.length || 0;
+    const requestedCount = requestData.n_preguntas;
+    const recommendedMinimum = promptParams.recommended_questions || requestedCount;
+    
+    // Si se solicitó más de lo recomendado, el mínimo aceptable es lo recomendado
+    // Si no, el mínimo es 70% de lo solicitado
+    const minAcceptable = promptParams.recommended_questions 
+      ? recommendedMinimum 
+      : Math.ceil(requestedCount * 0.7);
+    
+    if (generatedCount < minAcceptable) {
+      logger.warn('Insufficient questions generated, below minimum threshold', {
+        requestId,
+        generated: generatedCount,
+        requested: requestedCount,
+        recommended: recommendedMinimum,
+        minAcceptable: minAcceptable,
+        ratio: generatedCount / requestedCount
+      }, 'GENERATE_QUIZ_API');
+      
+      // Agregar nota en el resultado
+      if (validatedResponse.result?.notes) {
+        const message = promptParams.recommended_questions
+          ? `Solo se generaron ${generatedCount} de ${requestedCount} preguntas solicitadas (se recomendaban ${recommendedMinimum}). El contenido del documento es insuficiente para generar más preguntas de calidad.`
+          : `Solo se generaron ${generatedCount} de ${requestedCount} preguntas solicitadas. El contenido del documento puede ser limitado o muy específico. Considera subir un documento más extenso o reducir el número de preguntas.`;
+          
+        validatedResponse.result.notes = {
+          ...validatedResponse.result.notes,
+          insuficiente_evidencia: true,
+          detalle: message
+        };
+      }
+    }
 
     // Log del éxito y métricas
     timer.end({
@@ -548,8 +658,8 @@ export async function POST(request: NextRequest) {
 
 function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
   // Usar configuración fija del servidor
-  const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | 'groq' | undefined;
-  const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
+  const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | 'groq' | 'gemini' | undefined;
+  const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
   const envModel = process.env.AI_MODEL;
 
   if (envProvider && envApiKey) {
@@ -558,6 +668,7 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
         case 'openai': return 'gpt-4o-mini';
         case 'anthropic': return 'claude-3-5-sonnet-20241022';
         case 'groq': return 'llama-3.1-8b-instant';
+        case 'gemini': return 'gemini-1.5-flash';
         default: return 'gpt-4o-mini';
       }
     };
@@ -569,7 +680,17 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
     };
   }
 
-  // Fallback a configuración por defecto - intentar Groq primero (es gratis)
+  // Fallback a configuración por defecto - intentar Gemini primero (excelente con documentos grandes)
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (geminiApiKey) {
+    return {
+      name: 'gemini',
+      apiKey: geminiApiKey,
+      model: 'gemini-1.5-flash' // Intentar con modelo avanzado primero
+    };
+  }
+
+  // Fallback a Groq (es gratis)
   const groqApiKey = process.env.GROQ_API_KEY;
   if (groqApiKey) {
     return {

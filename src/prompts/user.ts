@@ -8,6 +8,7 @@ export interface UserPromptParams {
   temas_prioritarios: string[];
   documents: Document[];
   titulo_quiz_o_tema: string;
+  recommended_questions?: number; // Número recomendado basado en el contenido
 }
 
 export interface Document {
@@ -34,16 +35,32 @@ export const createUserPrompt = (params: UserPromptParams): string => {
     p_tf,
     temas_prioritarios,
     documents,
-    titulo_quiz_o_tema
+    titulo_quiz_o_tema,
+    recommended_questions
   } = params;
 
   const now = new Date().toISOString();
   const temas_prioritarios_json = JSON.stringify(temas_prioritarios);
+  
+  // Generar nota sobre recomendación si aplica
+  const recommendationNote = recommended_questions && recommended_questions < n_preguntas
+    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${documents.reduce((acc, doc) => {
+        const text = doc.text || (doc.pages || []).map(p => p.text).join(' ');
+        return acc + text.split(/\\s+/).filter(w => w.length > 0).length;
+      }, 0)} palabras), se recomienda ${recommended_questions} preguntas para mantener la calidad.
+
+INSTRUCCIÓN CRÍTICA:
+1. INTENTA generar las ${n_preguntas} preguntas solicitadas explorando todos los aspectos del contenido
+2. Si es absolutamente imposible mantener calidad con ${n_preguntas} preguntas, genera AL MENOS ${recommended_questions} preguntas
+3. NUNCA generes menos de ${recommended_questions} preguntas
+4. Si generas menos de ${n_preguntas}, DEBES explicar en "notes.detalle" por qué no fue posible
+`
+    : `\n✓ El número de preguntas solicitadas (${n_preguntas}) es apropiado para el contenido del documento.\n`;
 
   return `
 Pro Tip: si el archivo es PDF, primero extrae el texto por páginas (pdf.js/tesseract). Pasa ese texto en documents[].pages[].text.
 Si son notas sueltas, usa documents[].text.
-
+${recommendationNote}
 # INSTRUCCIONES
 Quiero que proceses los documentos y devuelvas un RESUMEN y un QUIZ en el idioma indicado, siguiendo el esquema JSON de abajo. 
 No uses conocimiento externo. Cita los fragmentos usados.

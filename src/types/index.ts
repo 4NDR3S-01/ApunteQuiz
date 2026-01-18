@@ -29,6 +29,10 @@ export interface PDFExtractionResult {
     producer?: string;
     creationDate?: Date;
     modificationDate?: Date;
-    pageCount?: number; // Número real de páginas del PDF
+    pageCount?: number; // Número de páginas extraídas con contenido
+    originalPageCount?: number; // Número total de páginas del PDF original
+    extractedCharacterCount?: number; // Conteo bruto de caracteres extraídos
+    warnings?: string[]; // Advertencias no críticas devueltas por el procesador
+    error?: 'DOCUMENT_ONLY_IMAGES' | string; // Indica si el documento solo tiene imágenes
   };
 }

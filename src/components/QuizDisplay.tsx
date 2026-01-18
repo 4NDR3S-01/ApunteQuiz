@@ -207,21 +207,21 @@ export default function QuizDisplay({ quizResult, onQuizComplete, className = ''
               <p className="font-medium text-[color:var(--foreground)] mb-2">Distribución de tipos de preguntas:</p>
               <div className="grid grid-cols-1 gap-2 text-xs">
                 {typeDistribution.opcion_multiple.count > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span>🔘 Opción múltiple:</span>
-                    <span className="font-medium">{typeDistribution.opcion_multiple.count} ({typeDistribution.opcion_multiple.percentage}%)</span>
+                  <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1">
+                    <span className="min-w-0">🔘 Opción múltiple:</span>
+                    <span className="font-medium whitespace-nowrap ml-auto">{typeDistribution.opcion_multiple.count} ({typeDistribution.opcion_multiple.percentage}%)</span>
                   </div>
                 )}
                 {typeDistribution.respuesta_corta.count > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span>✏️ Respuesta corta:</span>
-                    <span className="font-medium">{typeDistribution.respuesta_corta.count} ({typeDistribution.respuesta_corta.percentage}%)</span>
+                  <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1">
+                    <span className="min-w-0">✏️ Respuesta corta:</span>
+                    <span className="font-medium whitespace-nowrap ml-auto">{typeDistribution.respuesta_corta.count} ({typeDistribution.respuesta_corta.percentage}%)</span>
                   </div>
                 )}
                 {typeDistribution.verdadero_falso.count > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span>✅ Verdadero/Falso:</span>
-                    <span className="font-medium">{typeDistribution.verdadero_falso.count} ({typeDistribution.verdadero_falso.percentage}%)</span>
+                  <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1">
+                    <span className="min-w-0">✅ Verdadero/Falso:</span>
+                    <span className="font-medium whitespace-nowrap ml-auto">{typeDistribution.verdadero_falso.count} ({typeDistribution.verdadero_falso.percentage}%)</span>
                   </div>
                 )}
               </div>
