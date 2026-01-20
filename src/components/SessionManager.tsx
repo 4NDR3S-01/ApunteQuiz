@@ -31,9 +31,16 @@ export default function SessionManager({ inactivityTimeout = 30 }: SessionManage
     // Verificar si hay sesión activa
     supabase.auth.getSession().then(({ data: { session } }) => {
       setHasSession(!!session);
+      
+      // Si hay sesión, inicializar la última actividad
+      if (session) {
+        lastActivityRef.current = Date.now();
+      }
     });
+  }, [supabase]);
 
-    // Si no hay sesión, no hacer nada más
+  useEffect(() => {
+    // Si no hay sesión, no hacer nada
     if (!hasSession) return;
 
     // Eventos que indican actividad del usuario
@@ -44,16 +51,15 @@ export default function SessionManager({ inactivityTimeout = 30 }: SessionManage
     });
 
     // Verificar inactividad cada minuto
-    inactivityCheckIntervalRef.current = setInterval(() => {
+    inactivityCheckIntervalRef.current = setInterval(async () => {
       const inactiveTime = Date.now() - lastActivityRef.current;
       const inactivityLimit = inactivityTimeout * 60 * 1000; // convertir a milisegundos
 
       if (inactiveTime >= inactivityLimit) {
         // Cerrar sesión por inactividad
-        supabase.auth.signOut().then(() => {
-          router.push('/login?reason=inactivity');
-          router.refresh();
-        });
+        await supabase.auth.signOut();
+        router.push('/login?reason=inactivity');
+        router.refresh();
       }
     }, 60 * 1000); // Verificar cada minuto
 
@@ -61,9 +67,10 @@ export default function SessionManager({ inactivityTimeout = 30 }: SessionManage
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setHasSession(false);
-        // Redirigir a login si se cierra sesión
-        router.push('/login');
-        router.refresh();
+        // Limpiar el intervalo al cerrar sesión
+        if (inactivityCheckIntervalRef.current) {
+          clearInterval(inactivityCheckIntervalRef.current);
+        }
       } else if (event === 'TOKEN_REFRESHED') {
         // Token actualizado exitosamente, actualizar la actividad
         updateActivity();

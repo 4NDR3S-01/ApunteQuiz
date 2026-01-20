@@ -14,15 +14,7 @@ export function createClient(options?: { persistSession?: boolean }) {
         persistSession,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        // Flujo PKCE para mayor seguridad
         flowType: 'pkce',
-      },
-      // Configuración de cookies para mejor compatibilidad
-      cookieOptions: {
-        name: 'sb-auth',
-        domain: undefined,
-        path: '/',
-        sameSite: 'lax',
       },
     }
   );
