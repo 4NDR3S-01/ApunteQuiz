@@ -910,12 +910,14 @@ useEffect(() => {
     // Marcar que ya no es la carga inicial cuando el usuario cambia manualmente
     isInitialLoadRef.current = false;
     
-    // Si el usuario activa manualmente, marcar como interactuado
+    // Si el usuario activa manualmente, marcar como interactuado y resetear flag de toast
     if (value && !autoVoiceControlActive) {
       setUserHasInteracted(true);
+      // Resetear el flag para permitir mostrar el toast al activar
+      hasShownActivationToastRef.current = false;
     }
     
-    // Si desactiva manualmente, también marcar como interactuado
+    // Si desactiva manualmente, también marcar como interactuado (NO resetear el flag aqui)
     if (!value && autoVoiceControlActive) {
       setAutoVoiceControlActive(false);
       setUserHasInteracted(true);
@@ -1114,6 +1116,8 @@ useEffect(() => {
   const hasNetworkErrorRef = useRef<boolean>(false);
   const networkRetryCountRef = useRef<number>(0);
   const isInitialLoadRef = useRef<boolean>(true);
+  const hasShownActivationToastRef = useRef<boolean>(false);
+  const isManuallyDisablingRef = useRef<boolean>(false);
   const MAX_NETWORK_RETRIES = 3;
   
   useEffect(() => {
@@ -1121,11 +1125,14 @@ useEffect(() => {
     if (typeof globalThis.window === 'undefined' || !voiceControlEnabled || !isMainPage) {
       setVoiceControlActive(false);
       setVoiceControlMessage(null);
-      // Limpiar todos los refs cuando se desactiva
+      // Marcar que se está desactivando manualmente para evitar reinicios
+      isManuallyDisablingRef.current = true;
+      // Limpiar todos los refs cuando se desactiva (excepto hasShownActivationToastRef)
       errorCountRef.current = 0;
       isReconnectingRef.current = false;
       hasNetworkErrorRef.current = false;
       networkRetryCountRef.current = 0;
+      // NO resetear hasShownActivationToastRef.current aquí para evitar toasts al desactivar
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -1157,23 +1164,39 @@ useEffect(() => {
 
     // Función asíncrona para inicializar el reconocimiento
     const initRecognition = async () => {
-      // Verificar permisos del micrófono antes de continuar
-      if (navigator.permissions) {
+      // Resetear el flag de desactivación manual al iniciar
+      isManuallyDisablingRef.current = false;
+      
+      // Solicitar permisos del micrófono explícitamente para mostrar el prompt del navegador
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
-          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          if (result.state === 'denied') {
-            const errorMsg = 'Permisos del micrófono denegados. Habilítalos en la configuración del navegador.';
-            setVoiceControlMessage(errorMsg);
-            setVoiceControlActive(false);
-            setVoiceControlEnabledState(false);
-            // Solo mostrar toast si NO es la carga inicial (es decir, el usuario lo activó manualmente)
-            if (!isInitialLoadRef.current) {
-              showToast(errorMsg, 'error');
-            }
-            return; // NO continuar creando el reconocimiento
+          // Esto muestra el cuadro de diálogo del navegador pidiendo permisos
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Si llegamos aquí, el usuario dio permisos. Cerrar el stream inmediatamente
+          stream.getTracks().forEach(track => track.stop());
+        } catch (err: any) {
+          console.error('Error al solicitar permisos del micrófono:', err.name, err.message);
+          
+          // El usuario denegó los permisos o hubo un error
+          let errorMsg = 'No se pudo acceder al micrófono.';
+          
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            errorMsg = 'Permisos del micrófono denegados. Habilítalos en la configuración del navegador.';
+          } else if (err.name === 'NotFoundError') {
+            errorMsg = 'No se detectó ningún micrófono. Conecta un micrófono e intenta nuevamente.';
+          } else if (err.name === 'NotReadableError') {
+            errorMsg = 'El micrófono está siendo usado por otra aplicación.';
           }
-        } catch (err) {
-          // Algunos navegadores no soportan la API de permisos, continuar de todas formas
+          
+          setVoiceControlMessage(errorMsg);
+          setVoiceControlActive(false);
+          setVoiceControlEnabledState(false);
+          
+          // Solo mostrar toast si NO es la carga inicial
+          if (!isInitialLoadRef.current) {
+            showToast(errorMsg, 'error');
+          }
+          return; // NO continuar creando el reconocimiento
         }
       }
 
@@ -1191,8 +1214,11 @@ useEffect(() => {
       hasNetworkErrorRef.current = false;
       networkRetryCountRef.current = 0;
       isReconnectingRef.current = false;
-      // Mostrar toast de éxito solo cuando realmente inicia
-      showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+      // Mostrar toast de éxito SOLO en la primera activación, no en reinicios automáticos
+      if (!isInitialLoadRef.current && !hasShownActivationToastRef.current) {
+        showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+        hasShownActivationToastRef.current = true;
+      }
     };
 
     recognition.onresult = (event: any) => {
@@ -1368,6 +1394,12 @@ useEffect(() => {
     };
 
     recognition.onend = () => {
+      // NO reiniciar si se está desactivando manualmente
+      if (isManuallyDisablingRef.current) {
+        setVoiceControlActive(false);
+        return;
+      }
+      
       // NO reiniciar si hay errores de red activos o si ya se está reconectando
       if (hasNetworkErrorRef.current || isReconnectingRef.current || networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
         setVoiceControlActive(false);
@@ -1383,6 +1415,7 @@ useEffect(() => {
             recognitionRef.current === recognition &&
             !hasNetworkErrorRef.current &&
             !isReconnectingRef.current &&
+            !isManuallyDisablingRef.current &&
             networkRetryCountRef.current <= MAX_NETWORK_RETRIES
           ) {
             try {
