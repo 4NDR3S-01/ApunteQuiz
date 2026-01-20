@@ -13,6 +13,7 @@ import {
 } from 'react';
 import { usePathname } from 'next/navigation';
 import { ToastContainer } from './Toast';
+import useTranslation from '@/hooks/useTranslation';
 
 // Tipos para reconocimiento de voz
 interface SpeechRecognition extends EventTarget {
@@ -243,6 +244,9 @@ function applyDyslexicFont(enabled: boolean) {
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
   // Initialize with safe defaults to avoid hydration mismatch
   const pathname = usePathname();
+  const { dictionary } = useTranslation();
+  const voiceToasts = dictionary.accessibility.toasts.voiceControl;
+  
   // Páginas principales donde el control por voz está habilitado
   const MAIN_PAGES = ['/', '/faq', '/contacto', '/dashboard'];
   const isMainPage = MAIN_PAGES.includes(pathname || '/');
@@ -348,7 +352,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
           setVoiceControlEnabledState(false);
           
           if (now - lastToastTime > TOAST_COOLDOWN) {
-            showToast('Control por voz desactivado debido a interacción del usuario', 'info');
+            showToast(voiceToasts.deactivated, 'info');
             lastToastTime = now;
           }
         }
@@ -366,7 +370,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
             if (isMainPage && !voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
               setVoiceControlEnabledState(true);
               setAutoVoiceControlActive(true);
-              showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+              showToast(voiceToasts.autoActivated, 'success');
             }
           }, 600000); // 10 minutos = 600000 ms
         }
@@ -385,6 +389,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         if (isMainPage && !voiceControlEnabled && !userHasInteracted && !autoVoiceControlActive) {
           setVoiceControlEnabledState(true);
           setAutoVoiceControlActive(true);
+          hasShownActivationToastRef.current = true; // Marcar que ya mostramos el toast
+          hasShownActivationToastRef.current = true; // Marcar que ya mostramos el toast
           showToast('Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
         }
       }, 600000); // 10 minutos = 600000 ms
@@ -1150,10 +1156,9 @@ useEffect(() => {
     if (!SpeechRecognition) {
       // Solo mostrar el mensaje una vez, no en bucle
       if (!browserNotSupportedShownRef.current) {
-        const errorMsg = 'Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.';
-        setVoiceControlMessage(errorMsg);
+        setVoiceControlMessage(voiceToasts.browserNotSupported);
         setVoiceControlActive(false);
-        showToast(errorMsg, 'error');
+        showToast(voiceToasts.browserNotSupported, 'error');
         browserNotSupportedShownRef.current = true;
       }
       return;
@@ -1194,7 +1199,7 @@ useEffect(() => {
       
       // Mostrar toast de éxito SOLO en la primera activación, no en reinicios automáticos
       if (!isInitialLoadRef.current && !hasShownActivationToastRef.current) {
-        showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
+        showToast(voiceToasts.activated, 'success');
         hasShownActivationToastRef.current = true;
       }
     };
@@ -1236,7 +1241,7 @@ useEffect(() => {
           setVoiceControlMessage('Medios reproducidos');
         } else {
           setVoiceControlMessage(`Comando no reconocido: "${command}"`);
-          showToast(`Comando no reconocido. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"`, 'warning');
+          showToast(voiceToasts.commandNotRecognized, 'warning');
         }
         
         // Limpiar mensaje después de 3 segundos
@@ -1258,8 +1263,8 @@ useEffect(() => {
         setVoiceControlActive(false);
         setVoiceControlEnabledState(false);
         setAutoVoiceControlActive(false);
-        setVoiceControlMessage('Control por voz desactivado debido a múltiples errores. Verifica tu conexión a internet y los permisos del micrófono.');
-        showToast('Control por voz desactivado. Verifica tu conexión a internet y los permisos del micrófono.', 'error');
+        setVoiceControlMessage(voiceToasts.networkError);
+        showToast(voiceToasts.networkError, 'error');
         return;
       }
       
@@ -1270,9 +1275,9 @@ useEffect(() => {
       
       if (error === 'not-allowed') {
         setVoiceControlActive(false);
-        setVoiceControlMessage('Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.');
+        setVoiceControlMessage(voiceToasts.permissionDenied);
         if (canShowErrorToast) {
-          showToast('Permisos del micrófono denegados. Habilítalos en la configuración del navegador.', 'error');
+          showToast(voiceToasts.permissionDenied, 'error');
           errorToastCooldownRef.current = now;
         }
       } else if (error === 'no-speech') {
@@ -1283,9 +1288,9 @@ useEffect(() => {
         errorCountRef.current = Math.max(0, errorCountRef.current - 1);
       } else if (error === 'audio-capture') {
         setVoiceControlActive(false);
-        setVoiceControlMessage('No se pudo acceder al micrófono. Verifica que esté conectado y habilitado.');
+        setVoiceControlMessage(voiceToasts.microphoneNotAccessible);
         if (canShowErrorToast) {
-          showToast('No se pudo acceder al micrófono. Verifica que esté conectado.', 'error');
+          showToast(voiceToasts.microphoneNotAccessible, 'error');
           errorToastCooldownRef.current = now;
         }
       } else if (error === 'network') {
@@ -1297,7 +1302,7 @@ useEffect(() => {
           hasNetworkErrorRef.current = true;
           setVoiceControlEnabledState(false);
           setAutoVoiceControlActive(false);
-          const finalMsg = 'Control por voz desactivado: no se puede conectar al servicio de reconocimiento. Verifica tu conexión a internet.';
+          const finalMsg = voiceToasts.networkMaxRetries.replace('{max}', String(MAX_NETWORK_RETRIES));
           setVoiceControlMessage(finalMsg);
           // Solo mostrar toast si no se ha mostrado recientemente
           if ((now - errorToastCooldownRef.current) > 5000) {
@@ -1310,12 +1315,11 @@ useEffect(() => {
         // Marcar que hay error de red para que onend lo maneje
         hasNetworkErrorRef.current = true;
         
-        const hasConnection = navigator.onLine;
-        const retryMsg = hasConnection 
-          ? `Error temporal del servicio. Reintentando...`
-          : `Sin conexión a internet. Reintentando...`;
+        const retryMsg = voiceToasts.networkRetry
+          .replace('{attempt}', String(networkRetryCountRef.current))
+          .replace('{max}', String(MAX_NETWORK_RETRIES));
         
-        setVoiceControlMessage(`${retryMsg} (${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES})`);
+        setVoiceControlMessage(retryMsg);
         
         // Solo mostrar toast en el primer intento para evitar spam
         if (networkRetryCountRef.current === 1 && canShowErrorToast) {
@@ -1340,9 +1344,9 @@ useEffect(() => {
         }
       } else {
         setVoiceControlActive(false);
-        setVoiceControlMessage(`Error: ${error}. Intenta desactivar y reactivar el control por voz.`);
+        setVoiceControlMessage(voiceToasts.genericError.replace('{error}', error));
         if (canShowErrorToast) {
-          showToast(`Error en reconocimiento de voz: ${error}. Intenta reactivarlo.`, 'error');
+          showToast(voiceToasts.genericError.replace('{error}', error), 'error');
           errorToastCooldownRef.current = now;
         }
       }
@@ -1397,10 +1401,9 @@ useEffect(() => {
         recognition.start();
         recognitionRef.current = recognition;
       } catch (e: any) {
-        const errorMsg = e?.message || 'Error desconocido';
-        setVoiceControlMessage(`No se pudo iniciar el reconocimiento de voz: ${errorMsg}. Asegúrate de dar permisos al micrófono.`);
+        setVoiceControlMessage(voiceToasts.startError);
         setVoiceControlActive(false);
-        showToast(`No se pudo iniciar el reconocimiento de voz. Verifica los permisos del micrófono.`, 'error');
+        showToast(voiceToasts.startError, 'error');
         console.warn('No se pudo iniciar el reconocimiento de voz:', e);
       }
     };

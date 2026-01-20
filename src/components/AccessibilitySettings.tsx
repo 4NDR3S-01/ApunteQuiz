@@ -5,26 +5,30 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Sun, Monitor, Moon, Settings, X, RotateCcw } from 'lucide-react';
 import { useAccessibility } from './AccessibilityProvider';
 import type { ThemePreference, FontScale } from './AccessibilityProvider';
-
-const THEME_OPTIONS: ReadonlyArray<{
-  readonly value: ThemePreference;
-  readonly label: string;
-  readonly Icon: typeof Sun;
-}> = [
-  { value: 'light', label: 'Claro', Icon: Sun },
-  { value: 'system', label: 'Sistema', Icon: Monitor },
-  { value: 'dark', label: 'Oscuro', Icon: Moon },
-];
-
-const FONT_SCALE_OPTIONS: ReadonlyArray<{
-  readonly value: FontScale;
-  readonly label: string;
-}> = [
-  { value: 'base', label: 'Normal' },
-  { value: 'large', label: 'Grande' },
-];
+import useTranslation from '@/hooks/useTranslation';
 
 export default function AccessibilitySettings() {
+  const { dictionary } = useTranslation();
+  const a11y = dictionary.accessibility.settings;
+  
+  const THEME_OPTIONS: ReadonlyArray<{
+    readonly value: ThemePreference;
+    readonly label: string;
+    readonly Icon: typeof Sun;
+  }> = [
+    { value: 'light', label: a11y.theme.light, Icon: Sun },
+    { value: 'system', label: a11y.theme.system, Icon: Monitor },
+    { value: 'dark', label: a11y.theme.dark, Icon: Moon },
+  ];
+
+  const FONT_SCALE_OPTIONS: ReadonlyArray<{
+    readonly value: FontScale;
+    readonly label: string;
+  }> = [
+    { value: 'base', label: a11y.fontSize.normal },
+    { value: 'large', label: a11y.fontSize.large },
+  ];
+  
   const {
     themePreference,
     resolvedTheme,
@@ -148,7 +152,7 @@ export default function AccessibilitySettings() {
           <header className="mb-4 flex items-start justify-between gap-3">
             <div>
               <p id={dialogTitleId} className="text-sm font-semibold text-[color:var(--foreground)]">
-                Ajustes de accesibilidad
+                {a11y.title}
               </p>
               <p
                 id={dialogDescriptionId}
@@ -162,7 +166,7 @@ export default function AccessibilitySettings() {
               ref={closeButtonRef}
               onClick={() => setIsOpen(false)}
               className="rounded-full border border-transparent p-1 text-[color:var(--text-muted)] transition hover:border-slate-300 hover:text-[color:var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
-              aria-label="Cerrar panel de accesibilidad"
+              aria-label={a11y.close}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -184,17 +188,17 @@ export default function AccessibilitySettings() {
             {/* Auditiva */}
             <section className="a11y-card-muted space-y-3 rounded-xl p-3">
               <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">Auditiva</h3>
+                <h3 className="font-medium text-[color:var(--foreground)]">{a11y.sections.auditory}</h3>
                 <p className="text-xs text-[color:var(--text-muted)]">Opciones para mejorar la experiencia auditiva y de medios.</p>
               </header>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={subtitlesEnabled} onChange={(e) => setSubtitlesEnabled(e.target.checked)} className="w-4 h-4" />
-                  <span>Subtítulos en videos</span>
+                  <span>{a11y.subtitles.label}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={autoTranscripts} onChange={(e) => setAutoTranscripts(e.target.checked)} className="w-4 h-4" />
-                  <span>Transcripciones textuales automáticas</span>
+                  <span>{a11y.autoTranscripts.label}</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
@@ -206,12 +210,12 @@ export default function AccessibilitySettings() {
                       id="autoplay-checkbox"
                     />
                     <label htmlFor="autoplay-checkbox" className="cursor-pointer">
-                      Auto-reproducción de videos
+                      {a11y.autoPlay.label}
                     </label>
                   </div>
                   {autoPlay && (
                     <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">
-                      Los videos se reproducirán automáticamente al cargarse.
+                      {a11y.autoPlay.help}
                     </div>
                   )}
                 </div>
@@ -223,14 +227,14 @@ export default function AccessibilitySettings() {
                     className="a11y-control px-3 py-1 rounded"
                     disabled={!readingSupported}
                   >
-                    {isReading ? 'Detener narrador' : 'Iniciar narrador'}
+                    {isReading ? a11y.reading.stop : a11y.reading.start}
                   </button>
                   <button type="button" onClick={clearReadingMessage} className="px-2 py-1 rounded border text-sm">Limpiar mensajes</button>
                 </div>
 
                 {!readingSupported && (
                   <div className="text-xs text-[color:var(--text-muted)] italic pt-1">
-                    Narrador no disponible en este navegador
+                    {a11y.reading.notSupported}
                   </div>
                 )}
 
@@ -241,7 +245,7 @@ export default function AccessibilitySettings() {
             {/* Visual */}
             <section className="a11y-card-muted space-y-3 rounded-xl p-3">
               <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">Visual</h3>
+                <h3 className="font-medium text-[color:var(--foreground)]">{a11y.sections.visual}</h3>
                 <p className="text-xs text-[color:var(--text-muted)]">Ajustes visuales: tema, tipografía, colores y espaciado.</p>
               </header>
 
@@ -253,7 +257,7 @@ export default function AccessibilitySettings() {
                     <button key={option.value} type="button" onClick={() => handleThemeSelection(option.value)} aria-pressed={isActive} className={`flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-3 text-xs font-semibold transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${isActive ? 'a11y-critical shadow-md' : 'a11y-control shadow-sm hover:shadow-md'}`}>
                       <Icon className="h-5 w-5" />
                       <span>{option.label}</span>
-                      {option.value === 'system' && <span className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{resolvedTheme === 'dark' ? 'Oscuro' : 'Claro'}</span>}
+                      {option.value === 'system' && <span className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{resolvedTheme === 'dark' ? a11y.theme.dark : a11y.theme.light}</span>}
                     </button>
                   );
                 })}
@@ -261,12 +265,12 @@ export default function AccessibilitySettings() {
 
               <div className="flex flex-col gap-3">
                 <div>
-                  <label className="block text-sm mb-1">Escala de texto (barra): {textScale.toFixed(1)}x</label>
-                  <input aria-label="Escala de texto" type="range" min={0.8} max={2} step={0.1} value={String(textScale)} onChange={(e) => setTextScale(Number(e.target.value))} className="w-full" />
+                  <label className="block text-sm mb-1">{a11y.textScale.label}: {textScale.toFixed(1)}x</label>
+                  <input aria-label={a11y.textScale.label} type="range" min={0.8} max={2} step={0.1} value={String(textScale)} onChange={(e) => setTextScale(Number(e.target.value))} className="w-full" />
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-36 text-sm">Escala de fuente</span>
+                  <span className="w-36 text-sm">{a11y.fontSize.label}</span>
                   <div className="flex gap-2">
                     {FONT_SCALE_OPTIONS.map((opt) => (
                       <button 
@@ -284,29 +288,29 @@ export default function AccessibilitySettings() {
 
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={highContrast} onChange={(e) => toggleHighContrast()} className="w-4 h-4" />
-                  <span>Alto contraste</span>
+                  <span>{a11y.contrast.label}</span>
                   {usesSystemContrast && (
-                    <span className="text-xs text-[color:var(--text-muted)]">(Sistema)</span>
+                    <span className="text-xs text-[color:var(--text-muted)]">{a11y.contrast.system}</span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={dyslexicFont} onChange={(e) => setDyslexicFont(e.target.checked)} className="w-4 h-4" />
-                  <span>Fuente amigable para dislexia</span>
+                  <span>{a11y.dyslexicFont.label}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-36 text-sm">Tipo de fuente</span>
+                  <span className="w-36 text-sm">{a11y.customFont.label}</span>
                   <select value={customFont ?? ''} onChange={(e) => setCustomFont(e.target.value)} className="a11y-input rounded px-2 py-1">
-                    <option value="">Sistema</option>
-                    <option value="sans">Sans (predeterminado)</option>
-                    <option value="serif">Serif</option>
-                    <option value="dyslexic">Fuente amigable (dislexia)</option>
+                    <option value="">{a11y.customFont.default}</option>
+                    <option value="sans">{a11y.customFont.sans}</option>
+                    <option value="serif">{a11y.customFont.serif}</option>
+                    <option value="dyslexic">{a11y.customFont.dyslexic}</option>
                   </select>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-36 text-sm">Color personalizado</span>
+                  <span className="w-36 text-sm">{a11y.customColor.label}</span>
                   <div className="flex items-center gap-2">
                     <input type="color" value={customColor || '#000000'} onChange={(e) => setCustomColor(e.target.value)} className="h-8 w-12 p-0 border rounded cursor-pointer" />
                     {customColor && (
@@ -324,22 +328,22 @@ export default function AccessibilitySettings() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="w-36 text-sm">Espaciado</span>
+                  <span className="w-36 text-sm">{a11y.lineSpacing.label}</span>
                   <div className="flex gap-2">
                     {(['normal', 'relaxed'] as const).map((opt) => (
-                      <button key={opt} type="button" onClick={() => setLineSpacing(opt)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${lineSpacing === opt ? 'a11y-critical' : 'a11y-control'}`} aria-pressed={lineSpacing === opt}>{opt === 'normal' ? 'Estándar' : 'Amplio'}</button>
+                      <button key={opt} type="button" onClick={() => setLineSpacing(opt)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${lineSpacing === opt ? 'a11y-critical' : 'a11y-control'}`} aria-pressed={lineSpacing === opt}>{opt === 'normal' ? a11y.fontSize.normal : a11y.lineSpacing.relaxed}</button>
                     ))}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={linkHighlight} onChange={(e) => setLinkHighlight(e.target.checked)} className="w-4 h-4" />
-                  <span>Resaltar enlaces</span>
+                  <span>{a11y.linkHighlight.label}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={focusVisible} onChange={(e) => setFocusVisible(e.target.checked)} className="w-4 h-4" />
-                  <span>Foco visible</span>
+                  <span>{a11y.focusVisible.label}</span>
                 </div>
               </div>
             </section>
@@ -347,25 +351,25 @@ export default function AccessibilitySettings() {
             {/* Motriz */}
             <section className="a11y-card-muted space-y-3 rounded-xl p-3">
               <header className="space-y-1">
-                <h3 className="font-medium text-[color:var(--foreground)]">Motriz</h3>
+                <h3 className="font-medium text-[color:var(--foreground)]">{a11y.sections.motor}</h3>
                 <p className="text-xs text-[color:var(--text-muted)]">Controles para usuarios con necesidades motrices.</p>
               </header>
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={keyboardNavigationEnabled} onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)} className="w-4 h-4" />
-                  <span>Navegación por teclado (Tab, Enter, Esc)</span>
+                  <span>{a11y.keyboardNav.label}</span>
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1">Escala de botones grandes: {largeButtonsScale.toFixed(1)}x</label>
-                  <input aria-label="Escala de botones" type="range" min={1} max={2} step={0.1} value={String(largeButtonsScale)} onChange={(e) => setLargeButtonsScale(Number(e.target.value))} className="w-full" />
+                  <label className="block text-sm mb-1">{a11y.largeButtons.label}: {largeButtonsScale.toFixed(1)}x</label>
+                  <input aria-label={a11y.largeButtons.label} type="range" min={1} max={2} step={0.1} value={String(largeButtonsScale)} onChange={(e) => setLargeButtonsScale(Number(e.target.value))} className="w-full" />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" checked={voiceControlEnabled} onChange={(e) => setVoiceControlEnabled(e.target.checked)} className="w-4 h-4" />
-                    <span>Control por voz / dictado (UI)</span>
+                    <span>{a11y.voiceControl.label}</span>
                     {voiceControlEnabled && voiceControlActive && (
                       <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-label="Escuchando" title="Escuchando"></span>
                     )}
@@ -378,7 +382,7 @@ export default function AccessibilitySettings() {
                   {voiceControlEnabled && (
                     <div className="text-xs text-[color:var(--text-muted)] pl-7 space-y-1">
                       <div className="font-semibold mb-1 text-[color:var(--foreground)]">
-                        Comandos disponibles:
+                        {a11y.voiceControl.help}
                       </div>
                       <ul className="list-disc list-inside space-y-0.5 italic mb-2">
                         <li>"ir a inicio" o "inicio"</li>
@@ -411,11 +415,11 @@ export default function AccessibilitySettings() {
                       onChange={(e) => setAutoScroll(e.target.checked)} 
                       className="w-4 h-4" 
                     />
-                    <span>Auto-scroll suave</span>
+                    <span>{a11y.autoScroll.label}</span>
                   </div>
                   {autoScroll && (
                     <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">
-                      El scroll se activará automáticamente cuando no haya interactividad (facilita lectura continua).
+                      {a11y.autoScroll.help}
                     </div>
                   )}
                 </div>
@@ -439,7 +443,7 @@ export default function AccessibilitySettings() {
 
       <button
         type="button"
-        aria-label={isOpen ? 'Cerrar ajustes de accesibilidad' : 'Abrir ajustes de accesibilidad'}
+        aria-label={isOpen ? a11y.close : a11y.title}
         aria-expanded={isOpen}
         aria-controls={isOpen ? `panel-${floatingButtonId}` : undefined}
         onClick={() => setIsOpen((value) => !value)}

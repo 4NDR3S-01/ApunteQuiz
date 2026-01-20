@@ -565,6 +565,113 @@ const translations = {
         transcriptTitle: 'Transcripción del video',
         ariaLabel: 'Video tutorial sobre cómo generar un quiz en ApunteQuiz',
       },
+      settings: {
+        title: 'Ajustes de accesibilidad',
+        close: 'Cerrar',
+        resetAll: 'Restaurar todo',
+        sections: {
+          visual: 'Visual',
+          cognitive: 'Cognitivo',
+          auditory: 'Auditiva',
+          motor: 'Motriz',
+        },
+        theme: {
+          label: 'Tema',
+          light: 'Claro',
+          dark: 'Oscuro',
+          system: 'Sistema',
+        },
+        fontSize: {
+          label: 'Tamaño de fuente',
+          normal: 'Normal',
+          large: 'Grande',
+        },
+        contrast: {
+          label: 'Alto contraste',
+          system: 'Predeterminado del sistema',
+        },
+        lineSpacing: {
+          label: 'Espaciado de líneas',
+          comfortable: 'Cómodo',
+          relaxed: 'Relajado',
+          loose: 'Espaciado',
+        },
+        dyslexicFont: {
+          label: 'Fuente para dislexia',
+        },
+        textScale: {
+          label: 'Escala de texto',
+          description: 'Multiplica el tamaño de fuente base',
+        },
+        customFont: {
+          label: 'Fuente personalizada',
+          sans: 'Sans-serif',
+          serif: 'Serif',
+          dyslexic: 'OpenDyslexic',
+          default: 'Por defecto',
+        },
+        customColor: {
+          label: 'Color de acento personalizado',
+          description: 'Personaliza el color de los elementos interactivos',
+        },
+        reading: {
+          label: 'Lectura en voz alta (narrador)',
+          start: 'Iniciar lectura',
+          stop: 'Detener lectura',
+          notSupported: 'Narrador no disponible en este navegador',
+        },
+        subtitles: {
+          label: 'Subtítulos en videos',
+        },
+        autoTranscripts: {
+          label: 'Transcripciones automáticas',
+        },
+        autoPlay: {
+          label: 'Auto-reproducción de videos',
+          help: 'Reproduce videos automáticamente cuando sean visibles',
+        },
+        keyboardNav: {
+          label: 'Navegación mejorada con teclado',
+        },
+        visualAlerts: {
+          label: 'Alertas visuales',
+        },
+        largeButtons: {
+          label: 'Escala de botones',
+          description: 'Aumenta el tamaño de los botones para facilitar el clic',
+        },
+        linkHighlight: {
+          label: 'Resaltar enlaces',
+        },
+        focusVisible: {
+          label: 'Indicadores de foco visibles',
+        },
+        voiceControl: {
+          label: 'Control por voz',
+          message: 'Estado: {message}',
+          help: 'Di comandos como "ir a inicio", "ir a faq", "abrir ajustes"',
+        },
+        autoScroll: {
+          label: 'Auto-scroll en inactividad',
+          help: 'Desplaza la página automáticamente después de 3 segundos sin interacción',
+        },
+      },
+      toasts: {
+        voiceControl: {
+          activated: 'Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"',
+          autoActivated: 'Control por voz activado automáticamente. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"',
+          deactivated: 'Control por voz desactivado debido a interacción del usuario',
+          commandNotRecognized: 'Comando no reconocido. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"',
+          networkError: 'Control por voz desactivado. Verifica tu conexión a internet y los permisos del micrófono.',
+          permissionDenied: 'Permisos del micrófono denegados. Habilítalos en la configuración del navegador.',
+          microphoneNotAccessible: 'No se pudo acceder al micrófono. Verifica que esté conectado.',
+          networkRetry: 'Error de red detectado. Reintentando... ({attempt}/{max})',
+          networkMaxRetries: 'Control por voz desactivado después de {max} intentos fallidos. Verifica tu conexión a internet.',
+          genericError: 'Error en reconocimiento de voz: {error}. Intenta reactivarlo.',
+          startError: 'No se pudo iniciar el reconocimiento de voz. Verifica los permisos del micrófono.',
+          browserNotSupported: 'Reconocimiento de voz no disponible en este navegador. Prueba con Chrome o Edge.',
+        },
+      },
     },
   },
   en: {
@@ -1132,6 +1239,113 @@ const translations = {
         hideTranscript: 'Hide transcript',
         transcriptTitle: 'Video transcript',
         ariaLabel: 'Video tutorial on how to generate a quiz in ApunteQuiz',
+      },
+      settings: {
+        title: 'Accessibility Settings',
+        close: 'Close',
+        resetAll: 'Reset All',
+        sections: {
+          visual: 'Visual',
+          cognitive: 'Cognitive',
+          auditory: 'Auditory',
+          motor: 'Motor',
+        },
+        theme: {
+          label: 'Theme',
+          light: 'Light',
+          dark: 'Dark',
+          system: 'System',
+        },
+        fontSize: {
+          label: 'Font size',
+          normal: 'Normal',
+          large: 'Large',
+        },
+        contrast: {
+          label: 'High contrast',
+          system: 'System default',
+        },
+        lineSpacing: {
+          label: 'Line spacing',
+          comfortable: 'Comfortable',
+          relaxed: 'Relaxed',
+          loose: 'Loose',
+        },
+        dyslexicFont: {
+          label: 'Dyslexia font',
+        },
+        textScale: {
+          label: 'Text scale',
+          description: 'Multiplies base font size',
+        },
+        customFont: {
+          label: 'Custom font',
+          sans: 'Sans-serif',
+          serif: 'Serif',
+          dyslexic: 'OpenDyslexic',
+          default: 'Default',
+        },
+        customColor: {
+          label: 'Custom accent color',
+          description: 'Customize interactive elements color',
+        },
+        reading: {
+          label: 'Read aloud (narrator)',
+          start: 'Start reading',
+          stop: 'Stop reading',
+          notSupported: 'Narrator not available in this browser',
+        },
+        subtitles: {
+          label: 'Video subtitles',
+        },
+        autoTranscripts: {
+          label: 'Auto transcripts',
+        },
+        autoPlay: {
+          label: 'Video auto-play',
+          help: 'Automatically play videos when visible',
+        },
+        keyboardNav: {
+          label: 'Enhanced keyboard navigation',
+        },
+        visualAlerts: {
+          label: 'Visual alerts',
+        },
+        largeButtons: {
+          label: 'Button scale',
+          description: 'Increase button size for easier clicking',
+        },
+        linkHighlight: {
+          label: 'Highlight links',
+        },
+        focusVisible: {
+          label: 'Visible focus indicators',
+        },
+        voiceControl: {
+          label: 'Voice control',
+          message: 'Status: {message}',
+          help: 'Say commands like "go to home", "go to faq", "open settings"',
+        },
+        autoScroll: {
+          label: 'Auto-scroll on inactivity',
+          help: 'Automatically scrolls page after 3 seconds without interaction',
+        },
+      },
+      toasts: {
+        voiceControl: {
+          activated: 'Voice control activated. Say: "go to home", "go to faq", "go to contact", "open settings", "pause video" or "play video"',
+          autoActivated: 'Voice control automatically activated. Say: "go to home", "go to faq", "go to contact", "open settings", "pause video" or "play video"',
+          deactivated: 'Voice control deactivated due to user interaction',
+          commandNotRecognized: 'Command not recognized. Say: "go to home", "go to faq", "go to contact", "open settings", "pause video" or "play video"',
+          networkError: 'Voice control disabled. Check your internet connection and microphone permissions.',
+          permissionDenied: 'Microphone permissions denied. Enable them in browser settings.',
+          microphoneNotAccessible: 'Could not access microphone. Check that it is connected.',
+          networkRetry: 'Network error detected. Retrying... ({attempt}/{max})',
+          networkMaxRetries: 'Voice control disabled after {max} failed attempts. Check your internet connection.',
+          genericError: 'Voice recognition error: {error}. Try reactivating it.',
+          startError: 'Could not start voice recognition. Check microphone permissions.',
+          browserNotSupported: 'Voice recognition not available in this browser. Try Chrome or Edge.',
+        },
       },
     },
   },
