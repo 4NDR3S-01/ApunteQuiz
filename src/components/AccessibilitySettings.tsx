@@ -74,6 +74,10 @@ export default function AccessibilitySettings() {
     setKeyboardNavigationEnabled,
     largeButtonsScale,
     setLargeButtonsScale,
+    autoPlay,
+    setAutoPlay,
+    autoScroll,
+    setAutoScroll,
   } = useAccessibility();
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -191,6 +195,25 @@ export default function AccessibilitySettings() {
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={autoTranscripts} onChange={(e) => setAutoTranscripts(e.target.checked)} className="w-4 h-4" />
                   <span>Transcripciones textuales automáticas</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={autoPlay} 
+                      onChange={(e) => setAutoPlay(e.target.checked)} 
+                      className="w-4 h-4" 
+                      id="autoplay-checkbox"
+                    />
+                    <label htmlFor="autoplay-checkbox" className="cursor-pointer">
+                      Auto-reproducción de videos
+                    </label>
+                  </div>
+                  {autoPlay && (
+                    <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">
+                      Los videos se reproducirán automáticamente al cargarse.
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2 items-center">
@@ -380,15 +403,27 @@ export default function AccessibilitySettings() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" checked={blockAutoplay} onChange={(e) => setBlockAutoplay(e.target.checked)} className="w-4 h-4" />
-                  <span>Bloquear auto-scroll / auto-reproducción</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={autoScroll} 
+                      onChange={(e) => setAutoScroll(e.target.checked)} 
+                      className="w-4 h-4" 
+                    />
+                    <span>Auto-scroll suave</span>
+                  </div>
+                  {autoScroll && (
+                    <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">
+                      El scroll se activará automáticamente cuando no haya interactividad (facilita lectura continua).
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" checked={customShortcutsEnabled} onChange={(e) => setCustomShortcutsEnabled(e.target.checked)} className="w-4 h-4" />
-                    <span>Atajos de teclado personalizados (activar)</span>
+                    <span>Atajos de teclado personalizados</span>
                   </div>
                   {customShortcutsEnabled && (
                     <div className="text-xs text-[color:var(--text-muted)] pl-7 italic">

@@ -123,6 +123,10 @@ interface AccessibilityContextValue {
   readonly setCustomShortcutsEnabled: (v: boolean) => void;
   readonly textScale: number;
   readonly setTextScale: (v: number) => void;
+  readonly autoPlay: boolean;
+  readonly setAutoPlay: (v: boolean) => void;
+  readonly autoScroll: boolean;
+  readonly setAutoScroll: (v: boolean) => void;
 }
 
 const AccessibilityContext =
@@ -146,6 +150,8 @@ const VOICE_CONTROL_KEY = 'apq-voice-control';
 const BLOCK_AUTOPLAY_KEY = 'apq-block-autoplay';
 const CUSTOM_SHORTCUTS_KEY = 'apq-custom-shortcuts-enabled';
 const TEXT_SCALE_KEY = 'apq-text-scale';
+const AUTO_PLAY_KEY = 'apq-auto-play';
+const AUTO_SCROLL_KEY = 'apq-auto-scroll';
 
 function resolvePreferredTheme(): ThemePreference {
   if (typeof window === 'undefined') return 'system';
@@ -270,17 +276,35 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [blockAutoplay, setBlockAutoplayState] = useState<boolean>(false);
   const [customShortcutsEnabled, setCustomShortcutsEnabledState] = useState<boolean>(false);
   const [textScale, setTextScaleState] = useState<number>(1);
+  const [autoPlay, setAutoPlayState] = useState<boolean>(false);
+  const [autoScroll, setAutoScrollState] = useState<boolean>(true);
   const clearReadingMessage = useCallback(() => setReadingMessage(null), []);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const browserNotSupportedShownRef = useRef<boolean>(false);
   const voicesLoadedRef = useRef(false);
   const inactivityTimerRef = useRef<number | null>(null);
   const lastInteractionTimeRef = useRef<number>(Date.now());
+  const toastCacheRef = useRef<Map<string, number>>(new Map());
 
-  // Función para mostrar toast
+  // Función para mostrar toast con prevención de duplicados
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const now = Date.now();
+    const cacheKey = `${message}-${type}`;
+    const lastShown = toastCacheRef.current.get(cacheKey);
+    
+    // Prevenir mostrar el mismo toast dentro de 3 segundos
+    if (lastShown && (now - lastShown) < 3000) {
+      return;
+    }
+    
+    toastCacheRef.current.set(cacheKey, now);
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, message, type }]);
+    
+    // Limpiar cache después de 5 segundos
+    setTimeout(() => {
+      toastCacheRef.current.delete(cacheKey);
+    }, 5000);
   }, []);
 
   // Función para remover toast
@@ -379,6 +403,98 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     };
   }, [voiceControlEnabled, userHasInteracted, autoVoiceControlActive, showToast, isMainPage]);
 
+  // Auto-scroll suave cuando no hay interactividad
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined' || !autoScroll) return;
+
+    let scrollInterval: number | null = null;
+    let inactivityTimeout: number | null = null;
+    let isAutoScrolling = false;
+    let lastMouseMove = Date.now();
+    const INACTIVITY_DELAY = 3000; // 3 segundos de inactividad
+    const SCROLL_SPEED = 2; // píxeles por intervalo
+    const SCROLL_INTERVAL = 30; // ms entre scrolls
+    const MOUSE_MOVE_THRESHOLD = 1000; // Ignorar mousemove si no hay movimiento en 1 segundo
+
+    const startAutoScroll = () => {
+      if (scrollInterval || !autoScroll) return;
+      
+      isAutoScrolling = true;
+      scrollInterval = window.setInterval(() => {
+        // Scroll suave hacia abajo
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        if (window.scrollY < maxScroll) {
+          window.scrollBy({ top: SCROLL_SPEED, behavior: 'auto' });
+        } else {
+          // Si llegamos al final, detener
+          stopAutoScroll();
+        }
+      }, SCROLL_INTERVAL);
+    };
+
+    const stopAutoScroll = () => {
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+        scrollInterval = null;
+      }
+      isAutoScrolling = false;
+    };
+
+    const resetInactivityTimer = () => {
+      stopAutoScroll();
+
+      if (inactivityTimeout) {
+        clearTimeout(inactivityTimeout);
+      }
+
+      inactivityTimeout = window.setTimeout(() => {
+        if (autoScroll) {
+          startAutoScroll();
+        }
+      }, INACTIVITY_DELAY);
+    };
+
+    // Manejador especial para scroll que ignora scroll automático
+    const handleScroll = (e: Event) => {
+      if (!isAutoScrolling) {
+        resetInactivityTimer();
+      }
+    };
+
+    // Manejador para mousemove con throttling
+    const handleMouseMove = (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - lastMouseMove > MOUSE_MOVE_THRESHOLD) {
+        lastMouseMove = now;
+        resetInactivityTimer();
+      }
+    };
+
+    // Eventos que indican actividad del usuario
+    window.addEventListener('mousedown', resetInactivityTimer, { passive: true });
+    window.addEventListener('keydown', resetInactivityTimer, { passive: true });
+    window.addEventListener('touchstart', resetInactivityTimer, { passive: true });
+    window.addEventListener('wheel', resetInactivityTimer, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    // Iniciar el timer inicial
+    resetInactivityTimer();
+
+    return () => {
+      window.removeEventListener('mousedown', resetInactivityTimer);
+      window.removeEventListener('keydown', resetInactivityTimer);
+      window.removeEventListener('touchstart', resetInactivityTimer);
+      window.removeEventListener('wheel', resetInactivityTimer);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('mousemove', handleMouseMove);
+      stopAutoScroll();
+      if (inactivityTimeout) {
+        clearTimeout(inactivityTimeout);
+      }
+    };
+  }, [autoScroll]);
+
   // Load preferences from localStorage after hydration to avoid mismatch
   useEffect(() => {
     if (typeof globalThis.window === 'undefined') return;
@@ -426,6 +542,18 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     
     const textScaleRaw = globalThis.window.localStorage.getItem(TEXT_SCALE_KEY);
     setTextScaleState(textScaleRaw ? Number(textScaleRaw) : 1);
+    
+    const autoPlayValue = globalThis.window.localStorage.getItem(AUTO_PLAY_KEY);
+    setAutoPlayState(autoPlayValue === '1');
+    
+    const autoScrollValue = globalThis.window.localStorage.getItem(AUTO_SCROLL_KEY);
+    setAutoScrollState(autoScrollValue === null ? true : autoScrollValue === '1');
+    
+    // Después de cargar todas las preferencias, marcar que la carga inicial terminó
+    // Esto evita mostrar toasts de error en la carga inicial
+    setTimeout(() => {
+      isInitialLoadRef.current = false;
+    }, 1000);
   }, []);
 
   useLayoutEffect(() => {
@@ -779,13 +907,12 @@ useEffect(() => {
     setVoiceControlEnabledState(value);
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(VOICE_CONTROL_KEY, value ? '1' : '0');
     
-    // Si el usuario activa manualmente, marcar como interactuado y mostrar comandos
+    // Marcar que ya no es la carga inicial cuando el usuario cambia manualmente
+    isInitialLoadRef.current = false;
+    
+    // Si el usuario activa manualmente, marcar como interactuado
     if (value && !autoVoiceControlActive) {
       setUserHasInteracted(true);
-      // Mostrar toast con comandos cuando se activa manualmente
-      setTimeout(() => {
-        showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
-      }, 500);
     }
     
     // Si desactiva manualmente, también marcar como interactuado
@@ -808,6 +935,20 @@ useEffect(() => {
   const setTextScale = (value: number) => {
     setTextScaleState(value);
     if (typeof globalThis.window !== 'undefined') globalThis.window.localStorage.setItem(TEXT_SCALE_KEY, String(value));
+  };
+
+  const setAutoPlay = (value: boolean) => {
+    setAutoPlayState(value);
+    if (typeof globalThis.window !== 'undefined') {
+      globalThis.window.localStorage.setItem(AUTO_PLAY_KEY, value ? '1' : '0');
+    }
+  };
+
+  const setAutoScroll = (value: boolean) => {
+    setAutoScrollState(value);
+    if (typeof globalThis.window !== 'undefined') {
+      globalThis.window.localStorage.setItem(AUTO_SCROLL_KEY, value ? '1' : '0');
+    }
   };
 
   // media control helpers
@@ -972,6 +1113,7 @@ useEffect(() => {
   const isReconnectingRef = useRef<boolean>(false);
   const hasNetworkErrorRef = useRef<boolean>(false);
   const networkRetryCountRef = useRef<number>(0);
+  const isInitialLoadRef = useRef<boolean>(true);
   const MAX_NETWORK_RETRIES = 3;
   
   useEffect(() => {
@@ -1013,23 +1155,29 @@ useEffect(() => {
     // Resetear el flag si el reconocimiento está disponible
     browserNotSupportedShownRef.current = false;
 
-    // Verificar permisos del micrófono
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
-        if (result.state === 'denied') {
-          const errorMsg = 'Permisos del micrófono denegados. Por favor, habilítalos en la configuración del navegador.';
-          setVoiceControlMessage(errorMsg);
-          setVoiceControlActive(false);
-          showToast(errorMsg, 'error');
-          return;
+    // Función asíncrona para inicializar el reconocimiento
+    const initRecognition = async () => {
+      // Verificar permisos del micrófono antes de continuar
+      if (navigator.permissions) {
+        try {
+          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          if (result.state === 'denied') {
+            const errorMsg = 'Permisos del micrófono denegados. Habilítalos en la configuración del navegador.';
+            setVoiceControlMessage(errorMsg);
+            setVoiceControlActive(false);
+            setVoiceControlEnabledState(false);
+            // Solo mostrar toast si NO es la carga inicial (es decir, el usuario lo activó manualmente)
+            if (!isInitialLoadRef.current) {
+              showToast(errorMsg, 'error');
+            }
+            return; // NO continuar creando el reconocimiento
+          }
+        } catch (err) {
+          // Algunos navegadores no soportan la API de permisos, continuar de todas formas
         }
-      }).catch((err) => {
-        // Algunos navegadores no soportan la API de permisos
-        // No es necesario loguear esto, es normal en algunos navegadores
-      });
-    }
+      }
 
-    const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = 'es-ES';
@@ -1043,6 +1191,8 @@ useEffect(() => {
       hasNetworkErrorRef.current = false;
       networkRetryCountRef.current = 0;
       isReconnectingRef.current = false;
+      // Mostrar toast de éxito solo cuando realmente inicia
+      showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
     };
 
     recognition.onresult = (event: any) => {
@@ -1247,16 +1397,20 @@ useEffect(() => {
       }
     };
 
-    try {
-      recognition.start();
-      recognitionRef.current = recognition;
-    } catch (e: any) {
-      const errorMsg = e?.message || 'Error desconocido';
-      setVoiceControlMessage(`No se pudo iniciar el reconocimiento de voz: ${errorMsg}. Asegúrate de dar permisos al micrófono.`);
-      setVoiceControlActive(false);
-      showToast(`No se pudo iniciar el reconocimiento de voz. Verifica los permisos del micrófono.`, 'error');
-      console.warn('No se pudo iniciar el reconocimiento de voz:', e);
-    }
+      try {
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch (e: any) {
+        const errorMsg = e?.message || 'Error desconocido';
+        setVoiceControlMessage(`No se pudo iniciar el reconocimiento de voz: ${errorMsg}. Asegúrate de dar permisos al micrófono.`);
+        setVoiceControlActive(false);
+        showToast(`No se pudo iniciar el reconocimiento de voz. Verifica los permisos del micrófono.`, 'error');
+        console.warn('No se pudo iniciar el reconocimiento de voz:', e);
+      }
+    };
+
+    // Iniciar el reconocimiento
+    initRecognition();
 
     return () => {
       if (recognitionRef.current) {
@@ -1386,6 +1540,10 @@ useEffect(() => {
       setCustomShortcutsEnabled,
       textScale,
       setTextScale,
+      autoPlay,
+      setAutoPlay,
+      autoScroll,
+      setAutoScroll,
     }),
     [
       themePreference,
@@ -1416,6 +1574,8 @@ useEffect(() => {
       blockAutoplay,
       customShortcutsEnabled,
       textScale,
+      autoPlay,
+      autoScroll,
       clearReadingMessage,
     ],
   );

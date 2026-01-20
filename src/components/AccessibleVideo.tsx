@@ -31,10 +31,14 @@ export default function AccessibleVideo({
     subtitlesEnabled, 
     setSubtitlesEnabled,
     autoTranscripts, 
-    blockAutoplay 
+    blockAutoplay,
+    autoPlay,
+    showToast
   } = useAccessibility();
   const [showTranscript, setShowTranscript] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [autoPlayAttempted, setAutoPlayAttempted] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Mostrar transcripción automáticamente si está habilitado
@@ -188,14 +192,95 @@ export default function AccessibleVideo({
     };
   }, [blockAutoplay]);
 
+  // Auto-reproducción cuando autoPlay está habilitado
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!autoPlay) {
+      setAutoPlayAttempted(false);
+      setToastShown(false);
+      return;
+    }
+
+    const attemptAutoPlay = async () => {
+      // Evitar múltiples intentos
+      if (autoPlayAttempted) return;
+
+      setAutoPlayAttempted(true);
+
+      try {
+        // Primero intentar con sonido
+        const playPromise = video.play();
+        
+        if (playPromise !== undefined) {
+          await playPromise;
+          if (!toastShown) {
+            showToast('✓ Video reproducido automáticamente', 'success');
+            setToastShown(true);
+          }
+        }
+      } catch (error) {
+        // Si falla, intentar sin sonido (muted)
+        try {
+          video.muted = true;
+          await video.play();
+          if (!toastShown) {
+            showToast('▶ Video reproducido (sin sonido). Usa el control de volumen para activar el audio.', 'info');
+            setToastShown(true);
+          }
+        } catch (mutedError) {
+          if (!toastShown) {
+            showToast('⚠ Auto-reproducción bloqueada por el navegador. Presiona play.', 'warning');
+            setToastShown(true);
+          }
+        }
+      }
+    };
+
+    // Escuchar múltiples eventos para asegurar que se intente la reproducción
+    const handleCanPlay = () => attemptAutoPlay();
+    const handleLoadedData = () => attemptAutoPlay();
+    const handleLoadedMetadata = () => setTimeout(() => attemptAutoPlay(), 100);
+
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    
+    // Si el video ya está listo, intentar reproducir inmediatamente
+    if (video.readyState >= video.HAVE_FUTURE_DATA) {
+      setTimeout(() => attemptAutoPlay(), 100);
+    }
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [autoPlay, showToast, autoPlayAttempted, toastShown]);
+
+  // Resetear el intento de auto-reproducción cuando cambia el src del video
+  useEffect(() => {
+    setAutoPlayAttempted(false);
+    setToastShown(false);
+  }, [videoSrc]);
+
   return (
     <div className={`space-y-3 ${className}`}>
       {(title || description) && (
         <div className="space-y-2">
           {title && (
-            <h3 className="font-semibold text-[color:var(--foreground)]">
-              {title}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-[color:var(--foreground)]">
+                {title}
+              </h3>
+              {autoPlay && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  Auto-play
+                </span>
+              )}
+            </div>
           )}
           {description && (
             <p className="text-sm text-[color:var(--text-muted)]">
