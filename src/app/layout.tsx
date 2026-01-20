@@ -5,6 +5,7 @@ import { LanguageProvider } from '@/components/LanguageProvider';
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import SkipToContentLink from '@/components/SkipToContentLink';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import SessionManager from '@/components/SessionManager';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({
           <LanguageProvider>
             <AccessibilityProvider>
               <SkipToContentLink />
+              <SessionManager inactivityTimeout={30} />
               {children}
               <AccessibilitySettings />
             </AccessibilityProvider>

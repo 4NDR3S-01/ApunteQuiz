@@ -2,13 +2,26 @@ import type { Metadata } from 'next';
 import RegisterForm from '@/components/auth/RegisterForm';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Crear cuenta - ApunteQuiz',
   description: 'Crea tu cuenta en ApunteQuiz y comienza a generar quizzes inteligentes',
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  // Verificar si el usuario ya está autenticado
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Si ya hay sesión activa, redirigir al dashboard
+  if (user) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-100 via-white to-slate-100 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Logo */}

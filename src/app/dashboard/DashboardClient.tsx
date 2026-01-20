@@ -47,6 +47,7 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
   const [docPage, setDocPage] = useState(1);
   const itemsPerPage = 5;
   const router = useRouter();
+  // El cliente se crea con persistSession true por defecto
   const supabase = createClient();
 
   // Sincronizar estado cuando cambian las props (después de router.refresh())

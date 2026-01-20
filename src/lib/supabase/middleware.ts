@@ -15,12 +15,22 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Establecer cookies en la request
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
+          // Crear nueva respuesta con cookies actualizadas
           supabaseResponse = NextResponse.next({ request });
+          // Establecer cookies en la respuesta con configuración apropiada
           for (const { name, value, options } of cookiesToSet) {
-            supabaseResponse.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              // Configuración de seguridad para las cookies
+              sameSite: options?.sameSite || 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              path: options?.path || '/',
+              // No forzar httpOnly, dejar que Supabase decida
+            });
           }
         },
       },
@@ -35,20 +45,19 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes
+  // Protected routes - Si no hay usuario, redirigir a login
   if (
     !user &&
     (request.nextUrl.pathname.startsWith('/dashboard') ||
       request.nextUrl.pathname.startsWith('/generator'))
   ) {
-    // No user, redirect to login
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirectTo', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
-  // If user is logged in and tries to access auth pages, redirect to dashboard
+  // Auth routes - Si hay usuario, redirigir a dashboard
   if (
     user &&
     (request.nextUrl.pathname === '/login' ||
@@ -57,6 +66,8 @@ export async function updateSession(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
+    // Limpiar parámetros de la URL
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, HomeIcon } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
 
 export default function LoginForm() {
   const router = useRouter();
-  const supabase = createClient();
+  const searchParams = useSearchParams();
+  // No inicializamos el cliente aquí, lo crearemos dinámicamente
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +25,14 @@ export default function LoginForm() {
 
   const MAX_ATTEMPTS = 5;
   const LOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Verificar si llegó por sesión expirada
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'inactivity') {
+      setError(t('auth.login.session_expired') as string);
+    }
+  }, [searchParams, t]);
 
   const lockKeyFor = (userEmail: string) => `aq-login-lock:${userEmail.toLowerCase()}`;
 
@@ -116,6 +125,9 @@ export default function LoginForm() {
           throw new Error(t('auth.login.locked', { minutes: Math.ceil(remaining / 60) }));
         }
       }
+
+      // Crear cliente con persistencia basada en remember-me
+      const supabase = createClient({ persistSession: rememberMe });
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
