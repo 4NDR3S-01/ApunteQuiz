@@ -750,17 +750,19 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             {/* Opción Múltiple */}
             <div className="a11y-card rounded-lg p-4 border-l-4 border-blue-500">
-              <div className="flex items-start justify-between mb-3 gap-2">
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <span className="text-xl flex-shrink-0">🔘</span>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-medium text-[color:var(--foreground)] truncate">Opción Múltiple</h4>
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-xl">🔘</span>
+                  <div>
+                    <h4 className="text-sm font-medium text-[color:var(--foreground)]">Opción Múltiple</h4>
                     <p className="text-xs text-[color:var(--text-muted)]">4 opciones</p>
                   </div>
                 </div>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">
-                  {Math.round(config.proporcion_tipos.opcion_multiple * 100)}%
-                </span>
+                <div className="text-center">
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {Math.round(config.proporcion_tipos.opcion_multiple * 100)}%
+                  </span>
+                </div>
               </div>
               <input
                 type="range"
@@ -775,17 +777,19 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
 
             {/* Respuesta Corta */}
             <div className="a11y-card rounded-lg p-4 border-l-4 border-purple-500">
-              <div className="flex items-start justify-between mb-3 gap-2">
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <span className="text-xl flex-shrink-0">✏️</span>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-medium text-[color:var(--foreground)] truncate">Respuesta Corta</h4>
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-xl">✏️</span>
+                  <div>
+                    <h4 className="text-sm font-medium text-[color:var(--foreground)]">Respuesta Corta</h4>
                     <p className="text-xs text-[color:var(--text-muted)]">Texto breve</p>
                   </div>
                 </div>
-                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 flex-shrink-0">
-                  {Math.round(config.proporcion_tipos.respuesta_corta * 100)}%
-                </span>
+                <div className="text-center">
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    {Math.round(config.proporcion_tipos.respuesta_corta * 100)}%
+                  </span>
+                </div>
               </div>
               <input
                 type="range"
@@ -800,17 +804,19 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
 
             {/* Verdadero/Falso */}
             <div className="a11y-card rounded-lg p-4 border-l-4 border-teal-500">
-              <div className="flex items-start justify-between mb-3 gap-2">
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <span className="text-xl flex-shrink-0">✅</span>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-medium text-[color:var(--foreground)] truncate">Verdadero/Falso</h4>
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-xl">✅</span>
+                  <div>
+                    <h4 className="text-sm font-medium text-[color:var(--foreground)]">Verdadero/Falso</h4>
                     <p className="text-xs text-[color:var(--text-muted)]">V o F</p>
                   </div>
                 </div>
-                <span className="text-lg font-bold text-teal-600 dark:text-teal-400 flex-shrink-0">
-                  {Math.round(config.proporcion_tipos.verdadero_falso * 100)}%
-                </span>
+                <div className="text-center">
+                  <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+                    {Math.round(config.proporcion_tipos.verdadero_falso * 100)}%
+                  </span>
+                </div>
               </div>
               <input
                 type="range"

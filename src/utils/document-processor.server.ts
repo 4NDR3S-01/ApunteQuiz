@@ -554,35 +554,84 @@ export function reduceDocumentContent(documents: DocumentInput[], targetTokens: 
   
   const estimatedTokens = Math.ceil(totalChars / 4);
   
-  // Si ya está dentro del límite, retornar sin cambios
-  if (estimatedTokens <= targetTokens) {
+  // Si ya está dentro del límite con margen, retornar sin cambios
+  if (estimatedTokens <= targetTokens * 0.9) {
     return documents;
   }
   
-  // Calcular el ratio de reducción necesario
-  const reductionRatio = targetTokens / estimatedTokens;
+  // Calcular el ratio de reducción necesario (con margen del 10%)
+  const reductionRatio = Math.min(0.95, (targetTokens * 0.9) / estimatedTokens);
+  
+  // Si la reducción necesaria es mínima (<5%), no hacer nada
+  if (reductionRatio >= 0.95) {
+    return documents;
+  }
   
   return documents.map(doc => {
     const pages = doc.pages ?? [];
     const reducedPages = pages.map(page => {
       const text = page.text || '';
+      
+      // Si el texto es muy corto, no reducirlo
+      if (text.length < 500) {
+        return page;
+      }
+      
       const targetLength = Math.floor(text.length * reductionRatio);
       
-      // Tomar las primeras oraciones que quepan en el targetLength
-      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-      let reducedText = '';
+      // Estrategia de reducción inteligente:
+      // 1. Mantener párrafos completos cuando sea posible
+      // 2. Priorizar el inicio del documento (suele tener resúmenes/intros importantes)
+      // 3. Eliminar líneas vacías excesivas y espacios duplicados
       
-      for (const sentence of sentences) {
-        if (reducedText.length + sentence.length <= targetLength) {
-          reducedText += sentence;
+      // Limpiar espacios excesivos
+      let cleanedText = text
+        .replace(/\n{3,}/g, '\n\n') // Máximo 2 saltos de línea consecutivos
+        .replace(/[ \t]{2,}/g, ' ')  // Reducir espacios múltiples a uno
+        .trim();
+      
+      // Si la limpieza ya redujo suficiente, retornar
+      if (cleanedText.length <= targetLength) {
+        return { ...page, text: cleanedText };
+      }
+      
+      // Dividir en párrafos
+      const paragraphs = cleanedText.split(/\n\n+/);
+      let reducedText = '';
+      let currentLength = 0;
+      
+      // Estrategia: tomar párrafos completos hasta llegar al límite
+      for (const paragraph of paragraphs) {
+        const paragraphWithNewline = currentLength > 0 ? '\n\n' + paragraph : paragraph;
+        
+        if (currentLength + paragraphWithNewline.length <= targetLength) {
+          reducedText += paragraphWithNewline;
+          currentLength += paragraphWithNewline.length;
+        } else if (currentLength === 0) {
+          // Si ni siquiera el primer párrafo cabe, cortarlo por oraciones
+          const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
+          for (const sentence of sentences) {
+            if (currentLength + sentence.length <= targetLength) {
+              reducedText += sentence;
+              currentLength += sentence.length;
+            } else {
+              break;
+            }
+          }
+          break;
         } else {
           break;
         }
       }
       
+      // Si no pudimos obtener nada (muy poco espacio), tomar al menos el inicio
+      if (reducedText.length === 0) {
+        reducedText = cleanedText.slice(0, Math.max(targetLength, 200));
+      }
+      
       return {
         ...page,
-        text: reducedText || text.slice(0, targetLength)
+        text: reducedText
       };
     });
     
@@ -592,4 +641,5 @@ export function reduceDocumentContent(documents: DocumentInput[], targetTokens: 
     };
   });
 }
+
 

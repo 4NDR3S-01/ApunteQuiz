@@ -39,13 +39,24 @@ const CONTEXT_LIMITS: Record<string, Record<string, number>> = {
     default: 180000
   },
   gemini: {
+    // Modelos clásicos
     'gemini-pro': 30000, // Modelo estándar (siempre disponible)
     'gemini-pro-vision': 30000, // Multimodal (siempre disponible)
     'gemini-1.5-flash': 1000000, // 1M tokens - requiere acceso
     'gemini-1.5-pro': 2000000, // 2M tokens - requiere acceso
-    'models/gemini-pro': 30000, // Formato alternativo
-    'models/gemini-1.5-flash': 1000000, // Formato con prefijo models/
+    // Nuevos modelos Gemini 2.5 (250K TPM)
+    'gemini-2.5-flash': 1000000, // 1M tokens de contexto
+    'gemini-2.5-flash-lite': 1000000, // 1M tokens de contexto
+    'gemini-2.5-flash-tts': 10000, // 10K TPM - para audio
+    // Nuevos modelos Gemini 3.0
+    'gemini-3-flash': 1000000, // 1M tokens de contexto
+    // Modelos con prefijo "models/"
+    'models/gemini-pro': 30000,
+    'models/gemini-1.5-flash': 1000000,
     'models/gemini-1.5-pro': 2000000,
+    'models/gemini-2.5-flash': 1000000,
+    'models/gemini-2.5-flash-lite': 1000000,
+    'models/gemini-3-flash': 1000000,
     default: 30000
   }
 };

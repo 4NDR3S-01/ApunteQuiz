@@ -174,11 +174,16 @@ export async function POST(request: NextRequest) {
     // gemini-pro: 30K tokens -> chunks de 50 páginas, umbral 100
     // gemini-1.5-flash: 1M tokens -> chunks de 300 páginas, umbral 600
     // gemini-1.5-pro: 2M tokens -> chunks de 500 páginas, umbral 1000
+    // gemini-2.5-flash: 1M tokens -> chunks de 300 páginas, umbral 600
+    // gemini-3-flash: 1M tokens -> chunks de 300 páginas, umbral 600
     // groq/compound-mini: 70K TPM -> chunks de 20 páginas, umbral 30
     const modelConfig = {
       'gemini-pro': { threshold: 100, chunkSize: 50 },
       'gemini-1.5-flash': { threshold: 600, chunkSize: 300 },
       'gemini-1.5-pro': { threshold: 1000, chunkSize: 500 },
+      'gemini-2.5-flash': { threshold: 600, chunkSize: 300 },
+      'gemini-2.5-flash-lite': { threshold: 600, chunkSize: 300 },
+      'gemini-3-flash': { threshold: 600, chunkSize: 300 },
       'groq/compound': { threshold: 30, chunkSize: 20 },
       'groq/compound-mini': { threshold: 30, chunkSize: 20 },
       'meta-llama/llama-4-scout-17b-16e-instruct': { threshold: 25, chunkSize: 15 },
@@ -269,7 +274,18 @@ export async function POST(request: NextRequest) {
       }, 'GENERATE_QUIZ_API');
 
       // Calcular tokens objetivo para la reducción
-      const targetTokens = contextCheck.limit - promptSize.systemTokens - 1000;
+      // Reservar espacio para: sistema + respuesta (2000 tokens) + margen de seguridad
+      const reservedTokens = promptSize.systemTokens + 2000;
+      const targetTokens = Math.max(1000, contextCheck.limit - reservedTokens);
+
+      logger.info('Calculating target tokens for reduction', {
+        requestId,
+        contextLimit: contextCheck.limit,
+        systemTokens: promptSize.systemTokens,
+        reservedTokens,
+        targetTokens,
+        currentUserTokens: promptSize.userTokens
+      }, 'GENERATE_QUIZ_API');
 
       // Reducir todos los documentos
       const reducedDocuments = reduceDocumentContent(requestData.documents, targetTokens);
@@ -318,15 +334,36 @@ export async function POST(request: NextRequest) {
       if (newContextCheck.exceeds) {
         const limitPages = Math.floor(contextCheck.limit / 375); // Aproximación de páginas
         const currentPages = Math.ceil(newPromptSize.totalTokens / 375);
+        const originalPages = Math.ceil(promptSize.totalTokens / 375);
+        
+        logger.error('Document still exceeds limit after reduction', {
+          requestId,
+          limitPages,
+          originalPages,
+          currentPages,
+          reductionApplied: contentReductionApplied,
+          provider: aiProvider.name,
+          model: aiProvider.model
+        }, 'GENERATE_QUIZ_API');
         
         throw new ValidationError(
-          `El documento es demasiado extenso para generar el quiz. ` +
-          `El modelo puede procesar aproximadamente ${limitPages} páginas de texto, pero tu documento tiene el equivalente a ${currentPages} páginas. ` +
-          `\n\nSugerencias para resolver esto:\n` +
-          `• Divide el documento en partes más pequeñas y genera quizzes separados\n` +
-          `• Reduce el número de preguntas solicitadas (actualmente: ${requestData.n_preguntas})\n` +
-          `• Elimina páginas con tablas o imágenes muy extensas del documento\n` +
-          `• Si el documento tiene muchas páginas, selecciona solo las secciones más importantes`,
+          `El documento es demasiado extenso incluso después de la reducción automática. ` +
+          `\n\nDetalles:\n` +
+          `• Límite del modelo (${aiProvider.model}): ~${limitPages} páginas\n` +
+          `• Tu documento original: ~${originalPages} páginas\n` +
+          `• Después de reducción: ~${currentPages} páginas (aún excede)\n` +
+          `• Preguntas solicitadas: ${requestData.n_preguntas}\n` +
+          `\n💡 Soluciones recomendadas (elige una):\n` +
+          `\n1️⃣ DIVIDIR EL DOCUMENTO:\n` +
+          `   • Separa en ${Math.ceil(currentPages / limitPages)} partes más pequeñas\n` +
+          `   • Genera quizzes separados para cada parte\n` +
+          `\n2️⃣ REDUCIR PREGUNTAS:\n` +
+          `   • Prueba con ${Math.max(3, Math.floor(requestData.n_preguntas / 2))} preguntas o menos\n` +
+          `   • Menos preguntas = más espacio para el documento\n` +
+          `\n3️⃣ SELECCIONAR PÁGINAS CLAVE:\n` +
+          `   • Extrae solo los capítulos o secciones más importantes\n` +
+          `   • Elimina páginas con muchas tablas o imágenes\n` +
+          `   • Enfócate en las primeras ${Math.floor(limitPages * 0.8)} páginas\n` +
           {
             requestId,
             provider: aiProvider.name,
@@ -336,7 +373,8 @@ export async function POST(request: NextRequest) {
             excess: newContextCheck.excess,
             reductionApplied: contentReductionApplied,
             limitPages,
-            currentPages
+            currentPages,
+            originalPages
           }
         );
       }
@@ -370,8 +408,17 @@ export async function POST(request: NextRequest) {
 
           // Si es el primer intento y no se aplicó reducción antes, aplicar reducción agresiva
           if (attempt === 1 && !contentReductionApplied) {
-            const tokensPerPage = 300; // Reducción más agresiva
-            const targetTokens = Math.floor(getContextLimit(provider) - promptSize.systemTokens - 2000);
+            // Reducción más agresiva: dejar más espacio para la respuesta
+            const reservedTokens = promptSize.systemTokens + 3000;
+            const targetTokens = Math.max(1000, Math.floor(getContextLimit(provider) - reservedTokens));
+
+            logger.info('Attempting aggressive reduction', {
+              requestId,
+              contextLimit: getContextLimit(provider),
+              systemTokens: promptSize.systemTokens,
+              reservedTokens,
+              targetTokens
+            }, 'GENERATE_QUIZ_API');
 
             const reducedDocuments = reduceDocumentContent(params.documents, targetTokens);
             
