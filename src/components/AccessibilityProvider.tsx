@@ -1315,15 +1315,15 @@ useEffect(() => {
         // Marcar que hay error de red para que onend lo maneje
         hasNetworkErrorRef.current = true;
         
-        const retryMsg = voiceToasts.networkRetry
+        const retryStatusMsg = voiceToasts.networkRetryStatus
           .replace('{attempt}', String(networkRetryCountRef.current))
           .replace('{max}', String(MAX_NETWORK_RETRIES));
         
-        setVoiceControlMessage(retryMsg);
+        setVoiceControlMessage(retryStatusMsg);
         
         // Solo mostrar toast en el primer intento para evitar spam
         if (networkRetryCountRef.current === 1 && canShowErrorToast) {
-          showToast(retryMsg, 'warning');
+          showToast(voiceToasts.networkRetry, 'warning');
           errorToastCooldownRef.current = now;
         }
         
