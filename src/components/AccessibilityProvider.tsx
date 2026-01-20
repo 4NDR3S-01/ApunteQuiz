@@ -1177,10 +1177,21 @@ useEffect(() => {
       setVoiceControlMessage('Escuchando... Di un comando.');
       // Resetear contador de errores cuando inicia correctamente
       errorCountRef.current = 0;
-      // Limpiar flags de error de red cuando inicia correctamente
-      hasNetworkErrorRef.current = false;
-      networkRetryCountRef.current = 0;
+      // NO resetear networkRetryCountRef aquí - solo limpiarlo si funciona por un tiempo
+      // hasNetworkErrorRef se mantiene para saber si estamos en modo de recuperación
       isReconnectingRef.current = false;
+      
+      // Si hay errores de red previos, programar un reset después de 10 segundos de funcionamiento estable
+      if (hasNetworkErrorRef.current || networkRetryCountRef.current > 0) {
+        setTimeout(() => {
+          // Si después de 10 segundos todavía está activo, consideramos que se recuperó
+          if (voiceControlEnabled && !isManuallyDisablingRef.current) {
+            hasNetworkErrorRef.current = false;
+            networkRetryCountRef.current = 0;
+          }
+        }, 10000);
+      }
+      
       // Mostrar toast de éxito SOLO en la primera activación, no en reinicios automáticos
       if (!isInitialLoadRef.current && !hasShownActivationToastRef.current) {
         showToast('Control por voz activado. Di: "ir a inicio", "ir a faq", "ir a contacto", "abrir ajustes", "pausar video" o "reproducir video"', 'success');
