@@ -1166,39 +1166,6 @@ useEffect(() => {
     const initRecognition = async () => {
       // Resetear el flag de desactivación manual al iniciar
       isManuallyDisablingRef.current = false;
-      
-      // Solicitar permisos del micrófono explícitamente para mostrar el prompt del navegador
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          // Esto muestra el cuadro de diálogo del navegador pidiendo permisos
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          // Si llegamos aquí, el usuario dio permisos. Cerrar el stream inmediatamente
-          stream.getTracks().forEach(track => track.stop());
-        } catch (err: any) {
-          console.error('Error al solicitar permisos del micrófono:', err.name, err.message);
-          
-          // El usuario denegó los permisos o hubo un error
-          let errorMsg = 'No se pudo acceder al micrófono.';
-          
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            errorMsg = 'Permisos del micrófono denegados. Habilítalos en la configuración del navegador.';
-          } else if (err.name === 'NotFoundError') {
-            errorMsg = 'No se detectó ningún micrófono. Conecta un micrófono e intenta nuevamente.';
-          } else if (err.name === 'NotReadableError') {
-            errorMsg = 'El micrófono está siendo usado por otra aplicación.';
-          }
-          
-          setVoiceControlMessage(errorMsg);
-          setVoiceControlActive(false);
-          setVoiceControlEnabledState(false);
-          
-          // Solo mostrar toast si NO es la carga inicial
-          if (!isInitialLoadRef.current) {
-            showToast(errorMsg, 'error');
-          }
-          return; // NO continuar creando el reconocimiento
-        }
-      }
 
       const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -1314,61 +1281,38 @@ useEffect(() => {
         setVoiceControlActive(false);
         networkRetryCountRef.current += 1;
         
-        // Verificar si realmente hay conexión a internet
-        // El error "network" puede ser un falso positivo (problemas temporales del servicio)
-        const hasConnection = navigator.onLine;
-        
-        if (!hasConnection) {
-          // Realmente no hay conexión
+        // Si ya excedimos los reintentos, desactivar completamente
+        if (networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
           hasNetworkErrorRef.current = true;
-          
-          if (networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
-            setVoiceControlEnabledState(false);
-            setAutoVoiceControlActive(false);
-            const finalMsg = 'Control por voz desactivado. No hay conexión a internet. El reconocimiento de voz requiere conexión a internet.';
-            setVoiceControlMessage(finalMsg);
+          setVoiceControlEnabledState(false);
+          setAutoVoiceControlActive(false);
+          const finalMsg = 'Control por voz desactivado: no se puede conectar al servicio de reconocimiento. Verifica tu conexión a internet.';
+          setVoiceControlMessage(finalMsg);
+          // Solo mostrar toast si no se ha mostrado recientemente
+          if ((now - errorToastCooldownRef.current) > 5000) {
             showToast(finalMsg, 'error');
-            return;
-          }
-          
-          setVoiceControlMessage(`Error de red. El reconocimiento de voz requiere conexión a internet. Intento ${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES}.`);
-          if (canShowErrorToast) {
-            showToast(`Error de red. Intentando reconectar (${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES})...`, 'warning');
             errorToastCooldownRef.current = now;
           }
-        } else {
-          // Hay conexión, probablemente es un error temporal del servicio de reconocimiento
-          // No marcar como error crítico, solo reintentar
-          hasNetworkErrorRef.current = false;
-          setVoiceControlMessage('Error temporal del servicio. Reintentando...');
-          
-          // Resetear contador después de algunos intentos si hay conexión
-          if (networkRetryCountRef.current > 3) {
-            networkRetryCountRef.current = 0;
-          }
+          return;
         }
         
-        // Intentar reconectar después de un delay (más corto si hay conexión)
-        if (voiceControlEnabled && !isReconnectingRef.current) {
-          isReconnectingRef.current = true;
-          // Delay más corto si hay conexión (error temporal) vs sin conexión (error real)
-          const delay = hasNetworkErrorRef.current ? 5000 : 2000;
-          
-          setTimeout(() => {
-            isReconnectingRef.current = false;
-            if (voiceControlEnabled && recognitionRef.current === recognition) {
-              // Solo intentar si no excedimos el máximo o si hay conexión (error temporal)
-              if (!hasNetworkErrorRef.current || networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
-                try {
-                  recognition.start();
-                } catch (e) {
-                  console.warn('No se pudo reconectar después de error de red:', e);
-                  isReconnectingRef.current = false;
-                }
-              }
-            }
-          }, delay);
+        // Marcar que hay error de red para que onend lo maneje
+        hasNetworkErrorRef.current = true;
+        
+        const hasConnection = navigator.onLine;
+        const retryMsg = hasConnection 
+          ? `Error temporal del servicio. Reintentando...`
+          : `Sin conexión a internet. Reintentando...`;
+        
+        setVoiceControlMessage(`${retryMsg} (${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES})`);
+        
+        // Solo mostrar toast en el primer intento para evitar spam
+        if (networkRetryCountRef.current === 1 && canShowErrorToast) {
+          showToast(retryMsg, 'warning');
+          errorToastCooldownRef.current = now;
         }
+        
+        // NO reiniciar aquí, dejar que onend lo maneje
       } else if (error === 'aborted') {
         // Reconocimiento abortado, intentar reiniciar solo si no hay errores de red activos
         setVoiceControlActive(false);
@@ -1400,34 +1344,42 @@ useEffect(() => {
         return;
       }
       
-      // NO reiniciar si hay errores de red activos o si ya se está reconectando
-      if (hasNetworkErrorRef.current || isReconnectingRef.current || networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
+      // Si hay errores de red, intentar reconectar después de un delay
+      if (hasNetworkErrorRef.current && networkRetryCountRef.current <= MAX_NETWORK_RETRIES && voiceControlEnabled) {
         setVoiceControlActive(false);
-        return;
-      }
-      
-      if (voiceControlEnabled) {
-        setVoiceControlActive(false);
-        // Reintentar después de un breve delay solo si no hay errores activos
+        const delay = 3000; // 3 segundos entre reintentos
+        
+        const hasConnection = navigator.onLine;
+        const retryMsg = hasConnection 
+          ? `Error temporal del servicio. Reintentando...`
+          : `Sin conexión a internet. Reintentando...`;
+        
+        setVoiceControlMessage(`${retryMsg} (${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES})`);
+        
         setTimeout(() => {
-          if (
-            voiceControlEnabled && 
-            recognitionRef.current === recognition &&
-            !hasNetworkErrorRef.current &&
-            !isReconnectingRef.current &&
-            !isManuallyDisablingRef.current &&
-            networkRetryCountRef.current <= MAX_NETWORK_RETRIES
-          ) {
+          if (voiceControlEnabled && !isManuallyDisablingRef.current && networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
             try {
               recognition.start();
-            } catch (e: any) {
+            } catch (e) {
               console.warn('No se pudo reiniciar reconocimiento:', e);
             }
           }
-        }, 1000);
-      } else {
-        setVoiceControlActive(false);
+        }, delay);
+        return;
       }
+      
+      // Si ya se excedieron los reintentos
+      if (networkRetryCountRef.current > MAX_NETWORK_RETRIES) {
+        setVoiceControlActive(false);
+        setVoiceControlEnabledState(false);
+        const finalMsg = 'Control por voz desactivado: no se puede conectar al servicio. Verifica tu conexión a internet.';
+        setVoiceControlMessage(finalMsg);
+        showToast(finalMsg, 'error');
+        return;
+      }
+      
+      // Para cualquier otro caso, simplemente detener
+      setVoiceControlActive(false);
     };
 
       try {
@@ -1461,7 +1413,9 @@ useEffect(() => {
       setVoiceControlMessage(null);
       browserNotSupportedShownRef.current = false;
     };
-  }, [voiceControlEnabled, pauseAllMedia, playAllMedia, isMainPage]);
+  }, [voiceControlEnabled, isMainPage]);
+  // Nota: NO incluir pauseAllMedia ni playAllMedia como dependencias
+  // porque son funciones que se recrean en cada render y causan loops infinitos
 
   // Mejorar navegación por teclado cuando está habilitada
   useEffect(() => {
