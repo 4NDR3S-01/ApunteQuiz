@@ -105,8 +105,8 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
       const { error } = await supabase
         .from('quizzes')
         .delete()
-        .eq('id', quiz.id)
-        .eq('user_id', userId);
+        .eq('id', quiz.id as any)
+        .eq('user_id', userId as any);
 
       if (error) throw error;
 

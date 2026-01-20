@@ -20,7 +20,6 @@ export function createClient(options?: { persistSession?: boolean }) {
       // Configuración de cookies para mejor compatibilidad
       cookieOptions: {
         name: 'sb-auth',
-        lifetime: persistSession ? 7 * 24 * 60 * 60 : 0, // 7 días si persiste, 0 si es sesión temporal
         domain: undefined,
         path: '/',
         sameSite: 'lax',
