@@ -32,7 +32,7 @@ export const DocumentInputSchema = z.object({
 export const GenerateQuizRequestSchema = z.object({
   idioma: z.string().min(1),
   nivel: z.enum(['secundaria', 'universidad', 'profesional']),
-  n_preguntas: z.number().min(1).max(50),
+  n_preguntas: z.number().min(1).max(100),
   n_preguntas_recomendadas: z.number().min(1).max(100).optional(), // Número óptimo calculado por el frontend
   tipos_permitidos: z.array(z.enum(['opcion_multiple', 'respuesta_corta', 'verdadero_falso'])).min(1),
   proporcion_tipos: z.object({
