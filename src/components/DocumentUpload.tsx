@@ -12,18 +12,32 @@ interface DocumentUploadProps {
   onError: (error: string) => void;
   existingDocuments?: DocumentInput[]; // Documentos ya cargados
   className?: string;
+  maxPendingUploads?: number; // Máximo de cargas pendientes simultáneas (default: 1)
+  maxDocuments?: number; // Máximo de documentos en la lista (default: 5)
 }
+
+// Rate limiting: máximo 3 cargas por minuto
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minuto
+const MAX_UPLOADS_PER_WINDOW = 3;
+const uploadTimestamps: number[] = [];
+
+// Límite de documentos en la lista
+const DEFAULT_MAX_DOCUMENTS = 5;
 
 export default function DocumentUpload({ 
   onDocumentProcessed, 
   onDocumentRemoved, 
   onError, 
   existingDocuments = [], 
-  className = '' 
+  className = '',
+  maxPendingUploads = 1, // Por defecto, solo 1 carga a la vez
+  maxDocuments = DEFAULT_MAX_DOCUMENTS // Por defecto, máximo 5 documentos
 }: Readonly<DocumentUploadProps>) {
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({ status: 'idle' });
   const [processedDocuments, setProcessedDocuments] = useState<DocumentInput[]>(existingDocuments);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation();
 
   // Sincronizar documentos existentes cuando cambian
@@ -46,6 +60,36 @@ export default function DocumentUpload({
 
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
+
+    // Verificar límite de documentos en la lista
+    if (existingDocuments.length >= maxDocuments) {
+      onError(`Has alcanzado el límite de ${maxDocuments} documentos. Elimina alguno antes de cargar más.`);
+      return;
+    }
+
+    // Prevenir múltiples cargas simultáneas
+    if (isProcessing) {
+      onError('Ya hay un documento procesándose. Por favor, espera a que termine.');
+      return;
+    }
+
+    // Verificar límite de cargas pendientes
+    if (pendingUploads >= maxPendingUploads) {
+      onError(`Ya hay ${pendingUploads} carga(s) en proceso. Espera a que termine(n) antes de subir otro documento.`);
+      return;
+    }
+
+    // Rate limiting: verificar cuántas cargas se han hecho en el último minuto
+    const now = Date.now();
+    // Limpiar timestamps antiguos
+    while (uploadTimestamps.length > 0 && uploadTimestamps[0] < now - RATE_LIMIT_WINDOW) {
+      uploadTimestamps.shift();
+    }
+    
+    if (uploadTimestamps.length >= MAX_UPLOADS_PER_WINDOW) {
+      onError(`Has alcanzado el límite de ${MAX_UPLOADS_PER_WINDOW} cargas por minuto. Por favor, espera un momento.`);
+      return;
+    }
 
     const file = files[0]; // Por ahora, procesar solo el primer archivo
     
@@ -70,6 +114,11 @@ export default function DocumentUpload({
       return;
     }
 
+    // Marcar como procesando y agregar timestamp
+    setIsProcessing(true);
+    setPendingUploads(prev => prev + 1);
+    uploadTimestamps.push(Date.now());
+    
     setStatus({ status: 'processing', message: t('documentUpload.statuses.processing') as string });
     
     try {
@@ -138,8 +187,17 @@ export default function DocumentUpload({
         message: errorMessage
       });
       onError(errorMessage);
+    } finally {
+      // Siempre liberar el bloqueo
+      setIsProcessing(false);
+      setPendingUploads(prev => Math.max(0, prev - 1));
+      
+      // Limpiar el input file para permitir volver a subir el mismo archivo si es necesario
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
-  }, [existingDocuments, onError, onDocumentProcessed, t]);
+  }, [existingDocuments, onError, onDocumentProcessed, t, isProcessing, pendingUploads, maxPendingUploads, maxDocuments]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -191,7 +249,7 @@ export default function DocumentUpload({
               ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-500/10'
               : 'hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500'
           }
-          ${status.status === 'processing' ? 'pointer-events-none opacity-50' : ''}
+          ${isProcessing || pendingUploads >= maxPendingUploads || existingDocuments.length >= maxDocuments ? 'pointer-events-none opacity-50' : ''}
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -199,13 +257,20 @@ export default function DocumentUpload({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
+            if (!isProcessing && pendingUploads < maxPendingUploads && existingDocuments.length < maxDocuments) {
+              fileInputRef.current?.click();
+            }
+          }
+        }}
+        onClick={() => {
+          if (!isProcessing && pendingUploads < maxPendingUploads && existingDocuments.length < maxDocuments) {
             fileInputRef.current?.click();
           }
         }}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={status.status === 'processing'}
+        disabled={isProcessing || pendingUploads >= maxPendingUploads || existingDocuments.length >= maxDocuments}
         aria-describedby={instructionsId}
-        aria-busy={status.status === 'processing'}
+        aria-busy={isProcessing}
+        aria-disabled={isProcessing || pendingUploads >= maxPendingUploads || existingDocuments.length >= maxDocuments}
       >
         <input
           ref={fileInputRef}
@@ -214,7 +279,8 @@ export default function DocumentUpload({
           className="hidden"
           accept=".pdf,.txt,text/plain,application/pdf"
           onChange={handleFileSelect}
-          disabled={status.status === 'processing'}
+          disabled={isProcessing || pendingUploads >= maxPendingUploads || existingDocuments.length >= maxDocuments}
+          aria-label="Seleccionar archivo para cargar"
         />
 
         <div className="space-y-2">
@@ -239,6 +305,15 @@ export default function DocumentUpload({
           </div>
           <div className="text-xs text-[color:var(--text-muted)]">
             {t('documentUpload.dropzone.formats')}
+          </div>
+          {/* Contador de documentos */}
+          <div className="mt-2 text-xs font-medium text-[color:var(--text-muted)]">
+            {existingDocuments.length} / {maxDocuments} documentos cargados
+            {existingDocuments.length >= maxDocuments && (
+              <span className="ml-2 text-orange-600 dark:text-orange-400">
+                (Límite alcanzado)
+              </span>
+            )}
           </div>
         </div>
       </button>
