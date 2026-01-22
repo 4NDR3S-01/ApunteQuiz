@@ -94,11 +94,11 @@ function validateQuizConfig(config: QuizConfig, documents: DocumentInput[]): str
   const minConservative = Math.max(1, Math.floor(wordsCount / 300));
   const recommendedBalanced = Math.floor(wordsCount / 100);
   const maxGenerous = Math.floor(wordsCount / 50);
-  
+
   // Usar el rango equilibrado como recomendación principal
   const minRecommendedQuestions = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
   const maxRecommendedQuestions = Math.min(Math.max(recommendedBalanced, minRecommendedQuestions), 100);
-  
+
   // Calcular también el máximo generoso para validación
   const maxGenerousLimited = Math.min(maxGenerous, 100);
 
@@ -108,11 +108,11 @@ function validateQuizConfig(config: QuizConfig, documents: DocumentInput[]): str
     errors.push(`El contenido no es suficiente para ${config.n_preguntas} preguntas. Máximo recomendado: ${maxGenerousLimited} preguntas`);
   }
   // No mostrar error si está entre el recomendado y el generoso, ya que la UI lo muestra
-  
+
   if (config.n_preguntas < minRecommendedQuestions) {
     errors.push(`Para el contenido disponible se recomiendan al menos ${minRecommendedQuestions} preguntas`);
   }
-  
+
   // Validar que haya contenido mínimo
   if (totalTextLength < 500) {
     errors.push('El documento contiene muy poco texto. Asegúrate de que el PDF tenga contenido textual suficiente.');
@@ -197,17 +197,17 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
         return text;
       }, '');
       const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
-      
+
       // Escala progresiva basada en el contenido (igual que en la UI):
       // - Mínimo conservador: 1 pregunta por cada 300 palabras (calidad)
       // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
       const minConservative = Math.max(1, Math.floor(wordsCount / 300));
       const recommendedBalanced = Math.floor(wordsCount / 100);
-      
+
       // Calcular rangos
       const minRecommended = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
       const maxRecommended = Math.min(Math.max(recommendedBalanced, minRecommended), 100);
-      
+
       const request: GenerateQuizRequest = {
         ...config,
         documents,
@@ -257,37 +257,37 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
         const quizResult = result.data.result as QuizResult;
         setQuizResult(quizResult);
 
-      const saveResponse = await fetch('/api/save-quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quizData: quizResult,
-          documentIds: documents.map(doc => doc.doc_id),
-          documents: documents.map(doc => ({
-            source_name: doc.source_name,
-            type: doc.type
-          }))
-        })
-      });
+        const saveResponse = await fetch('/api/save-quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quizData: quizResult,
+            documentIds: documents.map(doc => doc.doc_id),
+            documents: documents.map(doc => ({
+              source_name: doc.source_name,
+              type: doc.type
+            }))
+          })
+        });
 
-      if (!saveResponse.ok) {
-        const errorData = await saveResponse.json();
-        console.error('Error guardando quiz en base de datos:', errorData);
-      } else {
-        const saveData = await saveResponse.json();
-        console.log('Quiz guardado exitosamente:', saveData);
-        
-        // Llamar al callback si fue proporcionado
-        if (onQuizSaved) {
-          onQuizSaved();
+        if (!saveResponse.ok) {
+          const errorData = await saveResponse.json();
+          console.error('Error guardando quiz en base de datos:', errorData);
+        } else {
+          const saveData = await saveResponse.json();
+          console.log('Quiz guardado exitosamente:', saveData);
+
+          // Llamar al callback si fue proporcionado
+          if (onQuizSaved) {
+            onQuizSaved();
+          }
         }
-      }
 
         setStep('quiz');
       } catch (fetchError) {
         clearTimeout(timeoutId);
         clearInterval(progressInterval);
-        
+
         if (fetchError instanceof Error) {
           if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
             throw new Error('La generación del quiz está tomando demasiado tiempo. Por favor, intenta de nuevo con un documento más corto o reduce el número de preguntas.');
@@ -343,13 +343,12 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
                       </div>
                       <div className="flex flex-col">
                         <span
-                          className={`text-sm font-medium transition-colors ${
-                            isCurrent
+                          className={`text-sm font-medium transition-colors ${isCurrent
                               ? 'text-blue-600 dark:text-blue-300'
                               : isCompleted
                                 ? 'text-emerald-600 dark:text-emerald-400'
                                 : 'text-[color:var(--text-muted)]'
-                          }`}
+                            }`}
                         >
                           {s === 'upload' && 'Cargar Documentos'}
                           {s === 'configure' && 'Configurar Quiz'}
@@ -362,9 +361,8 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
                     <div className="flex items-center">
                       {/* Línea vertical en móviles, horizontal en desktop */}
                       <div
-                        className={`transition-colors md:h-px md:w-16 h-8 w-px ml-5 md:ml-0 ${
-                          index < currentIndex ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'
-                        }`}
+                        className={`transition-colors md:h-px md:w-16 h-8 w-px ml-5 md:ml-0 ${index < currentIndex ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'
+                          }`}
                         aria-hidden
                       />
                     </div>
@@ -445,11 +443,10 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
               <button
                 onClick={handleNextStep}
                 disabled={!isFormValid}
-                className={`flex items-center justify-center space-x-2 rounded-lg px-6 py-3 text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${
-                  isFormValid
+                className={`flex items-center justify-center space-x-2 rounded-lg px-6 py-3 text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)] ${isFormValid
                     ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400'
                     : 'bg-slate-400 cursor-not-allowed dark:bg-slate-600'
-                }`}
+                  }`}
                 aria-disabled={!isFormValid || undefined}
               >
                 <span>Generar Quiz</span>
@@ -466,7 +463,7 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
             <div className="space-y-6">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
               <h2 className="text-xl font-semibold text-[color:var(--foreground)]">Generando Quiz...</h2>
-              
+
               {/* Progress Bar */}
               <div className="w-full max-w-md mx-auto">
                 <div className="flex justify-between text-sm text-[color:var(--text-muted)] mb-2">
@@ -485,7 +482,7 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <p className="text-[color:var(--text-muted)]">
                   Procesando {documents.length} documento(s) y creando {config.n_preguntas} preguntas personalizadas.
@@ -574,14 +571,14 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
   const minConservative = Math.max(1, Math.floor(wordsCount / 300));
   const recommendedBalanced = Math.floor(wordsCount / 100);
   const maxGenerous = Math.floor(wordsCount / 50);
-  
+
   // Usar el rango equilibrado como recomendación principal
   const minRecommendedQuestions = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
   const maxRecommendedQuestions = Math.min(Math.max(recommendedBalanced, minRecommendedQuestions), 100);
-  
+
   // Rango óptimo: entre el mínimo conservador y el recomendado equilibrado
   const isQuestionCountOptimal = config.n_preguntas >= minRecommendedQuestions && config.n_preguntas <= maxRecommendedQuestions;
-  
+
   // Calcular también el máximo generoso para mostrar como opción
   const maxGenerousLimited = Math.min(maxGenerous, 100);
 
@@ -686,17 +683,15 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                 max={100}
                 value={config.n_preguntas}
                 onChange={(e) => updateConfig({ n_preguntas: Number.isNaN(parseInt(e.target.value, 10)) ? 10 : parseInt(e.target.value, 10) })}
-                className={`a11y-input w-full rounded-lg p-3 focus-visible:outline-none focus-visible:ring-2 ${
-                  isQuestionCountOptimal ? 'focus-visible:ring-blue-500/60' : 'focus-visible:ring-amber-500/60 border-amber-300'
-                }`}
+                className={`a11y-input w-full rounded-lg p-3 focus-visible:outline-none focus-visible:ring-2 ${isQuestionCountOptimal ? 'focus-visible:ring-blue-500/60' : 'focus-visible:ring-amber-500/60 border-amber-300'
+                  }`}
               />
               {(minRecommendedQuestions > 0 || maxRecommendedQuestions > 0) && (
                 <div
-                  className={`text-xs p-2 rounded ${
-                    isQuestionCountOptimal
+                  className={`text-xs p-2 rounded ${isQuestionCountOptimal
                       ? 'text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-900/20'
                       : 'text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-900/20'
-                  }`}
+                    }`}
                 >
                   <p className="flex items-center space-x-1">
                     {isQuestionCountOptimal ? (
@@ -717,13 +712,13 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
                       </svg>
                     )}
                     <span>
-                      {isQuestionCountOptimal 
-                        ? `Óptimo para el contenido (${minRecommendedQuestions}-${maxRecommendedQuestions} preguntas)` 
+                      {isQuestionCountOptimal
+                        ? `Óptimo: ${minRecommendedQuestions}-${maxRecommendedQuestions} preguntas (puedes solicitar más)`
                         : config.n_preguntas < minRecommendedQuestions
-                        ? `Se recomienda al menos ${minRecommendedQuestions} preguntas para este contenido`
-                        : config.n_preguntas <= maxGenerousLimited
-                        ? `Rango extensivo: ${maxRecommendedQuestions + 1}-${maxGenerousLimited} preguntas. Recomendado: ${minRecommendedQuestions}-${maxRecommendedQuestions} preguntas`
-                        : `Se recomienda máximo ${maxGenerousLimited} preguntas para este contenido`}
+                          ? `Sugerencia: al menos ${minRecommendedQuestions} preguntas para este contenido`
+                          : config.n_preguntas <= maxGenerousLimited
+                            ? `Aceptable: ${config.n_preguntas} preguntas. Óptimo: ${minRecommendedQuestions}-${maxRecommendedQuestions}`
+                            : `Máximo sugerido: ${maxGenerousLimited} preguntas (puedes intentar con más)`}
                     </span>
                   </p>
                 </div>
@@ -850,45 +845,43 @@ function QuizConfigForm({ config, onChange, documents }: QuizConfigFormProps) {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-[color:var(--foreground)]">Total distribución:</span>
                 <span
-                  className={`font-bold text-lg ${
-                    Math.abs(
-                      config.proporcion_tipos.opcion_multiple +
-                        config.proporcion_tipos.respuesta_corta +
-                        config.proporcion_tipos.verdadero_falso -
-                        1
-                    ) < 0.1
+                  className={`font-bold text-lg ${Math.abs(
+                    config.proporcion_tipos.opcion_multiple +
+                    config.proporcion_tipos.respuesta_corta +
+                    config.proporcion_tipos.verdadero_falso -
+                    1
+                  ) < 0.1
                       ? 'text-green-600 dark:text-green-400'
                       : 'text-red-600 dark:text-red-400'
-                  }`}
+                    }`}
                 >
                   {Math.round(
                     (config.proporcion_tipos.opcion_multiple +
                       config.proporcion_tipos.respuesta_corta +
                       config.proporcion_tipos.verdadero_falso) *
-                      100
+                    100
                   )}
                   %
                 </span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    Math.abs(
-                      config.proporcion_tipos.opcion_multiple +
-                        config.proporcion_tipos.respuesta_corta +
-                        config.proporcion_tipos.verdadero_falso -
-                        1
-                    ) < 0.1
+                  className={`h-2 rounded-full transition-all duration-300 ${Math.abs(
+                    config.proporcion_tipos.opcion_multiple +
+                    config.proporcion_tipos.respuesta_corta +
+                    config.proporcion_tipos.verdadero_falso -
+                    1
+                  ) < 0.1
                       ? 'bg-green-500'
                       : 'bg-red-500'
-                  }`}
+                    }`}
                   style={{
                     width: `${Math.min(
                       100,
                       (config.proporcion_tipos.opcion_multiple +
                         config.proporcion_tipos.respuesta_corta +
                         config.proporcion_tipos.verdadero_falso) *
-                        100
+                      100
                     )}%`
                   }}
                 />

@@ -45,40 +45,50 @@ export const createUserPrompt = (params: UserPromptParams): string => {
 
   const now = new Date().toISOString();
   const temas_prioritarios_json = JSON.stringify(temas_prioritarios);
-  
+
   // Calcular palabras para el mensaje
   const wordsCount = documents.reduce((acc, doc) => {
     const text = doc.text || (doc.pages || []).map(p => p.text).join(' ');
     return acc + text.split(/\s+/).filter(w => w.length > 0).length;
   }, 0);
-  
+
   // Usar nuevo sistema de min/max si está disponible, sino usar el deprecated
   const minRecommended = min_recommended_questions ?? recommended_questions;
   const maxRecommended = max_recommended_questions ?? recommended_questions;
-  
+
+
   // Generar nota sobre recomendación si aplica
   const recommendationNote = (minRecommended && maxRecommended && n_preguntas > maxRecommended)
-    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${wordsCount} palabras), el rango recomendado es de ${minRecommended} a ${maxRecommended} preguntas para mantener la calidad.
+    ? `\n📊 INFORMACIÓN DE CONTEXTO: El usuario solicitó ${n_preguntas} preguntas. Basándose en el contenido del documento (${wordsCount} palabras), el rango óptimo recomendado es de ${minRecommended} a ${maxRecommended} preguntas.
 
-INSTRUCCIÓN CRÍTICA - ESTRATEGIA DE GENERACIÓN:
-1. OBJETIVO PRINCIPAL: Intenta generar ${maxRecommended} preguntas (máximo recomendado) explorando todos los aspectos del contenido
-2. MÍNIMO ACEPTABLE: Si no puedes alcanzar ${maxRecommended}, genera AL MENOS ${minRecommended} preguntas (mínimo recomendado)
-3. INTENTAR LO SOLICITADO: Si el contenido lo permite, intenta llegar a las ${n_preguntas} preguntas solicitadas
-4. PRIORIDAD: ${maxRecommended} preguntas > ${n_preguntas} preguntas > ${minRecommended} preguntas
-5. EXPLICACIÓN: Si generas menos de ${n_preguntas} preguntas, DEBES explicar en "notes.detalle" por qué no fue posible
+⚠️ INSTRUCCIÓN CRÍTICA - TU OBJETIVO:
+1. **OBJETIVO PRINCIPAL**: Genera EXACTAMENTE ${n_preguntas} preguntas (lo que el usuario solicitó)
+2. **ESTRATEGIA**: Explora TODOS los aspectos del contenido para alcanzar ${n_preguntas} preguntas:
+   - Conceptos fundamentales y definiciones
+   - Ejemplos y casos prácticos
+   - Aplicaciones y usos
+   - Comparaciones y diferencias
+   - Ventajas y desventajas
+   - Relaciones causa-efecto
+   - Detalles técnicos
+3. **MÍNIMO ABSOLUTO**: Si es IMPOSIBLE generar ${n_preguntas} preguntas con calidad, genera AL MENOS ${Math.max(maxRecommended, Math.ceil(n_preguntas * 0.7))} preguntas (70% de lo solicitado)
+4. **EXPLICACIÓN OBLIGATORIA**: Si generas menos de ${n_preguntas} preguntas, DEBES explicar detalladamente en "notes.detalle" por qué fue imposible alcanzar el objetivo
 
-IMPORTANTE: NO te conformes con el mínimo (${minRecommended}). Intenta activamente llegar al máximo recomendado (${maxRecommended}) o lo más cerca posible.
+IMPORTANTE: El rango ${minRecommended}-${maxRecommended} es solo INFORMATIVO. Tu meta es ${n_preguntas} preguntas.
 `
     : (recommended_questions && recommended_questions < n_preguntas)
-    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${wordsCount} palabras), se recomienda ${recommended_questions} preguntas para mantener la calidad.
+      ? `\n📊 INFORMACIÓN DE CONTEXTO: El usuario solicitó ${n_preguntas} preguntas. Basándose en el contenido del documento (${wordsCount} palabras), se recomienda alrededor de ${recommended_questions} preguntas para calidad óptima.
 
-INSTRUCCIÓN CRÍTICA:
-1. INTENTA generar las ${n_preguntas} preguntas solicitadas explorando todos los aspectos del contenido
-2. Si es absolutamente imposible mantener calidad con ${n_preguntas} preguntas, genera AL MENOS ${recommended_questions} preguntas
-3. NUNCA generes menos de ${recommended_questions} preguntas
-4. Si generas menos de ${n_preguntas}, DEBES explicar en "notes.detalle" por qué no fue posible
+⚠️ INSTRUCCIÓN CRÍTICA - TU OBJETIVO:
+1. **OBJETIVO PRINCIPAL**: Genera EXACTAMENTE ${n_preguntas} preguntas (lo que el usuario solicitó)
+2. **ESTRATEGIA**: Explora TODOS los aspectos del contenido para alcanzar ${n_preguntas} preguntas
+3. **MÍNIMO ABSOLUTO**: Si es IMPOSIBLE generar ${n_preguntas} preguntas con calidad, genera AL MENOS ${Math.max(recommended_questions, Math.ceil(n_preguntas * 0.7))} preguntas (70% de lo solicitado)
+4. **EXPLICACIÓN OBLIGATORIA**: Si generas menos de ${n_preguntas} preguntas, DEBES explicar en "notes.detalle" por qué no fue posible
+
+IMPORTANTE: La recomendación de ${recommended_questions} es solo INFORMATIVA. Tu meta es ${n_preguntas} preguntas.
 `
-    : `\n✓ El número de preguntas solicitadas (${n_preguntas}) es apropiado para el contenido del documento.\n`;
+      : `\n✓ El número de preguntas solicitadas (${n_preguntas}) es apropiado para el contenido del documento.\n\n⚠️ INSTRUCCIÓN: Genera EXACTAMENTE ${n_preguntas} preguntas explorando todos los aspectos del contenido.\n`;
+
 
   return `
 Pro Tip: si el archivo es PDF, primero extrae el texto por páginas (pdf.js/tesseract). Pasa ese texto en documents[].pages[].text.

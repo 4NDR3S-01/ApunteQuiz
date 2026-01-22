@@ -396,17 +396,17 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                           key={quiz.id}
                           className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3">
-                                <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-3 min-w-0">
+                                <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30 shrink-0">
                                   <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                 </div>
-                                <div>
-                                  <h4 className="font-semibold text-[color:var(--foreground)]">
+                                <div className="min-w-0">
+                                  <h4 className="font-semibold text-[color:var(--foreground)] truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md" title={quiz.title}>
                                     {quiz.title}
                                   </h4>
-                                  <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
+                                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[color:var(--text-muted)] break-all">
                                     <span className="flex items-center space-x-1">
                                       <HelpCircle className="h-3 w-3" />
                                       <span>{quiz.total_questions || 0} preguntas</span>
@@ -430,17 +430,17 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-row flex-wrap items-center gap-2 mt-2 sm:mt-0 shrink-0">
                               <button
                                 onClick={() => router.push(`/dashboard/quiz/${quiz.id}`)}
-                                className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 whitespace-nowrap"
                               >
                                 Ver detalles
                               </button>
                               <button
                                 onClick={() => setShowDeleteQuizConfirm(quiz.id)}
                                 disabled={deletingQuizId === quiz.id}
-                                className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 whitespace-nowrap"
                                 aria-label="Eliminar quiz"
                               >
                                 {deletingQuizId === quiz.id ? 'Eliminando...' : <Trash2 className="h-4 w-4" />}
@@ -488,17 +488,17 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                         key={doc.id}
                         className="a11y-card rounded-xl p-4 shadow-sm transition hover:shadow-md"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30 shrink-0">
                                 <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-[color:var(--foreground)]">
+                              <div className="min-w-0">
+                                <h4 className="font-semibold text-[color:var(--foreground)] truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md" title={doc.file_name}>
                                   {doc.file_name}
                                 </h4>
-                                <div className="mt-1 flex items-center space-x-3 text-sm text-[color:var(--text-muted)]">
+                                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[color:var(--text-muted)] break-all">
                                   <span className="flex items-center space-x-1">
                                     <span>{doc.file_type || 'Desconocido'}</span>
                                   </span>
@@ -524,14 +524,16 @@ export default function DashboardClient({ user, statsData, recentQuizzes, docume
                               </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => setShowDeleteDocConfirm(doc.id)}
-                            disabled={deletingDocId === doc.id}
-                            className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400 dark:hover:text-red-300"
-                            aria-label="Eliminar documento"
-                          >
-                            {deletingDocId === doc.id ? 'Eliminando...' : <Trash2 className="h-4 w-4" />}
-                          </button>
+                          <div className="flex flex-row flex-wrap items-center gap-2 mt-2 sm:mt-0 shrink-0">
+                            <button
+                              onClick={() => setShowDeleteDocConfirm(doc.id)}
+                              disabled={deletingDocId === doc.id}
+                              className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400 dark:hover:text-red-300 whitespace-nowrap"
+                              aria-label="Eliminar documento"
+                            >
+                              {deletingDocId === doc.id ? 'Eliminando...' : <Trash2 className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
