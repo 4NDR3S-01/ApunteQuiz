@@ -261,31 +261,31 @@ export default function QuizDetailClient({ quiz, questions, userId }: Readonly<Q
               <ArrowLeft className="h-5 w-5" />
               <span>Volver</span>
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <button
                 onClick={handleExportMarkdown}
-                className="flex items-center space-x-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+                className="flex items-center space-x-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-emerald-700 min-w-0 max-w-full whitespace-nowrap"
                 aria-label="Exportar a Markdown"
               >
                 <Download className="h-4 w-4" />
-                <span>Exportar MD</span>
+                <span className="truncate">Exportar MD</span>
               </button>
               <button
                 onClick={handleExportHTML}
-                className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                className="flex items-center space-x-2 rounded-lg bg-blue-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-blue-700 min-w-0 max-w-full whitespace-nowrap"
                 aria-label="Exportar a HTML"
               >
                 <Download className="h-4 w-4" />
-                <span>Exportar HTML</span>
+                <span className="truncate">Exportar HTML</span>
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
-                className="flex items-center space-x-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 rounded-lg bg-red-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-0 max-w-full whitespace-nowrap"
                 aria-label="Eliminar quiz"
               >
                 <Trash2 className="h-4 w-4" />
-                <span>{isDeleting ? 'Eliminando...' : 'Eliminar'}</span>
+                <span className="truncate">{isDeleting ? 'Eliminando...' : 'Eliminar'}</span>
               </button>
             </div>
           </div>

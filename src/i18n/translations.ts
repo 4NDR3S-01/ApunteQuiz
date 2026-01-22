@@ -90,7 +90,7 @@ const translations = {
       },
     },
     footer: {
-      copyright: '© {year} ApunteQuiz. Construido con cariño por William Cabrera.',
+      copyright: '© {year} ApunteQuiz. Construido con ❤️ por William Cabrera.',
       privacy: 'Política de privacidad',
       terms: 'Términos de uso',
       help: 'Ayuda',
@@ -766,7 +766,7 @@ const translations = {
       },
     },
     footer: {
-      copyright: '© {year} ApunteQuiz. Built with care by William Cabrera.',
+      copyright: '© {year} ApunteQuiz. Built with ❤️ by William Cabrera.',
       privacy: 'Privacy policy',
       terms: 'Terms of use',
       help: 'Help',
