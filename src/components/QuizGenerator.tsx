@@ -190,19 +190,32 @@ export default function QuizGenerator({ className = '', onQuizSaved }: QuizGener
     setGenerationProgress(0);
 
     try {
-      // Calcular número recomendado de preguntas basado en el contenido
+      // Calcular rangos recomendados de preguntas basado en el contenido
       const fullText = documents.reduce((text, doc) => {
         if (doc.text) return text + (doc.text ?? '');
         if (doc.pages) return text + doc.pages.map(p => p.text ?? '').join(' ');
         return text;
       }, '');
       const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
-      const recommendedBalanced = Math.max(1, Math.floor(wordsCount / 150)); // 1 pregunta cada 150 palabras
+      
+      // Escala progresiva basada en el contenido (igual que en la UI):
+      // - Mínimo conservador: 1 pregunta por cada 300 palabras (calidad)
+      // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
+      const minConservative = Math.max(1, Math.floor(wordsCount / 300));
+      const recommendedBalanced = Math.floor(wordsCount / 100);
+      
+      // Calcular rangos
+      const minRecommended = Math.min(minConservative, 5); // Máximo 5 como mínimo recomendado
+      const maxRecommended = Math.min(Math.max(recommendedBalanced, minRecommended), 100);
       
       const request: GenerateQuizRequest = {
         ...config,
         documents,
-        n_preguntas_recomendadas: recommendedBalanced // Nuevo campo
+        // Enviar ambos rangos para que el backend use el máximo como objetivo
+        n_preguntas_min_recomendadas: minRecommended,
+        n_preguntas_max_recomendadas: maxRecommended,
+        // Mantener para compatibilidad
+        n_preguntas_recomendadas: maxRecommended
       };
 
       // Simular progreso mientras se genera

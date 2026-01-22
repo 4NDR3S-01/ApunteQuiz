@@ -91,8 +91,20 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Calcular tamaño estimado del documento en tokens para selección inteligente de modelo
+    const fullText = requestData.documents.reduce((text, doc) => {
+      if (doc.text) return text + doc.text;
+      if (doc.pages) return text + doc.pages.map(p => p.text).join(' ');
+      return text;
+    }, '');
+    const estimatedTokens = Math.ceil(Math.max(
+      fullText.split(/\s+/).filter(w => w.length > 0).length * 1.3, // ~1.3 tokens por palabra
+      fullText.length / 4 // ~4 caracteres por token
+    ));
+
     // Obtener configuración del proveedor de AI desde headers o variables de entorno
-    const aiProvider = getAIProviderFromRequest(request);
+    // Pasar tamaño estimado para selección inteligente de modelo
+    const aiProvider = getAIProviderFromRequest(request, estimatedTokens);
     if (!aiProvider) {
       throw new ConfigurationError('Configuración de AI no válida. Proporciona API key y proveedor.');
     }
@@ -103,7 +115,16 @@ export async function POST(request: NextRequest) {
       nivel: requestData.nivel,
       n_preguntas: requestData.n_preguntas,
       provider: aiProvider.name,
-      documentsCount: requestData.documents.length
+      model: aiProvider.model,
+      documentsCount: requestData.documents.length,
+      estimatedTokens,
+      modelSelectionReason: estimatedTokens 
+        ? estimatedTokens > 30000 
+          ? 'Large document (>30K tokens) - using high-capacity model'
+          : estimatedTokens > 10000
+          ? 'Medium document (10K-30K tokens) - using medium-capacity model'
+          : 'Small document (<10K tokens) - using efficient model'
+        : 'No token estimation available'
     }, 'GENERATE_QUIZ_API');
 
     // Validar contenido del documento
@@ -129,12 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar proporción de preguntas vs contenido
-    // Calcular palabras reales (no estimación)
-    const fullText = requestData.documents.reduce((text, doc) => {
-      if (doc.text) return text + doc.text;
-      if (doc.pages) return text + doc.pages.map(p => p.text).join(' ');
-      return text;
-    }, '');
+    // Calcular palabras reales (no estimación) - reutilizar fullText ya calculado
     const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
     // Escala progresiva basada en el contenido:
     // - Recomendado equilibrado: 1 pregunta por cada 100 palabras (óptimo)
@@ -176,7 +192,9 @@ export async function POST(request: NextRequest) {
     // gemini-1.5-pro: 2M tokens -> chunks de 500 páginas, umbral 1000
     // gemini-2.5-flash: 1M tokens -> chunks de 300 páginas, umbral 600
     // gemini-3-flash: 1M tokens -> chunks de 300 páginas, umbral 600
-    // groq/compound-mini: 70K TPM -> chunks de 20 páginas, umbral 30
+    // groq/compound: 70K tokens/min -> chunks de 50 páginas, umbral 70 (actualizado)
+    // groq/compound-mini: 70K tokens/min -> chunks de 50 páginas, umbral 70 (actualizado)
+    // meta-llama/llama-4-scout: 30K tokens/min -> chunks de 20 páginas, umbral 30 (actualizado)
     const modelConfig = {
       'gemini-pro': { threshold: 100, chunkSize: 50 },
       'gemini-1.5-flash': { threshold: 600, chunkSize: 300 },
@@ -184,9 +202,9 @@ export async function POST(request: NextRequest) {
       'gemini-2.5-flash': { threshold: 600, chunkSize: 300 },
       'gemini-2.5-flash-lite': { threshold: 600, chunkSize: 300 },
       'gemini-3-flash': { threshold: 600, chunkSize: 300 },
-      'groq/compound': { threshold: 30, chunkSize: 20 },
-      'groq/compound-mini': { threshold: 30, chunkSize: 20 },
-      'meta-llama/llama-4-scout-17b-16e-instruct': { threshold: 25, chunkSize: 15 },
+      'groq/compound': { threshold: 70, chunkSize: 50 }, // Actualizado: 70K tokens reales
+      'groq/compound-mini': { threshold: 70, chunkSize: 50 }, // Actualizado: 70K tokens reales
+      'meta-llama/llama-4-scout-17b-16e-instruct': { threshold: 30, chunkSize: 20 }, // Actualizado: 30K tokens reales
       'mixtral-8x7b-32768': { threshold: 20, chunkSize: 15 },
       'llama-3.3-70b-versatile': { threshold: 20, chunkSize: 15 },
       'llama-3.1-70b-versatile': { threshold: 20, chunkSize: 15 },
@@ -202,19 +220,27 @@ export async function POST(request: NextRequest) {
     // NOTA: Chunking desactivado temporalmente - necesita reimplementación completa
     // El sistema de chunking requiere que splitDocumentIntoChunks devuelva DocumentInput[] en lugar de string[]
 
-    // Usar el número recomendado que calculó el frontend (que el usuario vio en la UI)
-    // Si no viene en el request, calcularlo aquí como fallback
-    let recommendedOptimal: number;
-    if (requestData.n_preguntas_recomendadas) {
+    // Calcular rangos recomendados si no vienen del frontend
+    let minRecommended: number | undefined;
+    let maxRecommended: number | undefined;
+    let recommendedOptimal: number | undefined; // Para compatibilidad con código legacy
+    
+    if (requestData.n_preguntas_min_recomendadas && requestData.n_preguntas_max_recomendadas) {
+      // Usar nuevo sistema de min/max
+      minRecommended = requestData.n_preguntas_min_recomendadas;
+      maxRecommended = requestData.n_preguntas_max_recomendadas;
+      recommendedOptimal = maxRecommended; // Usar máximo como objetivo
+    } else if (requestData.n_preguntas_recomendadas) {
+      // Sistema legacy - calcular min/max basado en el recomendado
       recommendedOptimal = requestData.n_preguntas_recomendadas;
+      minRecommended = Math.max(1, Math.floor(recommendedOptimal * 0.5)); // Mínimo: 50% del recomendado
+      maxRecommended = recommendedOptimal;
     } else {
-      const fullText = requestData.documents.reduce((text, doc) => {
-        if (doc.text) return text + doc.text;
-        if (doc.pages) return text + doc.pages.map(p => p.text).join(' ');
-        return text;
-      }, '');
+      // Calcular desde cero - reutilizar fullText ya calculado
       const wordsCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
       recommendedOptimal = Math.max(Math.floor(wordsCount / 150), 1);
+      minRecommended = Math.max(1, Math.floor(recommendedOptimal * 0.5));
+      maxRecommended = recommendedOptimal;
     }
     
     // Preparar parámetros para el prompt
@@ -228,8 +254,11 @@ export async function POST(request: NextRequest) {
       temas_prioritarios: requestData.temas_prioritarios,
       documents: requestData.documents,
       titulo_quiz_o_tema: requestData.titulo_quiz_o_tema,
-      // Pasar el número recomendado si el usuario pidió más de lo óptimo
-      recommended_questions: requestData.n_preguntas > recommendedOptimal ? recommendedOptimal : undefined
+      // Pasar rangos recomendados si el usuario pidió más del máximo recomendado
+      min_recommended_questions: requestData.n_preguntas > (maxRecommended || 0) ? minRecommended : undefined,
+      max_recommended_questions: requestData.n_preguntas > (maxRecommended || 0) ? maxRecommended : undefined,
+      // Mantener para compatibilidad
+      recommended_questions: requestData.n_preguntas > (recommendedOptimal || 0) ? recommendedOptimal : undefined
     };
 
     let contentReductionApplied = false;
@@ -479,10 +508,12 @@ export async function POST(request: NextRequest) {
       'Quiz generation timed out'
     );
 
-    // Si OpenAI falla por rate limit, intentar con Groq (gratis) y luego Claude
-    if (aiResponse.error && aiProvider.name === 'openai') {
-      const errorMessage = aiResponse.error.message.toLowerCase();
-      if (errorMessage.includes('rate limit') || errorMessage.includes('quota') || errorMessage.includes('usage')) {
+    // Si el proveedor falla, intentar con fallbacks automáticos
+    if (aiResponse.error) {
+      const errorMessage = (aiResponse.error.message || '').toLowerCase();
+      
+      // Fallback para OpenAI (rate limit)
+      if (aiProvider.name === 'openai' && (errorMessage.includes('rate limit') || errorMessage.includes('quota') || errorMessage.includes('usage'))) {
         logger.info('OpenAI rate limit reached, trying Groq as fallback', { 
           requestId, 
           originalError: aiResponse.error.message 
@@ -579,6 +610,52 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+      
+      // Fallback para Gemini (API key inválida o cualquier error)
+      if (aiProvider.name === 'gemini' && aiResponse.error && (
+        errorMessage.includes('api key') || 
+        errorMessage.includes('api_key') || 
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('no es válida') ||
+        errorMessage.includes('configuración')
+      )) {
+        logger.warn('Gemini failed, trying Groq as fallback', { 
+          requestId, 
+          originalError: aiResponse.error.message 
+        }, 'GENERATE_QUIZ_API');
+
+        // Intentar con Groq (gratis y confiable)
+        const groqApiKey = process.env.GROQ_API_KEY;
+        if (groqApiKey) {
+          const groqProvider: AIProvider = {
+            name: 'groq',
+            apiKey: groqApiKey,
+            model: 'llama-3.1-8b-instant'
+          };
+
+          try {
+            aiResponse = await withTimeout(
+              retryWithBackoff(
+                () => generateQuiz(promptParams, groqProvider),
+                2,
+                1000,
+                { operation: 'generate_quiz_groq_fallback' }
+              ),
+              45000,
+              'Groq fallback generation timed out'
+            );
+
+            logger.info('Groq fallback successful after Gemini failure', { requestId }, 'GENERATE_QUIZ_API');
+          } catch (groqError) {
+            logger.error('Groq fallback also failed', { 
+              requestId, 
+              groqError: groqError instanceof Error ? groqError.message : 'Unknown error'
+            }, 'GENERATE_QUIZ_API');
+          }
+        } else {
+          logger.warn('No Groq API key available for fallback', { requestId }, 'GENERATE_QUIZ_API');
+        }
+      }
     }
     
     // Log de la respuesta cruda de la IA para debugging
@@ -587,9 +664,84 @@ export async function POST(request: NextRequest) {
       hasResult: !!aiResponse.result,
       hasError: !!aiResponse.error,
       resultKeys: aiResponse.result ? Object.keys(aiResponse.result) : [],
-      errorMessage: aiResponse.error?.message
+      errorMessage: aiResponse.error?.message,
+      errorWhere: aiResponse.error?.where
     }, 'GENERATE_QUIZ_API');
     
+    // Si ya hay un error en la respuesta del AI (autenticación, cuota, etc.), 
+    // NO intentar validar - retornar el error directamente
+    if (aiResponse.error) {
+      logger.warn('AI provider returned error, skipping validation', {
+        requestId,
+        provider: aiProvider.name,
+        model: aiProvider.model,
+        errorMessage: aiResponse.error.message,
+        errorWhere: aiResponse.error.where
+      }, 'GENERATE_QUIZ_API');
+      
+      // Distinguir entre tipos de errores
+      const errorMessage = aiResponse.error.message.toLowerCase();
+      
+      // Errores de autenticación/configuración
+      if (
+        errorMessage.includes('api key') ||
+        errorMessage.includes('api_key') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('no es válida') ||
+        errorMessage.includes('configuración')
+      ) {
+        throw new ConfigurationError(
+          `Error de configuración de ${aiProvider.name}: ${aiResponse.error.message}`,
+          {
+            requestId,
+            provider: aiProvider.name,
+            model: aiProvider.model,
+            errorType: 'authentication',
+            suggestion: 'Verifica que la variable de entorno GEMINI_API_KEY esté configurada correctamente y que la API key sea válida.'
+          }
+        );
+      }
+      
+      // Errores de cuota
+      if (
+        errorMessage.includes('quota') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('resource_exhausted')
+      ) {
+        throw new AIProviderError(
+          aiResponse.error.message,
+          aiProvider.name,
+          {
+            requestId,
+            errorType: 'quota_exceeded',
+            suggestion: 'Espera unos minutos antes de intentar nuevamente o reduce el tamaño del documento.'
+          }
+        );
+      }
+      
+      // Otros errores del proveedor
+      throw new AIProviderError(
+        aiResponse.error.message,
+        aiProvider.name,
+        {
+          requestId,
+          errorType: 'provider_error',
+          where: aiResponse.error.where
+        }
+      );
+    }
+    
+    // Log de respuesta antes de validar (solo si no hay error)
+    logger.info('AI response received, starting validation', {
+      requestId,
+      provider: aiProvider.name,
+      model: aiProvider.model,
+      hasResult: !!aiResponse.result,
+      hasError: !!aiResponse.error,
+      resultKeys: aiResponse.result ? Object.keys(aiResponse.result) : [],
+      quizPreguntasCount: aiResponse.result?.quiz?.preguntas?.length || 0
+    }, 'GENERATE_QUIZ_API');
+
     // Validar y corregir la respuesta (no es async)
     const validatedResponse = validateAndFixQuizResponse(aiResponse);
     
@@ -609,10 +761,14 @@ export async function POST(request: NextRequest) {
             quizStructure: aiResponse.result.quiz ? {
               hasPreguntas: !!aiResponse.result.quiz.preguntas,
               preguntasLength: aiResponse.result.quiz.preguntas?.length,
-              firstPregunta: aiResponse.result.quiz.preguntas?.[0]
+              firstPregunta: aiResponse.result.quiz.preguntas?.[0],
+              firstPreguntaTipo: aiResponse.result.quiz.preguntas?.[0]?.tipo,
+              firstPreguntaRespuestaTipo: typeof aiResponse.result.quiz.preguntas?.[0]?.respuesta_correcta
             } : null
           } : null
-        }
+        },
+        // Log de estructura completa en modo debug
+        fullStructure: process.env.DEBUG_AI_RESPONSES === 'true' ? JSON.stringify(aiResponse, null, 2).substring(0, 2000) : undefined
       }, 'GENERATE_QUIZ_API');
       
       throw new AIProviderError('Error validando respuesta del AI', aiProvider.name, {
@@ -627,29 +783,59 @@ export async function POST(request: NextRequest) {
     // Verificar si se generó un número razonable de preguntas
     const generatedCount = validatedResponse.result?.quiz?.preguntas?.length || 0;
     const requestedCount = requestData.n_preguntas;
-    const recommendedMinimum = promptParams.recommended_questions || requestedCount;
     
-    // Si se solicitó más de lo recomendado, el mínimo aceptable es lo recomendado
-    // Si no, el mínimo es 70% de lo solicitado
-    const minAcceptable = promptParams.recommended_questions 
-      ? recommendedMinimum 
-      : Math.ceil(requestedCount * 0.7);
+    // Obtener rangos recomendados del prompt (ya calculados arriba)
+    const promptMinRecommended = promptParams.min_recommended_questions;
+    const promptMaxRecommended = promptParams.max_recommended_questions;
+    const recommendedLegacy = promptParams.recommended_questions;
     
-    if (generatedCount < minAcceptable) {
+    // Usar los rangos del prompt si están disponibles, sino usar los calculados arriba
+    const validationMinRecommended = promptMinRecommended ?? minRecommended;
+    const validationMaxRecommended = promptMaxRecommended ?? maxRecommended;
+    
+    // Determinar mínimo aceptable basado en el sistema usado
+    let minAcceptable: number;
+    let maxTarget: number | undefined;
+    
+    if (validationMinRecommended && validationMaxRecommended) {
+      // Nuevo sistema: aceptar cualquier valor entre min y max recomendado
+      minAcceptable = validationMinRecommended;
+      maxTarget = validationMaxRecommended;
+    } else if (recommendedLegacy) {
+      // Sistema legacy
+      minAcceptable = recommendedLegacy;
+      maxTarget = recommendedLegacy;
+    } else {
+      // Sin recomendaciones: 70% de lo solicitado
+      minAcceptable = Math.ceil(requestedCount * 0.7);
+      maxTarget = requestedCount;
+    }
+    
+    // Verificar si está dentro del rango aceptable
+    const isWithinRange = generatedCount >= minAcceptable && (!maxTarget || generatedCount <= maxTarget);
+    const isBelowMinimum = generatedCount < minAcceptable;
+    const isAboveTarget = maxTarget && generatedCount > maxTarget;
+    
+    if (isBelowMinimum) {
       logger.warn('Insufficient questions generated, below minimum threshold', {
         requestId,
         generated: generatedCount,
         requested: requestedCount,
-        recommended: recommendedMinimum,
-        minAcceptable: minAcceptable,
+        minRecommended: validationMinRecommended,
+        maxRecommended: validationMaxRecommended,
+        minAcceptable,
         ratio: generatedCount / requestedCount
       }, 'GENERATE_QUIZ_API');
       
       // Agregar nota en el resultado
       if (validatedResponse.result?.notes) {
-        const message = promptParams.recommended_questions
-          ? `Solo se generaron ${generatedCount} de ${requestedCount} preguntas solicitadas (se recomendaban ${recommendedMinimum}). El contenido del documento es insuficiente para generar más preguntas de calidad.`
-          : `Solo se generaron ${generatedCount} de ${requestedCount} preguntas solicitadas. El contenido del documento puede ser limitado o muy específico. Considera subir un documento más extenso o reducir el número de preguntas.`;
+        const rangeText = validationMinRecommended && validationMaxRecommended 
+          ? `rango recomendado (${validationMinRecommended}-${validationMaxRecommended})`
+          : recommendedLegacy
+          ? `recomendación (${recommendedLegacy})`
+          : `solicitud (${requestedCount})`;
+          
+        const message = `Solo se generaron ${generatedCount} de ${requestedCount} preguntas solicitadas, por debajo del ${rangeText}. El contenido del documento es insuficiente para generar más preguntas de calidad.`;
           
         validatedResponse.result.notes = {
           ...validatedResponse.result.notes,
@@ -657,6 +843,15 @@ export async function POST(request: NextRequest) {
           detalle: message
         };
       }
+    } else if (validationMinRecommended && validationMaxRecommended && generatedCount < validationMaxRecommended && generatedCount >= validationMinRecommended) {
+      // Está en el rango pero no alcanzó el máximo - esto es aceptable pero podemos notarlo
+      logger.info('Questions generated within acceptable range but below maximum recommended', {
+        requestId,
+        generated: generatedCount,
+        minRecommended: validationMinRecommended,
+        maxRecommended: validationMaxRecommended,
+        requested: requestedCount
+      }, 'GENERATE_QUIZ_API');
     }
 
     // Log del éxito y métricas
@@ -703,18 +898,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
+function getAIProviderFromRequest(request: NextRequest, estimatedTokens?: number): AIProvider | null {
   // Usar configuración fija del servidor
   const envProvider = process.env.AI_PROVIDER as 'openai' | 'anthropic' | 'groq' | 'gemini' | undefined;
   const envApiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
   const envModel = process.env.AI_MODEL;
 
   if (envProvider && envApiKey) {
-    const getDefaultModel = (provider: string) => {
+    const getDefaultModel = (provider: string, docTokens?: number) => {
       switch (provider) {
         case 'openai': return 'gpt-4o-mini';
         case 'anthropic': return 'claude-3-5-sonnet-20241022';
-        case 'groq': return 'llama-3.1-8b-instant';
+        case 'groq': 
+          // Selección inteligente de modelo Groq según tamaño del documento
+          if (docTokens && docTokens > 30000) {
+            // Documento grande (>30K tokens): usar compound-mini (70K tokens/min)
+            return 'groq/compound-mini';
+          } else if (docTokens && docTokens > 10000) {
+            // Documento mediano (10K-30K tokens): usar llama-4-scout (30K tokens/min)
+            return 'meta-llama/llama-4-scout-17b-16e-instruct';
+          } else {
+            // Documento pequeño (<10K tokens): usar llama-3.1-8b-instant (rápido y eficiente)
+            return 'llama-3.1-8b-instant';
+          }
         case 'gemini': return 'gemini-1.5-flash';
         default: return 'gpt-4o-mini';
       }
@@ -723,27 +929,48 @@ function getAIProviderFromRequest(request: NextRequest): AIProvider | null {
     return {
       name: envProvider,
       apiKey: envApiKey,
-      model: envModel || getDefaultModel(envProvider)
+      model: envModel || getDefaultModel(envProvider, estimatedTokens)
     };
   }
 
-  // Fallback a configuración por defecto - intentar Gemini primero (excelente con documentos grandes)
+  // Fallback a configuración por defecto - usar Groq primero (gratis y confiable)
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (groqApiKey) {
+    // Selección inteligente de modelo Groq según tamaño del documento
+    let selectedModel = 'llama-3.1-8b-instant'; // Por defecto para documentos pequeños
+    
+    if (estimatedTokens) {
+      if (estimatedTokens > 30000) {
+        // Documento grande (>30K tokens): usar compound-mini (70K tokens/min)
+        selectedModel = 'groq/compound-mini';
+        logger.info('Selecting groq/compound-mini for large document', {
+          estimatedTokens,
+          reason: 'Document exceeds 30K tokens, using high-capacity model'
+        }, 'GENERATE_QUIZ_API');
+      } else if (estimatedTokens > 10000) {
+        // Documento mediano (10K-30K tokens): usar llama-4-scout (30K tokens/min)
+        selectedModel = 'meta-llama/llama-4-scout-17b-16e-instruct';
+        logger.info('Selecting llama-4-scout for medium document', {
+          estimatedTokens,
+          reason: 'Document between 10K-30K tokens, using medium-capacity model'
+        }, 'GENERATE_QUIZ_API');
+      }
+    }
+    
+    return {
+      name: 'groq',
+      apiKey: groqApiKey,
+      model: selectedModel
+    };
+  }
+
+  // Si no hay Groq, intentar con Gemini (excelente con documentos grandes)
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
     return {
       name: 'gemini',
       apiKey: geminiApiKey,
       model: 'gemini-1.5-flash' // Intentar con modelo avanzado primero
-    };
-  }
-
-  // Fallback a Groq (es gratis)
-  const groqApiKey = process.env.GROQ_API_KEY;
-  if (groqApiKey) {
-    return {
-      name: 'groq',
-      apiKey: groqApiKey,
-      model: 'llama-3.1-8b-instant'
     };
   }
 

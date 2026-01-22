@@ -21,9 +21,9 @@ const CONTEXT_LIMITS: Record<string, Record<string, number>> = {
     'llama-3.1-70b-versatile': 120000,
     'llama-3.3-70b-versatile': 120000, // 128K total, dejamos espacio para respuesta
     'mixtral-8x7b-32768': 28000,
-    'groq/compound': 60000, // 70K TPM - excelente
-    'groq/compound-mini': 60000, // 70K TPM - el mejor TPM disponible
-    'meta-llama/llama-4-scout-17b-16e-instruct': 25000, // 30K TPM
+    'groq/compound': 70000, // 70K tokens/minuto real - excelente para documentos grandes
+    'groq/compound-mini': 70000, // 70K tokens/minuto real - el mejor TPM disponible
+    'meta-llama/llama-4-scout-17b-16e-instruct': 30000, // 30K tokens/minuto real
     'meta-llama/llama-4-maverick-17b-128e-instruct': 5000,
     default: 6000
   },
@@ -186,6 +186,129 @@ async function handleAPIError(response: Response, providerName: string): Promise
 }
 
 /**
+ * Normaliza la estructura de respuesta del AI para manejar variaciones entre proveedores
+ */
+function normalizeQuizResponse(parsed: any): GenerateQuizResponse {
+  // Si ya tiene la estructura correcta, retornar
+  if (parsed.result && typeof parsed.result === 'object') {
+    return parsed as GenerateQuizResponse;
+  }
+
+  // Si no tiene wrapper 'result', intentar normalizar
+  const normalized: any = {};
+
+  // Caso 1: La respuesta tiene quiz/metadata/summary directamente (sin result)
+  if (parsed.quiz || parsed.metadata || parsed.summary) {
+    normalized.result = {
+      quiz: parsed.quiz || parsed.Quiz || parsed.questions,
+      metadata: parsed.metadata || parsed.Metadata || {},
+      summary: parsed.summary || parsed.Summary || {},
+      study_tips: parsed.study_tips || parsed.studyTips || parsed.study_tips || [],
+      notes: parsed.notes || parsed.Notes || { insuficiente_evidencia: false, detalle: '' }
+    };
+    return normalized as GenerateQuizResponse;
+  }
+
+  // Caso 2: La respuesta es directamente el objeto result
+  if (parsed.metadata || parsed.quiz || parsed.summary) {
+    normalized.result = parsed;
+    return normalized as GenerateQuizResponse;
+  }
+
+  // Caso 3: Estructura completamente diferente, crear estructura mínima
+  normalized.result = {
+    metadata: parsed.metadata || {},
+    summary: parsed.summary || {},
+    quiz: parsed.quiz || { n_solicitadas: 0, n_generadas: 0, preguntas: [] },
+    study_tips: parsed.study_tips || [],
+    notes: parsed.notes || { insuficiente_evidencia: false, detalle: '' }
+  };
+
+  return normalized as GenerateQuizResponse;
+}
+
+/**
+ * Normaliza tipos de datos en la respuesta, especialmente respuesta_correcta
+ */
+function normalizeResponseTypes(response: GenerateQuizResponse): GenerateQuizResponse {
+  if (!response.result || !response.result.quiz) {
+    return response;
+  }
+
+  const normalized = JSON.parse(JSON.stringify(response)); // Deep clone
+
+  // Normalizar cada pregunta
+  if (normalized.result.quiz.preguntas && Array.isArray(normalized.result.quiz.preguntas)) {
+    normalized.result.quiz.preguntas = normalized.result.quiz.preguntas.map((pregunta: any) => {
+      const normalizedPregunta = { ...pregunta };
+
+      // Normalizar respuesta_correcta según tipo
+      if (pregunta.tipo === 'verdadero_falso') {
+        // Convertir strings "true"/"false" a booleanos
+        if (typeof pregunta.respuesta_correcta === 'string') {
+          const lower = pregunta.respuesta_correcta.toLowerCase().trim();
+          if (lower === 'true' || lower === 'verdadero' || lower === '1') {
+            normalizedPregunta.respuesta_correcta = true;
+          } else if (lower === 'false' || lower === 'falso' || lower === '0') {
+            normalizedPregunta.respuesta_correcta = false;
+          }
+        }
+        // Asegurar que sea boolean
+        if (typeof normalizedPregunta.respuesta_correcta !== 'boolean') {
+          normalizedPregunta.respuesta_correcta = Boolean(normalizedPregunta.respuesta_correcta);
+        }
+      } else if (pregunta.tipo === 'opcion_multiple' || pregunta.tipo === 'respuesta_corta') {
+        // Asegurar que sea string
+        if (typeof pregunta.respuesta_correcta !== 'string') {
+          normalizedPregunta.respuesta_correcta = String(pregunta.respuesta_correcta);
+        }
+      }
+
+      return normalizedPregunta;
+    });
+  }
+
+  // Normalizar study_tips: puede venir como objeto o array
+  if (normalized.result.study_tips) {
+    if (typeof normalized.result.study_tips === 'object' && !Array.isArray(normalized.result.study_tips)) {
+      // Convertir objeto a array de strings si es necesario
+      // Intentar extraer información útil del objeto
+      const tipsArray: string[] = [];
+      const tipsObj = normalized.result.study_tips;
+      
+      if (tipsObj.tecnicas_recomendadas && Array.isArray(tipsObj.tecnicas_recomendadas)) {
+        tipsArray.push(...tipsObj.tecnicas_recomendadas.map((t: any) => 
+          typeof t === 'string' ? t : t.tecnica || t.descripcion || ''
+        ));
+      }
+      if (tipsObj.puntos_criticos && Array.isArray(tipsObj.puntos_criticos)) {
+        tipsArray.push(...tipsObj.puntos_criticos);
+      }
+      if (tipsArray.length === 0) {
+        // Si no se pudo extraer, usar valores del objeto como strings
+        tipsArray.push(...Object.values(tipsObj).filter(v => typeof v === 'string') as string[]);
+      }
+      
+      normalized.result.study_tips = tipsArray.length > 0 ? tipsArray : ['Revisa el contenido del documento'];
+    } else if (!Array.isArray(normalized.result.study_tips)) {
+      normalized.result.study_tips = [];
+    }
+  }
+
+  // Asegurar que summary tenga key_points si falta
+  if (normalized.result.summary && !normalized.result.summary.key_points) {
+    normalized.result.summary.key_points = [];
+  }
+
+  // Asegurar que metadata tenga fuentes si falta
+  if (normalized.result.metadata && !normalized.result.metadata.fuentes) {
+    normalized.result.metadata.fuentes = [];
+  }
+
+  return normalized;
+}
+
+/**
  * Valida y parsea respuesta JSON de la IA
  */
 function parseAIResponse(content: string): GenerateQuizResponse {
@@ -193,16 +316,21 @@ function parseAIResponse(content: string): GenerateQuizResponse {
   let trimmedContent = content.trim();
   
   // Log en desarrollo para debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[DEBUG] Raw response length:', trimmedContent.length);
-    console.log('[DEBUG] Response preview (first 500 chars):', trimmedContent.substring(0, 500));
-    console.log('[DEBUG] Response preview (last 500 chars):', trimmedContent.substring(Math.max(0, trimmedContent.length - 500)));
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AI_RESPONSES === 'true') {
+    logger.debug('Raw AI response received', {
+      length: trimmedContent.length,
+      preview: trimmedContent.substring(0, 1000),
+      endsWith: trimmedContent.substring(Math.max(0, trimmedContent.length - 100))
+    }, 'AI_CLIENT');
   }
   
-  // Remover posibles caracteres de markdown
+  // Remover posibles caracteres de markdown (más patrones)
   trimmedContent = trimmedContent
     .replace(/^```json?\s*/i, '')
+    .replace(/^```\s*/i, '')
     .replace(/\s*```\s*$/i, '')
+    .replace(/^```\s*$/i, '')
+    .replace(/^json\s*/i, '')
     .trim();
   
   // Verificar si la respuesta parece truncada
@@ -212,32 +340,54 @@ function parseAIResponse(content: string): GenerateQuizResponse {
                            trimmedContent.endsWith('"');
   
   if (!endsWithValidChar) {
-    console.warn('[WARN] Response appears truncated, will attempt to repair...');
+    logger.warn('Response appears truncated, will attempt to repair', {
+      lastChars: trimmedContent.substring(Math.max(0, trimmedContent.length - 50))
+    }, 'AI_CLIENT');
   }
+
+  let parsed: any;
 
   // Intentar parsear directamente
   try {
-    return JSON.parse(trimmedContent) as GenerateQuizResponse;
+    parsed = JSON.parse(trimmedContent);
   } catch (firstError) {
-    console.warn('[WARN] First parse attempt failed:', firstError instanceof Error ? firstError.message : String(firstError));
+    logger.warn('First parse attempt failed, attempting repair', {
+      error: firstError instanceof Error ? firstError.message : String(firstError)
+    }, 'AI_CLIENT');
     
     // Intentar reparar el JSON usando jsonrepair
     try {
-      console.log('[DEBUG] Attempting to repair JSON...');
       const repaired = jsonrepair(trimmedContent);
-      console.log('[DEBUG] JSON repair successful, attempting to parse...');
-      return JSON.parse(repaired) as GenerateQuizResponse;
+      parsed = JSON.parse(repaired);
+      logger.info('JSON repair successful', {}, 'AI_CLIENT');
     } catch (repairError) {
-      // Log del error en desarrollo
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[ERROR] Failed to parse even after repair');
-        console.error('[ERROR] Repair error:', repairError instanceof Error ? repairError.message : String(repairError));
-        console.error('[ERROR] Original error:', firstError instanceof Error ? firstError.message : String(firstError));
-      }
+      // Log del error
+      logger.error('Failed to parse JSON even after repair', {
+        repairError: repairError instanceof Error ? repairError.message : String(repairError),
+        originalError: firstError instanceof Error ? firstError.message : String(firstError),
+        contentPreview: trimmedContent.substring(0, 500)
+      }, 'AI_CLIENT');
       
       throw new Error(`Error parseando JSON: ${firstError instanceof Error ? firstError.message : String(firstError)}`);
     }
   }
+
+  // Normalizar estructura y tipos
+  const normalized = normalizeResponseTypes(normalizeQuizResponse(parsed));
+
+  // Log de estructura normalizada en desarrollo
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AI_RESPONSES === 'true') {
+    logger.debug('Response structure after normalization', {
+      hasResult: !!normalized.result,
+      hasQuiz: !!normalized.result?.quiz,
+      hasMetadata: !!normalized.result?.metadata,
+      hasSummary: !!normalized.result?.summary,
+      preguntasCount: normalized.result?.quiz?.preguntas?.length || 0,
+      structure: Object.keys(normalized)
+    }, 'AI_CLIENT');
+  }
+
+  return normalized;
 }
 
 /**
@@ -437,7 +587,51 @@ export async function generateQuizWithGemini(
     }, 'AI_CLIENT');
     
     const prompt = `${SYSTEM_PROMPT}\n\n${userPrompt}`;
-    const result = await geminiModel.generateContent(prompt);
+    let result;
+    try {
+      result = await geminiModel.generateContent(prompt);
+    } catch (genError: any) {
+      // Detectar errores de autenticación antes de procesar la respuesta
+      const errorMsg = genError?.message || String(genError);
+      const errorCode = genError?.code || genError?.status || '';
+      const errorStatus = genError?.status || genError?.statusCode || '';
+      
+      logger.error('Gemini API call failed', {
+        error: errorMsg,
+        code: errorCode,
+        status: errorStatus,
+        fullError: process.env.DEBUG_AI_RESPONSES === 'true' ? JSON.stringify(genError, null, 2) : undefined
+      }, 'AI_CLIENT');
+      
+      // Detectar errores de API key
+      if (
+        errorMsg.includes('API key') ||
+        errorMsg.includes('API_KEY') ||
+        errorMsg.includes('API key not valid') ||
+        errorMsg.includes('API_KEY_INVALID') ||
+        errorMsg.includes('invalid API key') ||
+        errorMsg.includes('authentication') ||
+        errorCode === 401 ||
+        errorCode === 'UNAUTHENTICATED' ||
+        errorStatus === 401
+      ) {
+        throw new Error('API_KEY_INVALID: La API key de Gemini no es válida. Verifica tu configuración.');
+      }
+      
+      // Detectar errores de cuota
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('RESOURCE_EXHAUSTED') ||
+        errorMsg.includes('rate limit') ||
+        errorCode === 429 ||
+        errorCode === 'RESOURCE_EXHAUSTED'
+      ) {
+        throw new Error('RESOURCE_EXHAUSTED: Se ha excedido la cuota de la API de Gemini.');
+      }
+      
+      // Re-lanzar otros errores
+      throw genError;
+    }
     
     const response = await result.response;
     
@@ -453,6 +647,13 @@ export async function generateQuizWithGemini(
           throw new Error('Gemini bloqueó la respuesta por razones de seguridad. Intenta con otro documento.');
         }
       }
+      
+      // Verificar si hay errores en la respuesta (puede haber errores sin finishReason)
+      const promptFeedback = result.response?.promptFeedback;
+      if (promptFeedback?.blockReason) {
+        throw new Error(`Gemini bloqueó la solicitud: ${promptFeedback.blockReason}`);
+      }
+      
       throw new Error('Respuesta vacía o incompleta de Gemini');
     }
     
@@ -462,27 +663,81 @@ export async function generateQuizWithGemini(
       throw new Error('Respuesta vacía de Gemini');
     }
 
-    // Log condicional para debugging de desarrollo únicamente
-    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AI_RESPONSES === 'true') {
-      console.log('Gemini response length:', content.length);
-      console.log('Gemini model used:', actualModel);
+    // Log detallado de respuesta cruda de Gemini
+    logger.info('Gemini response received', {
+      model: actualModel,
+      responseLength: content.length,
+      preview: content.substring(0, 1000),
+      endsWith: content.substring(Math.max(0, content.length - 100)),
+      finishReason: result.response?.candidates?.[0]?.finishReason
+    }, 'AI_CLIENT');
+
+    // Log adicional en modo debug
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AI_RESPONSES === 'true') {
+      logger.debug('Gemini raw response details', {
+        fullLength: content.length,
+        first500: content.substring(0, 500),
+        last500: content.substring(Math.max(0, content.length - 500)),
+        structure: content.trim().startsWith('{') ? 'JSON object' : 'Other format'
+      }, 'AI_CLIENT');
     }
 
-    return parseAIResponse(content);
+    const parsedResponse = parseAIResponse(content);
+
+    // Log de respuesta parseada antes de validar
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AI_RESPONSES === 'true') {
+      logger.debug('Gemini response after parsing', {
+        hasResult: !!parsedResponse.result,
+        hasError: !!parsedResponse.error,
+        hasQuiz: !!parsedResponse.result?.quiz,
+        preguntasCount: parsedResponse.result?.quiz?.preguntas?.length || 0,
+        hasMetadata: !!parsedResponse.result?.metadata,
+        hasSummary: !!parsedResponse.result?.summary
+      }, 'AI_CLIENT');
+    }
+
+    return parsedResponse;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     
-    // Detectar errores específicos de Gemini
-    if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+    // Log detallado del error
+    logger.error('Error in generateQuizWithGemini', {
+      error: errorMessage,
+      stack: errorStack,
+      errorType: error?.constructor?.name,
+      fullError: process.env.DEBUG_AI_RESPONSES === 'true' ? JSON.stringify(error, null, 2) : undefined
+    }, 'AI_CLIENT');
+    
+    // Detectar errores específicos de Gemini - API Key
+    if (
+      errorMessage.includes('API_KEY_INVALID') ||
+      errorMessage.includes('API key not valid') ||
+      errorMessage.includes('invalid API key') ||
+      errorMessage.includes('API key') && errorMessage.includes('no es válida')
+    ) {
+      logger.error('Gemini API key validation failed', {
+        error: errorMessage
+      }, 'AI_CLIENT');
+      
       return {
         error: {
-          message: 'La API key de Gemini no es válida. Verifica tu configuración.',
+          message: 'La API key de Gemini no es válida. Verifica tu configuración en las variables de entorno (GEMINI_API_KEY).',
           where: 'generateQuizWithGemini'
         }
       };
     }
     
-    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
+    // Detectar errores de cuota
+    if (
+      errorMessage.includes('RESOURCE_EXHAUSTED') ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('rate limit')
+    ) {
+      logger.warn('Gemini quota exhausted', {
+        error: errorMessage
+      }, 'AI_CLIENT');
+      
       return {
         error: {
           message: 'Se ha excedido la cuota de la API de Gemini. Intenta más tarde o reduce el tamaño del documento.',
@@ -492,10 +747,12 @@ export async function generateQuizWithGemini(
     }
     
     // Mejorar mensaje de error para context_length_exceeded
-    if (errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
-        errorMessage.includes('reduce the length') ||
-        errorMessage.includes('context_length_exceeded') ||
-        errorMessage.includes('MAX_TOKENS')) {
+    if (
+      errorMessage.includes('CONTEXT_LENGTH_EXCEEDED') || 
+      errorMessage.includes('reduce the length') ||
+      errorMessage.includes('context_length_exceeded') ||
+      errorMessage.includes('MAX_TOKENS')
+    ) {
       return {
         error: {
           message: 'CONTEXT_LENGTH_EXCEEDED: El documento es demasiado extenso. Divide el documento en partes más pequeñas o reduce el número de preguntas.',
@@ -504,10 +761,10 @@ export async function generateQuizWithGemini(
       };
     }
     
-    console.error('Error generando quiz con Gemini:', error);
+    // Error genérico
     return {
       error: {
-        message: errorMessage,
+        message: `Error de Gemini: ${errorMessage}`,
         where: 'generateQuizWithGemini'
       }
     };
@@ -628,6 +885,18 @@ export async function generateQuiz(
  * Valida la respuesta del AI y la reformatea si es necesario
  */
 export function validateAndFixQuizResponse(response: GenerateQuizResponse): GenerateQuizResponse {
+  // Log de entrada para debugging
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AI_RESPONSES === 'true') {
+    logger.debug('Starting quiz response validation', {
+      hasResult: !!response.result,
+      hasQuiz: !!response.result?.quiz,
+      hasMetadata: !!response.result?.metadata,
+      hasSummary: !!response.result?.summary,
+      preguntasCount: response.result?.quiz?.preguntas?.length || 0,
+      structure: Object.keys(response)
+    }, 'AI_CLIENT');
+  }
+
   // Función auxiliar para validar pregunta individual
   const validatePregunta = (pregunta: any, index: number): { valid: boolean; errors: string[]; fixed?: any } => {
     const errors: string[] = [];
@@ -647,6 +916,39 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     
     if (pregunta.respuesta_correcta === undefined || pregunta.respuesta_correcta === null) {
       errors.push(`Pregunta ${index + 1}: respuesta correcta faltante`);
+    } else {
+      // Normalizar respuesta_correcta según tipo de pregunta
+      if (pregunta.tipo === 'verdadero_falso') {
+        // Asegurar que sea boolean
+        if (typeof pregunta.respuesta_correcta === 'string') {
+          const lower = pregunta.respuesta_correcta.toLowerCase().trim();
+          if (lower === 'true' || lower === 'verdadero' || lower === '1' || lower === 'yes') {
+            fixed.respuesta_correcta = true;
+          } else if (lower === 'false' || lower === 'falso' || lower === '0' || lower === 'no') {
+            fixed.respuesta_correcta = false;
+          } else {
+            // Intentar convertir a boolean
+            fixed.respuesta_correcta = Boolean(pregunta.respuesta_correcta);
+          }
+        } else if (typeof pregunta.respuesta_correcta !== 'boolean') {
+          fixed.respuesta_correcta = Boolean(pregunta.respuesta_correcta);
+        }
+      } else if (pregunta.tipo === 'opcion_multiple' || pregunta.tipo === 'respuesta_corta') {
+        // Asegurar que sea string
+        if (typeof pregunta.respuesta_correcta !== 'string') {
+          fixed.respuesta_correcta = String(pregunta.respuesta_correcta);
+        }
+      }
+    }
+    
+    // Normalizar dificultad si falta o es inválida
+    if (!fixed.dificultad || !['baja', 'media', 'alta'].includes(fixed.dificultad)) {
+      fixed.dificultad = 'media';
+    }
+    
+    // Normalizar etiquetas si falta
+    if (!Array.isArray(fixed.etiquetas)) {
+      fixed.etiquetas = [];
     }
     
     // Corregir explicación faltante automáticamente
@@ -693,7 +995,43 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
         titulo: 'Quiz generado',
         idioma: 'es',
         nivel: 'medio',
-        generado_en: new Date().toISOString()
+        generado_en: new Date().toISOString(),
+        fuentes: []
+      };
+    } else {
+      // Asegurar que fuentes exista
+      if (!response.result.metadata.fuentes) {
+        response.result.metadata.fuentes = [];
+      }
+    }
+    
+    // Normalizar study_tips si es necesario
+    if (response.result.study_tips) {
+      if (typeof response.result.study_tips === 'object' && !Array.isArray(response.result.study_tips)) {
+        // Ya está normalizado en parseAIResponse, pero por si acaso
+        const tipsObj = response.result.study_tips;
+        const tipsArray: string[] = [];
+        if (tipsObj.tecnicas_recomendadas && Array.isArray(tipsObj.tecnicas_recomendadas)) {
+          tipsArray.push(...tipsObj.tecnicas_recomendadas.map((t: any) => 
+            typeof t === 'string' ? t : t.tecnica || t.descripcion || ''
+          ));
+        }
+        if (tipsObj.puntos_criticos && Array.isArray(tipsObj.puntos_criticos)) {
+          tipsArray.push(...tipsObj.puntos_criticos);
+        }
+        response.result.study_tips = tipsArray.length > 0 ? tipsArray : ['Revisa el contenido del documento'];
+      } else if (!Array.isArray(response.result.study_tips)) {
+        response.result.study_tips = [];
+      }
+    } else {
+      response.result.study_tips = [];
+    }
+    
+    // Asegurar que notes exista
+    if (!response.result.notes) {
+      response.result.notes = {
+        insuficiente_evidencia: false,
+        detalle: ''
       };
     }
     
@@ -701,11 +1039,17 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
       // Crear summary por defecto
       response.result.summary = {
         overview: 'Resumen generado automáticamente del contenido.',
+        key_points: [],
         sections: [],
         glosario: [],
         formulas_o_tablas: [],
         ejemplos_clave: []
       };
+    } else {
+      // Asegurar que key_points exista
+      if (!response.result.summary.key_points) {
+        response.result.summary.key_points = [];
+      }
     }
     
     if (!response.result.quiz) {
@@ -890,10 +1234,18 @@ export function validateAndFixQuizResponse(response: GenerateQuizResponse): Gene
     return fixedResponse;
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    logger.error('Error during quiz validation', {
+      error: errorMessage,
+      hasResult: !!response.result,
+      structure: Object.keys(response)
+    }, 'AI_CLIENT');
+    
     return {
       ...response,
       error: {
-        message: `Error durante validación: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        message: `Error durante validación: ${errorMessage}`,
         where: 'validateAndFixQuizResponse'
       }
     };

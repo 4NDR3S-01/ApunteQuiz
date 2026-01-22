@@ -33,7 +33,9 @@ export const GenerateQuizRequestSchema = z.object({
   idioma: z.string().min(1),
   nivel: z.enum(['secundaria', 'universidad', 'profesional']),
   n_preguntas: z.number().min(1).max(100),
-  n_preguntas_recomendadas: z.number().min(1).max(100).optional(), // Número óptimo calculado por el frontend
+  n_preguntas_recomendadas: z.number().min(1).max(100).optional(), // Número óptimo calculado por el frontend (DEPRECATED)
+  n_preguntas_min_recomendadas: z.number().min(1).max(100).optional(), // Mínimo recomendado (rango conservador)
+  n_preguntas_max_recomendadas: z.number().min(1).max(100).optional(), // Máximo recomendado (rango equilibrado)
   tipos_permitidos: z.array(z.enum(['opcion_multiple', 'respuesta_corta', 'verdadero_falso'])).min(1),
   proporcion_tipos: z.object({
     opcion_multiple: z.number().min(0).max(1),

@@ -8,8 +8,9 @@ IMPORTANTE: DEBES generar SIEMPRE ambas secciones (resumen Y quiz) en tu respues
 Reglas estrictas:
 - Usa EXCLUSIVAMENTE el contenido del contexto proporcionado (chunks/páginas). No inventes ni agregues conocimiento externo.
 - Mantén precisión factual. Si no hay evidencia suficiente para cubrir un punto o una pregunta, omítelo.
-- **CRÍTICO**: Debes generar EXACTAMENTE el número de preguntas solicitadas por el usuario (n_preguntas). Es obligatorio alcanzar este número.
-- Si el contenido parece limitado, genera preguntas sobre diferentes aspectos: definiciones, conceptos, ejemplos, aplicaciones, ventajas/desventajas, etc.
+- **CRÍTICO**: Debes generar el número de preguntas solicitadas por el usuario (n_preguntas) cuando sea posible.
+- **OBJETIVO PRIORITARIO**: Si se proporciona un rango recomendado (min_recommended_questions y max_recommended_questions), tu objetivo principal es alcanzar el máximo recomendado (max_recommended_questions). Solo usa el mínimo como último recurso.
+- Si el contenido parece limitado, genera preguntas sobre diferentes aspectos: definiciones, conceptos, ejemplos, aplicaciones, ventajas/desventajas, comparaciones, relaciones causa-efecto, etc.
 - Cita siempre el/los fragmentos de origen por id de chunk y número de página (si existe).
 - Para opción múltiple debe haber EXACTAMENTE una respuesta correcta y distractores plausibles (evita "Todas/Ninguna de las anteriores").
 - Para preguntas de verdadero/falso, la respuesta_correcta debe ser EXACTAMENTE true o false (booleanos, no strings).

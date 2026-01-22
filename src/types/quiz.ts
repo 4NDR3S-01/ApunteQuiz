@@ -18,7 +18,9 @@ export interface GenerateQuizRequest {
   idioma: string;
   nivel: 'secundaria' | 'universidad' | 'profesional';
   n_preguntas: number;
-  n_preguntas_recomendadas?: number; // Número óptimo calculado según el contenido
+  n_preguntas_recomendadas?: number; // Número óptimo calculado según el contenido (DEPRECATED - usar min/max)
+  n_preguntas_min_recomendadas?: number; // Mínimo recomendado (rango conservador)
+  n_preguntas_max_recomendadas?: number; // Máximo recomendado (rango equilibrado)
   tipos_permitidos: ('opcion_multiple' | 'respuesta_corta' | 'verdadero_falso')[];
   proporcion_tipos: {
     opcion_multiple: number;

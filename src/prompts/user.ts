@@ -8,7 +8,9 @@ export interface UserPromptParams {
   temas_prioritarios: string[];
   documents: Document[];
   titulo_quiz_o_tema: string;
-  recommended_questions?: number; // Número recomendado basado en el contenido
+  recommended_questions?: number; // Número recomendado basado en el contenido (DEPRECATED)
+  min_recommended_questions?: number; // Mínimo recomendado (rango conservador)
+  max_recommended_questions?: number; // Máximo recomendado (rango equilibrado) - OBJETIVO A ALCANZAR
 }
 
 export interface Document {
@@ -36,18 +38,39 @@ export const createUserPrompt = (params: UserPromptParams): string => {
     temas_prioritarios,
     documents,
     titulo_quiz_o_tema,
-    recommended_questions
+    recommended_questions, // DEPRECATED - mantener para compatibilidad
+    min_recommended_questions,
+    max_recommended_questions
   } = params;
 
   const now = new Date().toISOString();
   const temas_prioritarios_json = JSON.stringify(temas_prioritarios);
   
+  // Calcular palabras para el mensaje
+  const wordsCount = documents.reduce((acc, doc) => {
+    const text = doc.text || (doc.pages || []).map(p => p.text).join(' ');
+    return acc + text.split(/\s+/).filter(w => w.length > 0).length;
+  }, 0);
+  
+  // Usar nuevo sistema de min/max si está disponible, sino usar el deprecated
+  const minRecommended = min_recommended_questions ?? recommended_questions;
+  const maxRecommended = max_recommended_questions ?? recommended_questions;
+  
   // Generar nota sobre recomendación si aplica
-  const recommendationNote = recommended_questions && recommended_questions < n_preguntas
-    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${documents.reduce((acc, doc) => {
-        const text = doc.text || (doc.pages || []).map(p => p.text).join(' ');
-        return acc + text.split(/\\s+/).filter(w => w.length > 0).length;
-      }, 0)} palabras), se recomienda ${recommended_questions} preguntas para mantener la calidad.
+  const recommendationNote = (minRecommended && maxRecommended && n_preguntas > maxRecommended)
+    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${wordsCount} palabras), el rango recomendado es de ${minRecommended} a ${maxRecommended} preguntas para mantener la calidad.
+
+INSTRUCCIÓN CRÍTICA - ESTRATEGIA DE GENERACIÓN:
+1. OBJETIVO PRINCIPAL: Intenta generar ${maxRecommended} preguntas (máximo recomendado) explorando todos los aspectos del contenido
+2. MÍNIMO ACEPTABLE: Si no puedes alcanzar ${maxRecommended}, genera AL MENOS ${minRecommended} preguntas (mínimo recomendado)
+3. INTENTAR LO SOLICITADO: Si el contenido lo permite, intenta llegar a las ${n_preguntas} preguntas solicitadas
+4. PRIORIDAD: ${maxRecommended} preguntas > ${n_preguntas} preguntas > ${minRecommended} preguntas
+5. EXPLICACIÓN: Si generas menos de ${n_preguntas} preguntas, DEBES explicar en "notes.detalle" por qué no fue posible
+
+IMPORTANTE: NO te conformes con el mínimo (${minRecommended}). Intenta activamente llegar al máximo recomendado (${maxRecommended}) o lo más cerca posible.
+`
+    : (recommended_questions && recommended_questions < n_preguntas)
+    ? `\n⚠️ NOTA IMPORTANTE: El usuario solicitó ${n_preguntas} preguntas, pero basándose en el contenido del documento (${wordsCount} palabras), se recomienda ${recommended_questions} preguntas para mantener la calidad.
 
 INSTRUCCIÓN CRÍTICA:
 1. INTENTA generar las ${n_preguntas} preguntas solicitadas explorando todos los aspectos del contenido
